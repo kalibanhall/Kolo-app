@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-offset-2 transform hover:scale-105 shadow-lg;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-blue-500;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-800 hover:bg-gray-50 focus:ring-gray-500 shadow-md;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-white text-white hover:bg-white hover:text-purple-600 focus:ring-white;
+  }
+  
+  .card-gradient {
+    @apply bg-gradient-to-br from-white to-gray-50 shadow-2xl rounded-2xl;
+  }
+  
+  .prize-badge {
+    @apply bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white px-4 py-2 rounded-full font-bold shadow-lg;
+  }
+  
+  .stat-card {
+    @apply bg-gradient-to-br from-blue-500 to-purple-600 text-white p-6 rounded-xl shadow-xl transform hover:scale-105 transition-all duration-300;
+  }
+  
+  .glass-effect {
+    @apply bg-white bg-opacity-20 backdrop-blur-lg border border-white border-opacity-30 shadow-xl;
+  }
+  
+  .ticket-number {
+    @apply font-mono text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+  
+  .progress-bar {
+    @apply h-3 bg-gradient-to-r from-green-400 to-blue-500 rounded-full shadow-inner;
+  }
+  
+  .floating-animation {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  .glow-effect {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.5), 0 0 40px rgba(99, 102, 241, 0.3);
+  }
+  
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
+  .electric-pulse {
+    animation: electricPulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes electricPulse {
+    0%, 100% { 
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% { 
+      opacity: 0.85;
+      transform: scale(1.02);
+    }
+  }
+  
+  @keyframes grandPrixGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.5),
+                  0 0 40px rgba(251, 191, 36, 0.3),
+                  0 0 60px rgba(251, 191, 36, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(251, 191, 36, 0.8),
+                  0 0 60px rgba(251, 191, 36, 0.5),
+                  0 0 90px rgba(251, 191, 36, 0.3);
+    }
+  }
+  
+  .grand-prix-badge {
+    animation: grandPrixGlow 2s ease-in-out infinite;
+  }
+  
+  .charging-badge {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: rgba(0, 0, 0, 0.85);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+  }
+}
