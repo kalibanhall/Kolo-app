@@ -126,16 +126,6 @@ export const LoginPage = () => {
               </Link>
             </p>
           </div>
-
-          {/* Test Accounts */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center mb-2">Comptes de test :</p>
-            <div className="space-y-2 text-xs">
-              <div className="bg-gray-50 p-2 rounded">
-                <p className="font-semibold">Admin : admin@kolo.com / Admin@2025</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="mt-6 text-center">
