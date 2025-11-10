@@ -41,7 +41,6 @@ export const HomePage = () => {
               <LogoKolo size="medium" animated />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">KOLO</h1>
-                <p className="text-sm text-gray-600">Là où un ticket peut changer une vie</p>
               </div>
             </div>
 
