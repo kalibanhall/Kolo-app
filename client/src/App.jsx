@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -6,24 +6,30 @@ import { PublicRoute } from './components/PublicRoute';
 import { SplashScreen } from './components/SplashScreen';
 import { ScrollToTop } from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoadingSpinner from './components/LoadingSpinner';
 
-// Pages
+// Critical pages loaded immediately
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { UserDashboard } from './pages/UserDashboard';
-import { BuyTicketsPage } from './pages/BuyTicketsPage';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { ParticipantsPage } from './pages/ParticipantsPage';
-import DrawResultsPage from './pages/DrawResultsPage';
-import { CampaignsManagementPage } from './pages/CampaignsManagementPage';
 import { HomePage } from './pages/HomePage';
-import PendingPaymentsPage from './pages/PendingPaymentsPage';
-import UserProfilePage from './pages/UserProfilePage';
-import AboutPage from './pages/AboutPage';
-import VisionPage from './pages/VisionPage';
-import ContactPage from './pages/ContactPage';
-import CampaignDetailPage from './pages/CampaignDetailPage';
-import AdminActionsPage from './pages/AdminActionsPage';
+
+// Lazy-load non-critical pages
+const UserDashboard = lazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard })));
+const BuyTicketsPage = lazy(() => import('./pages/BuyTicketsPage').then(m => ({ default: m.BuyTicketsPage })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const ParticipantsPage = lazy(() => import('./pages/ParticipantsPage').then(m => ({ default: m.ParticipantsPage })));
+const DrawResultsPage = lazy(() => import('./pages/DrawResultsPage'));
+const CampaignsManagementPage = lazy(() => import('./pages/CampaignsManagementPage').then(m => ({ default: m.CampaignsManagementPage })));
+const PendingPaymentsPage = lazy(() => import('./pages/PendingPaymentsPage'));
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const VisionPage = lazy(() => import('./pages/VisionPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const CampaignDetailPage = lazy(() => import('./pages/CampaignDetailPage'));
+const AdminActionsPage = lazy(() => import('./pages/AdminActionsPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -61,15 +67,23 @@ function App() {
       <Router>
         <ScrollToTop />
         <AuthProvider>
-          <Routes>
-          {/* Public Routes - Accessible only by non-admin users */}
-          <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/about" element={<PublicRoute><AboutPage /></PublicRoute>} />
-          <Route path="/vision" element={<PublicRoute><VisionPage /></PublicRoute>} />
-          <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
-          <Route path="/campaigns/:id" element={<PublicRoute><CampaignDetailPage /></PublicRoute>} />
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+              <LoadingSpinner />
+            </div>
+          }>
+            <Routes>
+              {/* Public Routes - Accessible only by non-admin users */}
+              <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/vision" element={<VisionPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+          <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
 
           {/* User Routes (Protected - Users Only) */}
           <Route
@@ -149,7 +163,8 @@ function App() {
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </Router>
     </ErrorBoundary>

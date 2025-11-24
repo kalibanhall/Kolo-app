@@ -14,6 +14,9 @@ export const BuyTicketsPage = () => {
   const [phoneNumber, setPhoneNumber] = useState(''); // Store only digits without +243
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [selectionMode, setSelectionMode] = useState('automatic'); // 'automatic' or 'manual'
+  const [selectedNumbers, setSelectedNumbers] = useState([]);
+  const [generatedPreviews, setGeneratedPreviews] = useState([]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -35,6 +38,23 @@ export const BuyTicketsPage = () => {
       setPhoneNumber(cleanPhone);
     }
   }, [user]);
+
+  // Générer des aperçus de tickets
+  useEffect(() => {
+    if (ticketCount > 0) {
+      const previews = [];
+      for (let i = 0; i < ticketCount; i++) {
+        previews.push(generateTicketPreview());
+      }
+      setGeneratedPreviews(previews);
+    }
+  }, [ticketCount]);
+
+  const generateTicketPreview = () => {
+    const prefix = 'PREV';
+    const random1 = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `${prefix}-${random1}`;
+  };
 
   const loadCampaign = async () => {
     try {
@@ -58,8 +78,8 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (ticketCount < 1 || ticketCount > 10) {
-      setError('Vous pouvez acheter entre 1 et 10 tickets à la fois');
+    if (ticketCount < 1 || ticketCount > 5) {
+      setError('Vous pouvez acheter entre 1 et 5 tickets à la fois');
       return;
     }
 
@@ -155,7 +175,7 @@ export const BuyTicketsPage = () => {
               <p className="text-2xl font-bold">${campaign.ticket_price}</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <p className="text-blue-200 text-sm">Tickets restants</p>
+              <p className="text-blue-200 text-sm">Tickets disponibles</p>
               <p className="text-2xl font-bold">{availableTickets}</p>
             </div>
           </div>
@@ -178,18 +198,91 @@ export const BuyTicketsPage = () => {
           <form onSubmit={handlePurchase} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre de tickets (max 10)
+                Nombre de tickets (max 5)
               </label>
               <input
                 type="number"
                 value={ticketCount}
-                onChange={(e) => setTicketCount(parseInt(e.target.value))}
+                onChange={(e) => setTicketCount(parseInt(e.target.value) || 1)}
                 min="1"
-                max="10"
+                max="5"
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
               />
             </div>
+
+            {/* Mode de sélection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Mode de sélection
+              </label>
+              <div className="space-y-3">
+                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 bg-blue-50 border-blue-500">
+                  <input
+                    type="radio"
+                    name="selectionMode"
+                    value="automatic"
+                    checked={selectionMode === 'automatic'}
+                    onChange={(e) => setSelectionMode(e.target.value)}
+                    className="w-5 h-5 text-blue-600"
+                  />
+                  <div className="ml-3 flex-1">
+                    <span className="font-semibold text-gray-900">Sélection automatique (recommandé)</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Les numéros de tickets seront générés automatiquement de manière aléatoire
+                    </p>
+                  </div>
+                </label>
+                
+                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-gray-400 border-gray-300">
+                  <input
+                    type="radio"
+                    name="selectionMode"
+                    value="manual"
+                    checked={selectionMode === 'manual'}
+                    onChange={(e) => setSelectionMode(e.target.value)}
+                    className="w-5 h-5 text-blue-600"
+                  />
+                  <div className="ml-3 flex-1">
+                    <span className="font-semibold text-gray-900">Sélection manuelle</span>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Choisissez vous-même vos numéros de tickets parmi ceux disponibles
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Aperçu des tickets (générés après paiement) */}
+            {selectionMode === 'automatic' && generatedPreviews.length > 0 && (
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <TicketIcon className="w-5 h-5 mr-2 text-blue-600" />
+                  Aperçu des tickets (générés après paiement)
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {generatedPreviews.map((preview, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white px-3 py-2 rounded-md border border-blue-200 text-center font-mono text-sm text-blue-700 font-semibold"
+                    >
+                      {preview}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600 mt-3">
+                  🔒 Les numéros réels seront générés de manière sécurisée après confirmation du paiement
+                </p>
+              </div>
+            )}
+
+            {selectionMode === 'manual' && (
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <p className="text-sm text-gray-700">
+                  ℹ️ La sélection manuelle sera disponible prochainement. Pour l'instant, utilisez la sélection automatique.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -225,7 +318,7 @@ export const BuyTicketsPage = () => {
                 <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
               </div>
               <div className="border-t border-gray-300 pt-3 flex justify-between text-lg font-bold text-gray-900">
-                <span>Total à payer</span>
+                <span>Montant total :</span>
                 <span className="text-blue-600">${totalPrice.toFixed(2)}</span>
               </div>
             </div>

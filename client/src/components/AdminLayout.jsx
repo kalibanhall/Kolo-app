@@ -27,7 +27,7 @@ export const AdminLayout = ({ children }) => {
             <TrophyIcon className="w-8 h-8 text-yellow-400" />
             <div>
               <h1 className="text-xl font-bold">KOLO ADMIN</h1>
-              <p className="text-xs text-slate-400">Tombola 2025</p>
+              <p className="text-xs text-slate-400">Tombola</p>
             </div>
           </div>
         </div>

@@ -120,10 +120,7 @@ export const HomePage = () => {
         <section className="py-8 bg-gradient-to-b from-white to-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Campaign Card - Inspired by Major Lottery Sites */}
-            <Link 
-              to={`/campaigns/${campaign.id}`}
-              className="block bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 hover:shadow-3xl transition-all duration-300 transform hover:scale-[1.02]"
-            >
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
               {/* Hero Image Section */}
               <div className="relative h-80 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">
                 {campaign.image_url ? (
@@ -146,18 +143,26 @@ export const HomePage = () => {
                   <p className="text-sm font-semibold">GAGNEZ</p>
                   <p className="text-2xl font-bold">{campaign.main_prize}</p>
                 </div>
+              </div>
 
-                {/* Closing Date Badge */}
-                <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm text-gray-900 px-6 py-3 rounded-xl shadow-lg">
-                  <p className="text-xs font-semibold text-gray-600 uppercase">Clôture</p>
-                  <p className="text-lg font-bold text-red-600">
-                    {new Date(campaign.end_date).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
+              {/* CTA Button - Just below image */}
+              <div className="px-8 -mt-8 relative z-10">
+                {isAuthenticated() ? (
+                  <Link
+                    to="/buy"
+                    className="block w-full text-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-8 py-5 rounded-2xl text-xl transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
+                  >
+                    <TicketIcon className="inline-block w-7 h-7 mr-3" />
+                    <span>Acheter mes Tickets Maintenant</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/register"
+                    className="block w-full text-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold px-8 py-5 rounded-2xl text-xl transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
+                  >
+                    ✨ S'inscrire pour Participer
+                  </Link>
+                )}
               </div>
 
               {/* Campaign Details */}
@@ -168,70 +173,28 @@ export const HomePage = () => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                   <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 text-center border border-indigo-200">
                     <p className="text-sm text-indigo-600 font-semibold mb-1">Prix du Ticket</p>
                     <p className="text-3xl font-bold text-indigo-900">${campaign.ticket_price}</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center border border-green-200">
-                    <p className="text-sm text-green-600 font-semibold mb-1">Tickets Vendus</p>
+                    <p className="text-sm text-green-600 font-semibold mb-1">Tickets Achetés</p>
                     <p className="text-3xl font-bold text-green-900">{campaign.sold_tickets}</p>
                   </div>
                   
                   <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 text-center border border-orange-200">
-                    <p className="text-sm text-orange-600 font-semibold mb-1">Tickets Restants</p>
+                    <p className="text-sm text-orange-600 font-semibold mb-1">Tickets Disponibles</p>
                     <p className="text-3xl font-bold text-orange-900">{campaign.total_tickets - campaign.sold_tickets}</p>
                   </div>
-                  
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center border border-purple-200">
-                    <p className="text-sm text-purple-600 font-semibold mb-1">Taux de Remplissage</p>
-                    <p className="text-3xl font-bold text-purple-900">{occupationRate}%</p>
-                  </div>
                 </div>
 
-                {/* Progress Bar - Powerball Style */}
-                <div className="mb-8">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-semibold text-gray-700">Progression de la Campagne</span>
-                    <span className="text-sm font-bold text-indigo-600">{campaign.sold_tickets} / {campaign.total_tickets} tickets</span>
-                  </div>
-                  <div className="relative w-full bg-gray-200 rounded-full h-6 overflow-hidden shadow-inner">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 flex items-center justify-end pr-3"
-                      style={{ width: `${occupationRate}%` }}
-                    >
-                      {occupationRate > 10 && (
-                        <span className="text-xs font-bold text-white drop-shadow">{occupationRate}%</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA Button - Large and Prominent */}
-                <div className="text-center">
-                  {isAuthenticated() ? (
-                    <Link
-                      to="/buy"
-                      className="inline-flex items-center justify-center space-x-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-12 py-5 rounded-full text-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
-                    >
-                      <TicketIcon className="w-7 h-7" />
-                      <span>Acheter mes Tickets Maintenant</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/register"
-                      className="inline-flex items-center justify-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold px-12 py-5 rounded-full text-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
-                    >
-                      ✨ S'inscrire pour Participer
-                    </Link>
-                  )}
-                  <p className="mt-4 text-sm text-gray-500">
-                    🔒 Paiement sécurisé via Mobile Money
-                  </p>
-                </div>
+                <p className="text-center text-sm text-gray-500 mt-4">
+                  🔒 Paiement sécurisé via Mobile Money
+                </p>
               </div>
-            </Link>
+            </div>
           </div>
         </section>
       )}

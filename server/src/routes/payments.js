@@ -4,6 +4,9 @@ const { body, validationResult } = require('express-validator');
 const { query, transaction } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { generateTicketNumber, generateInvoiceNumber } = require('../utils/helpers');
+const { sendPurchaseConfirmation } = require('../services/emailService');
+const { generateInvoicePDF } = require('../services/pdfGenerator');
+const { sendPurchaseConfirmationSMS } = require('../services/africasTalking');
 const router = express.Router();
 
 // Get payment status by purchase ID
@@ -141,7 +144,7 @@ router.post('/webhook', async (req, res) => {
 
     // If payment successful, generate tickets
     if (payment_status === 'completed') {
-      await transaction(async (client) => {
+      const ticketData = await transaction(async (client) => {
         // Update purchase status
         await client.query(
           `UPDATE purchases 
@@ -211,7 +214,75 @@ router.post('/webhook', async (req, res) => {
 
         console.log(`✅ Successfully processed payment for purchase ${purchase.id}`);
         console.log(`Generated ${tickets.length} tickets:`, tickets.map(t => t.ticket_number));
+
+        // Return ticket data for later use
+        return { 
+          tickets, 
+          invoiceNumber,
+          ticketNumbers: tickets.map(t => t.ticket_number) 
+        };
       });
+
+      // Get user and campaign info for email
+      const purchaseDetailsResult = await query(
+        `SELECT p.*, u.name as user_name, u.email as user_email, 
+                c.title as campaign_title
+         FROM purchases p
+         JOIN users u ON p.user_id = u.id
+         JOIN campaigns c ON p.campaign_id = c.id
+         WHERE p.id = $1`,
+        [purchase.id]
+      );
+
+      const purchaseDetails = purchaseDetailsResult.rows[0];
+
+      // Generate PDF invoice
+      try {
+        console.log('📄 Generating invoice PDF...');
+        const pdfDoc = await generateInvoicePDF(purchase.id);
+        
+        // Convert PDF to buffer for email attachment
+        const pdfBuffer = await new Promise((resolve, reject) => {
+          const buffers = [];
+          pdfDoc.on('data', buffers.push.bind(buffers));
+          pdfDoc.on('end', () => resolve(Buffer.concat(buffers)));
+          pdfDoc.on('error', reject);
+          pdfDoc.end();
+        });
+
+        // Send confirmation email with PDF
+        console.log('📧 Sending purchase confirmation email...');
+        await sendPurchaseConfirmation({
+          to: purchaseDetails.user_email,
+          userName: purchaseDetails.user_name,
+          ticketCount: purchaseDetails.ticket_count,
+          ticketNumbers: ticketData.ticketNumbers,
+          totalAmount: purchaseDetails.total_amount,
+          campaignTitle: purchaseDetails.campaign_title,
+          pdfAttachment: pdfBuffer,
+          invoiceNumber: ticketData.invoiceNumber
+        });
+
+        console.log('✅ Email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending email or generating PDF:', emailError);
+        // Don't fail the whole process if email fails
+      }
+
+      // Send SMS confirmation
+      try {
+        console.log('📱 Sending SMS confirmation...');
+        await sendPurchaseConfirmationSMS(
+          purchaseDetails.phone_number,
+          purchaseDetails.user_name,
+          purchaseDetails.ticket_count,
+          ticketData.ticketNumbers
+        );
+        console.log('✅ SMS sent successfully');
+      } catch (smsError) {
+        console.error('❌ Error sending SMS:', smsError);
+        // Don't fail the whole process if SMS fails
+      }
 
       // Mark webhook as processed
       await query(

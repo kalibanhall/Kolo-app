@@ -134,7 +134,7 @@ export const CampaignDetailPage = () => {
                 <div className="flex items-center space-x-3">
                   <UsersIcon className="w-8 h-8 text-green-600" />
                   <div>
-                    <p className="text-sm text-gray-600">Tickets vendus</p>
+                    <p className="text-sm text-gray-600">Tickets achetés</p>
                     <p className="text-xl font-bold text-gray-900">{campaign.sold_tickets} / {campaign.total_tickets}</p>
                   </div>
                 </div>
@@ -143,8 +143,8 @@ export const CampaignDetailPage = () => {
               {/* Progress Bar */}
               <div className="mt-4">
                 <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Progression</span>
-                  <span>{occupationRate.toFixed(1)}%</span>
+                  <span>Progression de la Campagne</span>
+                  <span>{campaign.sold_tickets} / {campaign.total_tickets} tickets</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
@@ -153,26 +153,8 @@ export const CampaignDetailPage = () => {
                   />
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
-                  {availableTickets} tickets restants
+                  {availableTickets} tickets disponibles
                 </p>
-              </div>
-            </div>
-
-            {/* Dates */}
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dates importantes</h3>
-              <div className="space-y-2">
-                <p className="text-gray-700">
-                  <span className="font-medium">Début :</span> {new Date(campaign.start_date).toLocaleDateString('fr-FR')}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-medium">Fin :</span> {new Date(campaign.end_date).toLocaleDateString('fr-FR')}
-                </p>
-                {campaign.draw_date && (
-                  <p className="text-gray-700">
-                    <span className="font-medium">Tirage :</span> {new Date(campaign.draw_date).toLocaleDateString('fr-FR')}
-                  </p>
-                )}
               </div>
             </div>
 

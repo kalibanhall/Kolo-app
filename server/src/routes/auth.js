@@ -1,9 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { validatePhoneNumber, normalizePhoneNumber } = require('../utils/helpers');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 const router = express.Router();
 
 // Register new user
@@ -61,6 +63,30 @@ router.post('/register', [
     );
 
     const user = result.rows[0];
+
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Store verification token
+    await query(
+      `INSERT INTO email_verification_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)`,
+      [user.id, verificationToken, expiresAt]
+    );
+
+    // Send verification email
+    try {
+      await sendVerificationEmail({
+        to: user.email,
+        userName: user.name,
+        verificationToken
+      });
+      console.log('✅ Verification email sent to', user.email);
+    } catch (emailError) {
+      console.error('❌ Error sending verification email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     // Generate JWT
     const token = jwt.sign(
@@ -240,6 +266,260 @@ router.get('/verify', async (req, res) => {
     }
 
     console.error('Token verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Verify email
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Find token
+    const tokenResult = await query(
+      `SELECT * FROM email_verification_tokens 
+       WHERE token = $1 AND used = false AND expires_at > CURRENT_TIMESTAMP`,
+      [token]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification token'
+      });
+    }
+
+    const verificationToken = tokenResult.rows[0];
+
+    // Mark email as verified
+    await query(
+      'UPDATE users SET email_verified = true WHERE id = $1',
+      [verificationToken.user_id]
+    );
+
+    // Mark token as used
+    await query(
+      'UPDATE email_verification_tokens SET used = true WHERE id = $1',
+      [verificationToken.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully'
+    });
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email'
+      });
+    }
+
+    const { email } = req.body;
+
+    // Find user
+    const userResult = await query(
+      'SELECT id, name, email, email_verified FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified'
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Invalidate old tokens
+    await query(
+      'UPDATE email_verification_tokens SET used = true WHERE user_id = $1',
+      [user.id]
+    );
+
+    // Store new token
+    await query(
+      `INSERT INTO email_verification_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)`,
+      [user.id, verificationToken, expiresAt]
+    );
+
+    // Send verification email
+    await sendVerificationEmail({
+      to: user.email,
+      userName: user.name,
+      verificationToken
+    });
+
+    res.json({
+      success: true,
+      message: 'Verification email sent'
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Forgot password - Send reset email
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email'
+      });
+    }
+
+    const { email } = req.body;
+
+    // Find user
+    const userResult = await query(
+      'SELECT id, name, email FROM users WHERE email = $1',
+      [email]
+    );
+
+    // Always return success even if user doesn't exist (security)
+    if (userResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'If an account exists, a password reset email has been sent'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Invalidate old tokens
+    await query(
+      'UPDATE password_reset_tokens SET used = true WHERE user_id = $1',
+      [user.id]
+    );
+
+    // Store reset token
+    await query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)`,
+      [user.id, resetToken, expiresAt]
+    );
+
+    // Send reset email
+    await sendPasswordResetEmail({
+      to: user.email,
+      userName: user.name,
+      resetToken
+    });
+
+    res.json({
+      success: true,
+      message: 'If an account exists, a password reset email has been sent'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Reset password
+router.post('/reset-password', [
+  body('token').notEmpty(),
+  body('password').isLength({ min: 6 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { token, password } = req.body;
+
+    // Find token
+    const tokenResult = await query(
+      `SELECT * FROM password_reset_tokens 
+       WHERE token = $1 AND used = false AND expires_at > CURRENT_TIMESTAMP`,
+      [token]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    const resetToken = tokenResult.rows[0];
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    // Update password
+    await query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [passwordHash, resetToken.user_id]
+    );
+
+    // Mark token as used
+    await query(
+      'UPDATE password_reset_tokens SET used = true WHERE id = $1',
+      [resetToken.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

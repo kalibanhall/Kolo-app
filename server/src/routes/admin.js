@@ -4,6 +4,8 @@ const { query, transaction } = require('../config/database');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { logAdminAction } = require('../utils/logger');
 const { selectRandomWinners } = require('../utils/helpers');
+const { sendWinnerNotificationSMS } = require('../services/africasTalking');
+const { sendWinnerNotification } = require('../services/emailService');
 const router = express.Router();
 
 // All admin routes require authentication and admin role
@@ -275,7 +277,50 @@ router.post('/draw', [
           })
         ]
       );
+
+      // Return winner data for notifications
+      return { mainWinner, bonusWinners: bonus_winners_count };
     });
+
+    // Send notifications to winners (email + SMS)
+    try {
+      // Get winner details with phone and email
+      const winnerDetailsResult = await query(
+        `SELECT t.ticket_number, u.name, u.email, u.phone, c.title as campaign_title, c.main_prize
+         FROM tickets t
+         JOIN users u ON t.user_id = u.id
+         JOIN campaigns c ON t.campaign_id = c.id
+         WHERE t.id = $1`,
+        [winnerData.mainWinner.id]
+      );
+
+      const winnerDetails = winnerDetailsResult.rows[0];
+
+      // Send email to main winner
+      console.log('📧 Sending winner notification email...');
+      await sendWinnerNotification({
+        to: winnerDetails.email,
+        userName: winnerDetails.name,
+        prize: winnerDetails.main_prize,
+        ticketNumber: winnerDetails.ticket_number,
+        campaignTitle: winnerDetails.campaign_title
+      });
+      console.log('✅ Winner email sent');
+
+      // Send SMS to main winner
+      console.log('📱 Sending winner notification SMS...');
+      await sendWinnerNotificationSMS(
+        winnerDetails.phone,
+        winnerDetails.name,
+        winnerDetails.main_prize,
+        winnerDetails.ticket_number
+      );
+      console.log('✅ Winner SMS sent');
+
+    } catch (notificationError) {
+      console.error('❌ Error sending winner notifications:', notificationError);
+      // Don't fail the draw if notifications fail
+    }
 
     res.json({
       success: true,

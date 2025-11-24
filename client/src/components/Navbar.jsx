@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogoKolo } from './LogoKolo';
+import { NotificationBell } from './NotificationBell';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -58,6 +59,9 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3">
+                {/* Notification Bell */}
+                <NotificationBell />
+                
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center space-x-2 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition relative"

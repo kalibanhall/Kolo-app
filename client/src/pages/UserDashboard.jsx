@@ -53,7 +53,7 @@ export const UserDashboard = () => {
               <LogoKolo size="medium" animated />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">KOLO</h1>
-                <p className="text-sm text-gray-600">Tombola 2025</p>
+                <p className="text-sm text-gray-600">Tombola</p>
               </div>
             </div>
             

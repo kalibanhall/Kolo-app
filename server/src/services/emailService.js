@@ -195,7 +195,146 @@ async function sendWinnerNotification(options) {
   }
 }
 
+/**
+ * Envoie un email de vérification
+ * @param {object} options - Options d'envoi
+ */
+async function sendVerificationEmail(options) {
+  const { to, userName, verificationToken } = options;
+
+  const transporter = createTransporter();
+  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+
+  const mailOptions = {
+    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+    to,
+    subject: '✉️ Vérifiez votre adresse email - KOLO',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: #4f46e5; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>✉️ Vérification Email</h1>
+          </div>
+          <div class="content">
+            <p>Bonjour <strong>${userName}</strong>,</p>
+            <p>Merci de vous être inscrit sur KOLO ! Pour activer votre compte, veuillez vérifier votre adresse email.</p>
+            
+            <p style="text-align: center;">
+              <a href="${verificationUrl}" class="button">
+                Vérifier mon email
+              </a>
+            </p>
+
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur:<br>
+              <a href="${verificationUrl}" style="color: #4f46e5; word-break: break-all;">${verificationUrl}</a>
+            </p>
+
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+              Ce lien expire dans 24 heures.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Verification email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Verification email failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Envoie un email de réinitialisation de mot de passe
+ * @param {object} options - Options d'envoi
+ */
+async function sendPasswordResetEmail(options) {
+  const { to, userName, resetToken } = options;
+
+  const transporter = createTransporter();
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+
+  const mailOptions = {
+    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+    to,
+    subject: '🔐 Réinitialisation de mot de passe - KOLO',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #fef2f2; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: #ef4444; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+          .warning { background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 Réinitialisation Mot de Passe</h1>
+          </div>
+          <div class="content">
+            <p>Bonjour <strong>${userName}</strong>,</p>
+            <p>Vous avez demandé à réinitialiser votre mot de passe KOLO.</p>
+            
+            <p style="text-align: center;">
+              <a href="${resetUrl}" class="button">
+                Réinitialiser mon mot de passe
+              </a>
+            </p>
+
+            <div class="warning">
+              <strong>⚠️ Important:</strong> Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe actuel reste sécurisé.
+            </div>
+
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur:<br>
+              <a href="${resetUrl}" style="color: #ef4444; word-break: break-all;">${resetUrl}</a>
+            </p>
+
+            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
+              Ce lien expire dans 1 heure.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Password reset email failed:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   sendPurchaseConfirmation,
-  sendWinnerNotification
+  sendWinnerNotification,
+  sendVerificationEmail,
+  sendPasswordResetEmail
 };

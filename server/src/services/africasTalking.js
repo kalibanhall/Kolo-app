@@ -7,6 +7,7 @@ const africasTalking = AfricasTalking({
 });
 
 const payments = africasTalking.PAYMENTS;
+const sms = africasTalking.SMS;
 
 /**
  * Initiate mobile money payment
@@ -96,8 +97,75 @@ const simulatePayment = async (phoneNumber, amount) => {
   };
 };
 
+/**
+ * Send SMS notification
+ * @param {string} phoneNumber - Recipient phone number (with country code)
+ * @param {string} message - SMS message
+ * @returns {Promise} SMS response
+ */
+const sendSMS = async (phoneNumber, message) => {
+  try {
+    const options = {
+      to: [phoneNumber],
+      message: message,
+      from: process.env.AT_SENDER_ID || 'KOLO'
+    };
+
+    console.log('Sending SMS via Africa\'s Talking:', { to: phoneNumber, message });
+
+    const response = await sms.send(options);
+    
+    console.log('SMS response:', response);
+
+    return {
+      success: response.SMSMessageData.Recipients[0].status === 'Success',
+      messageId: response.SMSMessageData.Recipients[0].messageId,
+      status: response.SMSMessageData.Recipients[0].status,
+      cost: response.SMSMessageData.Recipients[0].cost
+    };
+
+  } catch (error) {
+    console.error('SMS sending error:', error);
+    
+    return {
+      success: false,
+      error: error.message || 'SMS sending failed',
+      details: error
+    };
+  }
+};
+
+/**
+ * Send purchase confirmation SMS
+ * @param {string} phoneNumber - Customer phone number
+ * @param {string} userName - Customer name
+ * @param {number} ticketCount - Number of tickets
+ * @param {array} ticketNumbers - Ticket numbers
+ * @returns {Promise} SMS response
+ */
+const sendPurchaseConfirmationSMS = async (phoneNumber, userName, ticketCount, ticketNumbers) => {
+  const message = `Bonjour ${userName}! Votre achat KOLO est confirme. ${ticketCount} ticket(s): ${ticketNumbers.join(', ')}. Bonne chance!`;
+  return await sendSMS(phoneNumber, message);
+};
+
+/**
+ * Send winner notification SMS
+ * @param {string} phoneNumber - Winner phone number
+ * @param {string} userName - Winner name
+ * @param {string} prize - Prize won
+ * @param {string} ticketNumber - Winning ticket number
+ * @returns {Promise} SMS response
+ */
+const sendWinnerNotificationSMS = async (phoneNumber, userName, prize, ticketNumber) => {
+  const message = `FELICITATIONS ${userName}! Vous avez gagne ${prize} avec le ticket ${ticketNumber}! Contactez-nous: +243841209627`;
+  return await sendSMS(phoneNumber, message);
+};
+
 module.exports = {
   initiateMobilePayment,
   queryPaymentStatus,
-  simulatePayment
+  simulatePayment,
+  sendSMS,
+  sendPurchaseConfirmationSMS,
+  sendWinnerNotificationSMS
 };

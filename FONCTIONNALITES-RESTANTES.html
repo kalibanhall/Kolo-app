@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOLO - Fonctionnalités Restantes à Implémenter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            border-left: 4px solid #4f46e5;
+            padding-left: 20px;
+        }
+
+        .section h2 {
+            color: #4f46e5;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .category:hover {
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .category h3 {
+            color: #1e293b;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .priority {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .priority-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .priority-medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .priority-low {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status-todo {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .status-partial {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .feature-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #4f46e5;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .feature-item .icon {
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
+        .feature-item .text {
+            flex: 1;
+        }
+
+        .feature-item .text strong {
+            color: #1e293b;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .feature-item .text p {
+            color: #64748b;
+            font-size: 0.95em;
+        }
+
+        .tech-stack {
+            background: #ede9fe;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .tech-stack h4 {
+            color: #6d28d9;
+            margin-bottom: 10px;
+        }
+
+        .tech-stack ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tech-stack li {
+            background: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #6d28d9;
+            font-weight: 500;
+        }
+
+        .implementation-notes {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+        }
+
+        .implementation-notes h4 {
+            color: #92400e;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .implementation-notes ul {
+            margin-left: 20px;
+            color: #78350f;
+        }
+
+        .implementation-notes li {
+            margin-bottom: 5px;
+        }
+
+        .summary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 40px;
+        }
+
+        .summary h3 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-card {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .summary-card .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .summary-card .label {
+            font-size: 0.95em;
+            opacity: 0.95;
+        }
+
+        .footer {
+            background: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 KOLO - Tombola Application</h1>
+            <p>Fonctionnalités Restantes à Implémenter</p>
+            <p style="font-size: 0.9em; margin-top: 10px; opacity: 0.9;">
+                Projet React + Node.js + PostgreSQL - Analyse complète
+            </p>
+        </div>
+
+        <div class="content">
+            <!-- Section 1: NOTIFICATIONS -->
+            <div class="section">
+                <h2>📬 NOTIFICATIONS SYSTÈME</h2>
+                
+                <div class="category">
+                    <h3>
+                        🔔 Système de Notifications en Temps Réel
+                        <span class="priority priority-high">HAUTE PRIORITÉ</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📧</span>
+                            <div class="text">
+                                <strong>Notifications Email</strong>
+                                <p><strong>État:</strong> Service créé (emailService.js) mais non utilisé dans le flux de paiement</p>
+                                <p><strong>À faire:</strong> Intégrer l'envoi d'email après confirmation de paiement dans le webhook</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">💬</span>
+                            <div class="text">
+                                <strong>Notifications SMS</strong>
+                                <p><strong>État:</strong> Africa's Talking API configurée mais SMS non implémenté</p>
+                                <p><strong>À faire:</strong> Envoyer SMS de confirmation après achat et notification aux gagnants</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🔴</span>
+                            <div class="text">
+                                <strong>Notifications In-App</strong>
+                                <p><strong>État:</strong> Table "notifications" existe en DB mais pas de composant React</p>
+                                <p><strong>À faire:</strong> Créer NotificationsPanel.jsx avec badge, liste déroulante, marquage lu/non-lu</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">⏰</span>
+                            <div class="text">
+                                <strong>Notifications Push (optionnel)</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Intégrer Firebase Cloud Messaging ou OneSignal</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="tech-stack">
+                        <h4>🛠️ Technologies recommandées</h4>
+                        <ul>
+                            <li>Nodemailer (Email)</li>
+                            <li>Africa's Talking SMS API</li>
+                            <li>Socket.io (Real-time)</li>
+                            <li>React Context + Polling</li>
+                            <li>Firebase Cloud Messaging (Push)</li>
+                        </ul>
+                    </div>
+
+                    <div class="implementation-notes">
+                        <h4>⚠️ Notes d'implémentation</h4>
+                        <ul>
+                            <li>Modifier <code>payments.js</code> webhook pour appeler <code>sendPurchaseConfirmation()</code></li>
+                            <li>Ajouter route API <code>GET /api/notifications</code> pour récupérer notifications utilisateur</li>
+                            <li>Créer composant <code>NotificationBell.jsx</code> dans Navbar avec compteur</li>
+                            <li>Implémenter <code>NotificationsContext.jsx</code> pour gérer l'état global</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: GESTION DES GAGNANTS -->
+            <div class="section">
+                <h2>🏆 GESTION DES GAGNANTS</h2>
+                
+                <div class="category">
+                    <h3>
+                        🎊 Annonce et Contact des Gagnants
+                        <span class="priority priority-high">HAUTE PRIORITÉ</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📢</span>
+                            <div class="text">
+                                <strong>Page d'Annonce des Résultats</strong>
+                                <p><strong>État:</strong> DrawResultsPage.jsx existe mais sans affichage détaillé des gagnants bonus</p>
+                                <p><strong>À faire:</strong> Afficher liste complète avec noms, emails, prix pour chaque gagnant bonus</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">✉️</span>
+                            <div class="text">
+                                <strong>Contact Automatique des Gagnants</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Envoyer email + SMS automatique aux gagnants après le tirage</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🎁</span>
+                            <div class="text">
+                                <strong>Page Profil Gagnant avec Statut de Prix</strong>
+                                <p><strong>État:</strong> UserProfilePage.jsx montre tickets gagnants mais sans statut de livraison</p>
+                                <p><strong>À faire:</strong> Ajouter table "prize_deliveries" et statuts (pending, contacted, delivered)</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📋</span>
+                            <div class="text">
+                                <strong>Admin: Gestion des Livraisons de Prix</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Créer PrizeDeliveriesPage.jsx (admin) pour suivre livraisons</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="implementation-notes">
+                        <h4>⚠️ Notes d'implémentation</h4>
+                        <ul>
+                            <li>Créer table <code>prize_deliveries</code> avec statut et notes de livraison</li>
+                            <li>Modifier route <code>POST /admin/draw</code> pour déclencher notifications automatiques</li>
+                            <li>Ajouter endpoint <code>PATCH /admin/prizes/:id/delivery-status</code></li>
+                            <li>Créer composant <code>WinnerContactModal.jsx</code> pour contact manuel</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: PAIEMENTS ET FACTURES -->
+            <div class="section">
+                <h2>💰 PAIEMENTS ET FACTURES</h2>
+                
+                <div class="category">
+                    <h3>
+                        🧾 Génération et Envoi de Factures
+                        <span class="priority priority-medium">PRIORITÉ MOYENNE</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📄</span>
+                            <div class="text">
+                                <strong>Génération PDF de Factures</strong>
+                                <p><strong>État:</strong> Service pdfGenerator.js existe mais non utilisé</p>
+                                <p><strong>À faire:</strong> Générer PDF après paiement et l'attacher à l'email de confirmation</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">💾</span>
+                            <div class="text">
+                                <strong>Stockage et Téléchargement de Factures</strong>
+                                <p><strong>État:</strong> Route GET /invoices/:id/pdf existe mais pas de stockage S3/Cloudinary</p>
+                                <p><strong>À faire:</strong> Uploader PDFs vers stockage cloud et sauvegarder URL en DB</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📥</span>
+                            <div class="text">
+                                <strong>Interface Utilisateur pour Télécharger Factures</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Ajouter section "Mes Factures" dans UserProfilePage.jsx</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="tech-stack">
+                        <h4>🛠️ Technologies recommandées</h4>
+                        <ul>
+                            <li>PDFKit (génération PDF)</li>
+                            <li>Cloudinary / AWS S3 (stockage)</li>
+                            <li>Multer (upload)</li>
+                        </ul>
+                    </div>
+
+                    <div class="implementation-notes">
+                        <h4>⚠️ Notes d'implémentation</h4>
+                        <ul>
+                            <li>Appeler <code>generateInvoicePDF()</code> dans webhook après création tickets</li>
+                            <li>Uploader PDF généré vers Cloudinary via <code>cloudinary.uploader.upload()</code></li>
+                            <li>Sauvegarder URL dans colonne <code>invoices.pdf_url</code></li>
+                            <li>Créer composant <code>InvoicesList.jsx</code> avec boutons de téléchargement</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <h3>
+                        🔄 Gestion des Remboursements
+                        <span class="priority priority-low">PRIORITÉ BASSE</span>
+                        <span class="status status-todo">À FAIRE</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">↩️</span>
+                            <div class="text">
+                                <strong>Système de Remboursement</strong>
+                                <p><strong>État:</strong> Colonne payment_status='refunded' existe mais pas de logique</p>
+                                <p><strong>À faire:</strong> Implémenter processus de remboursement avec Africa's Talking</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">⏱️</span>
+                            <div class="text">
+                                <strong>Gestion des Paiements Expirés</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Cron job pour marquer paiements pending > 24h comme "expired"</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: SÉCURITÉ ET ADMINISTRATION -->
+            <div class="section">
+                <h2>🔒 SÉCURITÉ ET ADMINISTRATION</h2>
+                
+                <div class="category">
+                    <h3>
+                        🛡️ Sécurité Avancée
+                        <span class="priority priority-high">HAUTE PRIORITÉ</span>
+                        <span class="status status-todo">À FAIRE</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">🔑</span>
+                            <div class="text">
+                                <strong>Vérification Email (Email Verification)</strong>
+                                <p><strong>État:</strong> Colonne email_verified existe mais pas de processus</p>
+                                <p><strong>À faire:</strong> Envoyer token de vérification par email à l'inscription</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🔐</span>
+                            <div class="text">
+                                <strong>Réinitialisation de Mot de Passe</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Page ForgotPassword.jsx + routes backend avec tokens expirables</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🚨</span>
+                            <div class="text">
+                                <strong>Rate Limiting et Anti-Fraude</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> express-rate-limit sur /api/auth et /api/tickets</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">👥</span>
+                            <div class="text">
+                                <strong>2FA (Authentification à Deux Facteurs)</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Intégrer speakeasy pour TOTP (optionnel, pour admins)</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="tech-stack">
+                        <h4>🛠️ Technologies recommandées</h4>
+                        <ul>
+                            <li>express-rate-limit</li>
+                            <li>helmet (sécurité headers)</li>
+                            <li>speakeasy (2FA)</li>
+                            <li>crypto (tokens)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <h3>
+                        📊 Dashboard Admin Avancé
+                        <span class="priority priority-medium">PRIORITÉ MOYENNE</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📈</span>
+                            <div class="text">
+                                <strong>Graphiques et Analyses</strong>
+                                <p><strong>État:</strong> AdminDashboard.jsx n'a que des StatCards</p>
+                                <p><strong>À faire:</strong> Ajouter Chart.js/Recharts pour graphiques ventes, participants, revenus</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📥</span>
+                            <div class="text">
+                                <strong>Export de Données (CSV/Excel)</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Boutons export pour participants, tickets, paiements</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🔍</span>
+                            <div class="text">
+                                <strong>Recherche Avancée et Filtres</strong>
+                                <p><strong>État:</strong> ParticipantsPage.jsx a tri basique</p>
+                                <p><strong>À faire:</strong> Ajouter filtres par date, montant, statut, recherche par nom/email</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📋</span>
+                            <div class="text">
+                                <strong>Logs d'Audit Détaillés</strong>
+                                <p><strong>État:</strong> Table admin_logs existe, route GET /admin/logs existe</p>
+                                <p><strong>À faire:</strong> Créer AdminLogsPage.jsx pour visualiser l'historique</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: EXPÉRIENCE UTILISATEUR -->
+            <div class="section">
+                <h2>✨ EXPÉRIENCE UTILISATEUR</h2>
+                
+                <div class="category">
+                    <h3>
+                        🎨 Interface et Interactions
+                        <span class="priority priority-medium">PRIORITÉ MOYENNE</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📱</span>
+                            <div class="text">
+                                <strong>Mode Sombre / Clair</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Créer ThemeContext.jsx + toggle dans Navbar</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🌍</span>
+                            <div class="text">
+                                <strong>Internationalisation (i18n)</strong>
+                                <p><strong>État:</strong> Non implémenté (tout en français)</p>
+                                <p><strong>À faire:</strong> Intégrer react-i18next pour FR/EN</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">⚡</span>
+                            <div class="text">
+                                <strong>Optimisations de Performance</strong>
+                                <p><strong>État:</strong> Pas de lazy loading ni de pagination optimisée</p>
+                                <p><strong>À faire:</strong> React.lazy, pagination infinie, caching API</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">♿</span>
+                            <div class="text">
+                                <strong>Accessibilité (A11y)</strong>
+                                <p><strong>État:</strong> Pas de focus sur accessibilité</p>
+                                <p><strong>À faire:</strong> Ajouter aria-labels, navigation clavier, screen reader support</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="category">
+                    <h3>
+                        📞 Support Client
+                        <span class="priority priority-low">PRIORITÉ BASSE</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">💬</span>
+                            <div class="text">
+                                <strong>Chat en Direct (Live Chat)</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Intégrer Tawk.to, Crisp ou Intercom</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">❓</span>
+                            <div class="text">
+                                <strong>FAQ et Base de Connaissances</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Créer FAQPage.jsx avec questions fréquentes</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📧</span>
+                            <div class="text">
+                                <strong>Formulaire de Contact Fonctionnel</strong>
+                                <p><strong>État:</strong> ContactPage.jsx existe mais sans backend</p>
+                                <p><strong>À faire:</strong> Route POST /api/contact + envoi email via Nodemailer</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: CAMPAGNES ET CONTENU -->
+            <div class="section">
+                <h2>🎯 GESTION DES CAMPAGNES</h2>
+                
+                <div class="category">
+                    <h3>
+                        📸 Médias et Contenu
+                        <span class="priority priority-medium">PRIORITÉ MOYENNE</span>
+                        <span class="status status-todo">À FAIRE</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">🖼️</span>
+                            <div class="text">
+                                <strong>Upload d'Images pour Campagnes</strong>
+                                <p><strong>État:</strong> Colonne image_url existe mais pas d'upload UI</p>
+                                <p><strong>À faire:</strong> Intégrer Cloudinary/AWS S3 dans CreateCampaignPage.jsx</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🎥</span>
+                            <div class="text">
+                                <strong>Vidéo de Tirage en Direct</strong>
+                                <p><strong>État:</strong> Colonne draw_results.video_url existe mais pas d'intégration</p>
+                                <p><strong>À faire:</strong> Permettre upload/streaming vidéo via YouTube/Facebook Live</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">📅</span>
+                            <div class="text">
+                                <strong>Planification Automatique de Campagnes</strong>
+                                <p><strong>État:</strong> Dates start_date/end_date existent mais pas d'automatisation</p>
+                                <p><strong>À faire:</strong> Cron job pour changer statut campagne selon dates</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="tech-stack">
+                        <h4>🛠️ Technologies recommandées</h4>
+                        <ul>
+                            <li>Cloudinary (images)</li>
+                            <li>node-cron (automatisation)</li>
+                            <li>react-dropzone (upload UI)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 7: MOBILE ET PWA -->
+            <div class="section">
+                <h2>📱 APPLICATION MOBILE</h2>
+                
+                <div class="category">
+                    <h3>
+                        🔧 Progressive Web App (PWA)
+                        <span class="priority priority-low">PRIORITÉ BASSE</span>
+                        <span class="status status-partial">Partiellement implémenté</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">📲</span>
+                            <div class="text">
+                                <strong>Configuration PWA Complète</strong>
+                                <p><strong>État:</strong> manifest.json existe mais pas de service worker</p>
+                                <p><strong>À faire:</strong> Configurer service worker avec Workbox pour mode offline</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🔄</span>
+                            <div class="text">
+                                <strong>Mode Hors Ligne</strong>
+                                <p><strong>État:</strong> Non implémenté</p>
+                                <p><strong>À faire:</strong> Cache API responses, permettre consultation tickets offline</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🏠</span>
+                            <div class="text">
+                                <strong>Icônes et Splash Screens</strong>
+                                <p><strong>État:</strong> Partiellement (icons 192/512 dans manifest)</p>
+                                <p><strong>À faire:</strong> Générer toutes tailles, splash screens iOS/Android</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: TESTS ET QUALITÉ -->
+            <div class="section">
+                <h2>🧪 TESTS ET QUALITÉ</h2>
+                
+                <div class="category">
+                    <h3>
+                        ✅ Tests Automatisés
+                        <span class="priority priority-medium">PRIORITÉ MOYENNE</span>
+                        <span class="status status-todo">À FAIRE</span>
+                    </h3>
+                    
+                    <ul class="feature-list">
+                        <li class="feature-item">
+                            <span class="icon">🧪</span>
+                            <div class="text">
+                                <strong>Tests Unitaires</strong>
+                                <p><strong>État:</strong> Aucun test</p>
+                                <p><strong>À faire:</strong> Jest pour backend, Vitest pour React components</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🔗</span>
+                            <div class="text">
+                                <strong>Tests d'Intégration</strong>
+                                <p><strong>État:</strong> Aucun test</p>
+                                <p><strong>À faire:</strong> Supertest pour tester routes API end-to-end</p>
+                            </div>
+                        </li>
+                        <li class="feature-item">
+                            <span class="icon">🤖</span>
+                            <div class="text">
+                                <strong>Tests E2E</strong>
+                                <p><strong>État:</strong> Aucun test</p>
+                                <p><strong>À faire:</strong> Playwright/Cypress pour tester parcours utilisateur complet</p>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <div class="tech-stack">
+                        <h4>🛠️ Technologies recommandées</h4>
+                        <ul>
+                            <li>Jest + Supertest (Backend)</li>
+                            <li>Vitest + Testing Library (Frontend)</li>
+                            <li>Playwright (E2E)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RÉSUMÉ -->
+            <div class="summary">
+                <h3>📊 Résumé Global</h3>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <span class="number">35+</span>
+                        <span class="label">Fonctionnalités à implémenter</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="number">8</span>
+                        <span class="label">Catégories principales</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="number">12</span>
+                        <span class="label">Haute priorité</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="number">15</span>
+                        <span class="label">Priorité moyenne</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="number">8</span>
+                        <span class="label">Priorité basse</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3);">
+                    <h4 style="margin-bottom: 15px;">🚀 Priorités Immédiates</h4>
+                    <ol style="margin-left: 20px; line-height: 2;">
+                        <li><strong>Notifications Email/SMS</strong> après paiement confirmé</li>
+                        <li><strong>Génération et envoi de factures PDF</strong></li>
+                        <li><strong>Contact automatique des gagnants</strong></li>
+                        <li><strong>Vérification email</strong> à l'inscription</li>
+                        <li><strong>Réinitialisation mot de passe</strong></li>
+                        <li><strong>Rate limiting</strong> et sécurité anti-fraude</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Projet KOLO - Chris Ngozulu Kasongo</p>
+        </div>
+    </div>
+</body>
+</html>

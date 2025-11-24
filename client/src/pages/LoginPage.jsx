@@ -52,7 +52,7 @@ export const LoginPage = () => {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600 transition-colors">KOLO</h1>
           </Link>
-          <p className="text-gray-600 mt-2">Tombola 2025</p>
+          <p className="text-gray-600 mt-2">Tombola</p>
         </div>
 
         {/* Form Card */}
@@ -106,6 +106,16 @@ export const LoginPage = () => {
                   {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
+            </div>
+
+            {/* Forgot Password Link */}
+            <div className="flex items-center justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Mot de passe oublié ?
+              </Link>
             </div>
 
             <button

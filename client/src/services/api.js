@@ -259,6 +259,44 @@ export const adminAPI = {
   },
 };
 
+// ======================
+// 🔔 NOTIFICATIONS
+// ======================
+
+export const notificationsAPI = {
+  // Obtenir toutes les notifications de l'utilisateur
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/notifications${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Obtenir uniquement les non-lues
+  getUnread: async () => {
+    return await request('/notifications?unread=true');
+  },
+
+  // Marquer une notification comme lue
+  markAsRead: async (notificationId) => {
+    return await request(`/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Marquer toutes comme lues
+  markAllAsRead: async () => {
+    return await request('/notifications/read-all', {
+      method: 'PATCH',
+    });
+  },
+
+  // Supprimer une notification
+  delete: async (notificationId) => {
+    return await request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // Export par défaut
 export default {
   auth: authAPI,
@@ -266,4 +304,5 @@ export default {
   tickets: ticketsAPI,
   payments: paymentsAPI,
   admin: adminAPI,
+  notifications: notificationsAPI,
 };
