@@ -9,6 +9,7 @@ require('dotenv').config();
 // Initialize Sentry FIRST (before any other middleware)
 const { initSentry, sentryErrorHandler } = require('./config/sentry');
 const { setupSwagger } = require('./config/swagger');
+const { initializeFirebase } = require('./services/firebaseNotifications');
 
 const app = express();
 
@@ -141,6 +142,9 @@ app.listen(PORT, () => {
   console.log(`🚀 KOLO Server running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 API URL: http://localhost:${PORT}/api`);
+  
+  // Initialize Firebase after server starts
+  initializeFirebase();
 });
 
 module.exports = app;

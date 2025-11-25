@@ -425,6 +425,21 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
         ]
       );
 
+      // Send Firebase push notification
+      try {
+        const { notifyTicketPurchase, isInitialized } = require('../services/firebaseNotifications');
+        if (isInitialized()) {
+          await notifyTicketPurchase(
+            purchase.user_id, 
+            purchase.ticket_count, 
+            purchase.campaign_name || 'la tombola'
+          );
+        }
+      } catch (firebaseError) {
+        console.error('Firebase notification error:', firebaseError);
+        // Don't fail the request if push notification fails
+      }
+
       res.json({
         success: true,
         message: 'Payment simulated successfully',

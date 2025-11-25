@@ -63,4 +63,108 @@ router.put('/profile/:userId', [
   }
 });
 
+// Save FCM token for push notifications
+router.post('/fcm-token', [
+  body('fcm_token').notEmpty().isString().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid FCM token', 
+        errors: errors.array() 
+      });
+    }
+
+    const { fcm_token } = req.body;
+    
+    // Get user ID from token (requires auth middleware)
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Authentication required' 
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const jwt = require('jsonwebtoken');
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      const userId = decoded.id;
+
+      // Update user's FCM token
+      await query(
+        'UPDATE users SET fcm_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [fcm_token, userId]
+      );
+
+      console.log(`✅ FCM token saved for user ${userId}`);
+      res.json({ 
+        success: true, 
+        message: 'FCM token saved successfully' 
+      });
+    } catch (jwtError) {
+      console.error('JWT verification error:', jwtError);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+  } catch (error) {
+    console.error('Save FCM token error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+});
+
+// Remove FCM token (on logout or token invalidation)
+router.delete('/fcm-token', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Authentication required' 
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const jwt = require('jsonwebtoken');
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      const userId = decoded.id;
+
+      // Remove user's FCM token
+      await query(
+        'UPDATE users SET fcm_token = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [userId]
+      );
+
+      console.log(`✅ FCM token removed for user ${userId}`);
+      res.json({ 
+        success: true, 
+        message: 'FCM token removed successfully' 
+      });
+    } catch (jwtError) {
+      console.error('JWT verification error:', jwtError);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+  } catch (error) {
+    console.error('Remove FCM token error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+});
+
 module.exports = router;

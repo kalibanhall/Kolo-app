@@ -261,6 +261,31 @@ router.post('/draw', [
         ]
       );
 
+      // Send Firebase push notifications
+      try {
+        const { notifyWinner, notifyLotteryDrawn, isInitialized } = require('../services/firebaseNotifications');
+        
+        if (isInitialized()) {
+          // Notify the main winner
+          await notifyWinner(
+            mainWinner.user_id,
+            campaign.name,
+            campaign.main_prize
+          );
+
+          // Notify all campaign participants about the draw
+          const totalWinners = 1 + bonus_winners_count;
+          await notifyLotteryDrawn(
+            campaign_id,
+            campaign.name,
+            totalWinners
+          );
+        }
+      } catch (firebaseError) {
+        console.error('Firebase notification error:', firebaseError);
+        // Don't fail the draw if push notifications fail
+      }
+
       // Log admin action
       await client.query(
         `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)

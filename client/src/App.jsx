@@ -6,7 +6,7 @@ import { PublicRoute } from './components/PublicRoute';
 import { SplashScreen } from './components/SplashScreen';
 import { ScrollToTop } from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
-import LoadingSpinner from './components/LoadingSpinner';
+import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Critical pages loaded immediately
 import { LoginPage } from './pages/LoginPage';

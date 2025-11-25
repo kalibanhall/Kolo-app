@@ -32,6 +32,11 @@ const initSentry = (app) => {
 };
 
 const sentryErrorHandler = () => {
+  // Return no-op middleware in development/test
+  if (process.env.NODE_ENV !== 'production' || !process.env.SENTRY_DSN) {
+    return (err, req, res, next) => next(err);
+  }
+  
   return Sentry.Handlers.errorHandler({
     shouldHandleError(error) {
       // Capture all errors
