@@ -1,5 +1,18 @@
 const { query } = require('../config/database');
 
+// Console logger functions
+const info = (message, ...args) => {
+  console.log('ℹ️', message, ...args);
+};
+
+const warn = (message, ...args) => {
+  console.warn('⚠️', message, ...args);
+};
+
+const error = (message, ...args) => {
+  console.error('❌', message, ...args);
+};
+
 // Log admin action
 const logAdminAction = async (adminId, action, entityType, entityId, details, req) => {
   try {
@@ -17,4 +30,9 @@ const logAdminAction = async (adminId, action, entityType, entityId, details, re
   }
 };
 
-module.exports = { logAdminAction };
+module.exports = { 
+  logAdminAction,
+  info,
+  warn,
+  error
+};
