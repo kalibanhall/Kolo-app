@@ -21,7 +21,7 @@ export const ForgotPasswordPage = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/forgot-password`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/password-reset/request`,
         {
           method: 'POST',
           headers: {

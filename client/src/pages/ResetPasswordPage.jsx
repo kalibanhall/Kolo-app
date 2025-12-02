@@ -29,13 +29,13 @@ export const ResetPasswordPage = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/reset-password`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/password-reset/reset`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ token, password }),
+          body: JSON.stringify({ token, newPassword: password }),
         }
       );
 

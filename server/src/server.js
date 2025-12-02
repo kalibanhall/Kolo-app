@@ -10,11 +10,15 @@ require('dotenv').config();
 const { initSentry, sentryErrorHandler } = require('./config/sentry');
 const { setupSwagger } = require('./config/swagger');
 const { initializeFirebase } = require('./services/firebaseNotifications');
+const { initializeSupabase } = require('./services/supabaseService');
 
 const app = express();
 
 // Initialize Sentry
 initSentry(app);
+
+// Initialize Supabase (optional)
+initializeSupabase();
 
 const PORT = process.env.PORT || 5000;
 
@@ -95,6 +99,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/password-reset', require('./routes/passwordReset'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
