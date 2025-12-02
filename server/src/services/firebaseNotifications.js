@@ -14,7 +14,7 @@ function initializeFirebase() {
   }
 
   try {
-    const serviceAccountPath = path.join(__dirname, 'firebase-admin-key.json');
+    const serviceAccountPath = path.join(__dirname, '..', 'config', 'firebase-admin-key.json');
     
     // Check if service account key exists
     if (!fs.existsSync(serviceAccountPath)) {
