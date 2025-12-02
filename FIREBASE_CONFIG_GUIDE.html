@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Firebase - KOLO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #4f46e5;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .progress-bar {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+            margin-bottom: 40px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .step {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid #cbd5e1;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            border-left-color: #4f46e5;
+            background: #ede9fe;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+        }
+
+        .step.completed {
+            border-left-color: #10b981;
+            opacity: 0.6;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            background: #cbd5e1;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .step.active .step-number {
+            background: #4f46e5;
+        }
+
+        .step.completed .step-number {
+            background: #10b981;
+        }
+
+        .step-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .step-content {
+            margin-left: 55px;
+        }
+
+        .step-description {
+            color: #475569;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-label {
+            display: block;
+            color: #475569;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .button {
+            background: #4f46e5;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .button:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-secondary {
+            background: #10b981;
+        }
+
+        .button-secondary:hover {
+            background: #059669;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            color: #92400e;
+        }
+
+        .link-button {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+
+        .link-button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .success-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+        }
+
+        .checklist {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .checklist li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .checklist li:before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            font-size: 1.3em;
+            color: #cbd5e1;
+        }
+
+        .checklist li.checked:before {
+            content: "✓";
+            color: #10b981;
+        }
+
+        .copy-btn {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: 10px;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #475569;
+        }
+
+        .copy-btn.copied {
+            background: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Configuration Firebase</h1>
+        <p class="subtitle">Guide interactif pour configurer les notifications push</p>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <!-- Étape 1 -->
+        <div class="step active" id="step1">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Créer un Projet Firebase</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Rendez-vous sur la console Firebase et créez un nouveau projet.
+                </p>
+                <a href="https://console.firebase.google.com/" target="_blank" class="link-button">
+                    🚀 Ouvrir Firebase Console
+                </a>
+                
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Cliquez sur "Ajouter un projet"</li>
+                        <li>Nom du projet: <strong>KOLO</strong> (ou kolo-app)</li>
+                        <li>Acceptez les conditions</li>
+                        <li>Google Analytics: <em>Facultatif</em> (vous pouvez désactiver)</li>
+                        <li>Cliquez sur "Créer le projet"</li>
+                    </ol>
+                </div>
+
+                <button class="button" onclick="completeStep(1)">✓ Projet créé</button>
+            </div>
+        </div>
+
+        <!-- Étape 2 -->
+        <div class="step" id="step2">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Ajouter une Application Web</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Enregistrez votre application web dans Firebase pour obtenir les credentials.
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Dans votre projet, cliquez sur l'icône <strong>Web</strong> (&lt;/&gt;)</li>
+                        <li>Nom de l'app: <strong>KOLO Web</strong></li>
+                        <li>Firebase Hosting: <em>Non</em> (pas nécessaire)</li>
+                        <li>Cliquez sur "Enregistrer l'application"</li>
+                        <li>Copiez l'objet <code>firebaseConfig</code> qui s'affiche</li>
+                    </ol>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">API Key</label>
+                    <input type="text" class="input-field" id="apiKey" placeholder="AIzaSy...">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Auth Domain</label>
+                    <input type="text" class="input-field" id="authDomain" placeholder="kolo-app.firebaseapp.com">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Project ID</label>
+                    <input type="text" class="input-field" id="projectId" placeholder="kolo-app">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Storage Bucket</label>
+                    <input type="text" class="input-field" id="storageBucket" placeholder="kolo-app.appspot.com">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Messaging Sender ID</label>
+                    <input type="text" class="input-field" id="messagingSenderId" placeholder="123456789">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">App ID</label>
+                    <input type="text" class="input-field" id="appId" placeholder="1:123456789:web:abc123">
+                </div>
+
+                <button class="button" onclick="completeStep(2)">✓ Credentials sauvegardés</button>
+            </div>
+        </div>
+
+        <!-- Étape 3 -->
+        <div class="step" id="step3">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">Activer Cloud Messaging</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Activez Firebase Cloud Messaging et générez une clé VAPID pour les notifications push.
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Dans Firebase Console, allez dans <strong>Build → Cloud Messaging</strong></li>
+                        <li>Cliquez sur l'onglet <strong>Cloud Messaging API (Legacy)</strong></li>
+                        <li>Cliquez sur "Enable" si demandé</li>
+                        <li>Allez dans <strong>⚙️ Paramètres du projet → Cloud Messaging</strong></li>
+                        <li>Section "Web Push certificates"</li>
+                        <li>Cliquez sur <strong>"Generate key pair"</strong></li>
+                        <li>Copiez la clé VAPID générée</li>
+                    </ol>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">Clé VAPID</label>
+                    <input type="text" class="input-field" id="vapidKey" placeholder="BH...">
+                </div>
+
+                <button class="button" onclick="completeStep(3)">✓ Cloud Messaging activé</button>
+            </div>
+        </div>
+
+        <!-- Étape 4 -->
+        <div class="step" id="step4">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">Télécharger la Clé Privée</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Téléchargez la clé privée pour le backend (Firebase Admin SDK).
+                </p>
+
+                <div class="alert alert-info">
+                    <strong>Instructions:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Dans Firebase Console, <strong>⚙️ Paramètres du projet → Comptes de service</strong></li>
+                        <li>Cliquez sur <strong>"Générer une nouvelle clé privée"</strong></li>
+                        <li>Confirmez en cliquant sur "Générer la clé"</li>
+                        <li>Un fichier JSON sera téléchargé</li>
+                        <li>Renommez-le en <code>firebase-admin-key.json</code></li>
+                        <li>Placez-le dans: <code>server/src/config/</code></li>
+                    </ol>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>⚠️ IMPORTANT:</strong> Ne partagez JAMAIS ce fichier ! Il contient des credentials sensibles.
+                    Le fichier est déjà dans .gitignore pour éviter qu'il soit committé.
+                </div>
+
+                <button class="button" onclick="completeStep(4)">✓ Clé privée placée</button>
+            </div>
+        </div>
+
+        <!-- Étape 5 -->
+        <div class="step" id="step5">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">Générer les Fichiers .env</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Générez automatiquement les fichiers de configuration avec vos credentials.
+                </p>
+
+                <button class="button button-secondary" onclick="generateEnvFiles()">
+                    📝 Générer les fichiers .env
+                </button>
+
+                <div id="envPreview" style="display: none; margin-top: 20px;">
+                    <h4>client/.env</h4>
+                    <div class="code-block" id="clientEnvContent"></div>
+                    
+                    <button class="copy-btn" onclick="copyToClipboard('clientEnvContent')">📋 Copier</button>
+                    
+                    <div class="alert alert-success" style="margin-top: 15px;">
+                        ✅ Copiez ce contenu dans votre fichier <code>client/.env</code>
+                    </div>
+                </div>
+
+                <button class="button" onclick="completeStep(5)" id="step5btn" disabled>✓ Fichiers .env créés</button>
+            </div>
+        </div>
+
+        <!-- Étape 6 -->
+        <div class="step" id="step6">
+            <div class="step-header">
+                <div class="step-number">6</div>
+                <div class="step-title">Mettre à Jour firebase-messaging-sw.js</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Mettez à jour le Service Worker avec vos credentials Firebase.
+                </p>
+
+                <div class="alert alert-info">
+                    Ouvrez le fichier <code>client/public/firebase-messaging-sw.js</code> et remplacez:
+                </div>
+
+                <div class="code-block" id="swConfigContent"></div>
+
+                <button class="copy-btn" onclick="copyToClipboard('swConfigContent')">📋 Copier</button>
+
+                <div class="alert alert-warning" style="margin-top: 15px;">
+                    Remplacez la configuration dans le fichier (lignes 7-13 environ)
+                </div>
+
+                <button class="button" onclick="completeStep(6)">✓ Service Worker mis à jour</button>
+            </div>
+        </div>
+
+        <!-- Étape 7 -->
+        <div class="step" id="step7">
+            <div class="step-header">
+                <div class="step-number">7</div>
+                <div class="step-title">Migration Base de Données</div>
+            </div>
+            <div class="step-content">
+                <p class="step-description">
+                    Ajoutez la colonne <code>fcm_token</code> à la table users.
+                </p>
+
+                <div class="code-block">psql -U postgres -d kolo_db -f server/database/migrations/add_fcm_token.sql</div>
+
+                <button class="copy-btn" onclick="copyToClipboard('psql -U postgres -d kolo_db -f server/database/migrations/add_fcm_token.sql', this)">📋 Copier</button>
+
+                <div class="alert alert-info" style="margin-top: 15px;">
+                    Exécutez cette commande dans PowerShell (ajustez le nom de la base de données si nécessaire)
+                </div>
+
+                <button class="button" onclick="completeStep(7)">✓ Migration appliquée</button>
+            </div>
+        </div>
+
+        <!-- Message de succès -->
+        <div class="success-message" id="successMessage">
+            <div class="success-icon">🎉</div>
+            <h2>Configuration terminée !</h2>
+            <p style="margin: 20px 0; color: #64748b; font-size: 1.1em;">
+                Firebase est maintenant configuré pour KOLO !
+            </p>
+
+            <div class="alert alert-success">
+                <strong>Prochaines étapes:</strong>
+                <ul class="checklist" style="margin-top: 10px;">
+                    <li>Redémarrer les serveurs (frontend + backend)</li>
+                    <li>Tester l'achat de tickets</li>
+                    <li>Vérifier la réception des notifications</li>
+                    <li>Déployer en production</li>
+                </ul>
+            </div>
+
+            <button class="button button-secondary" onclick="window.open('FIREBASE_SETUP.md')" style="margin-top: 20px;">
+                📖 Voir la documentation complète
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let completedSteps = 0;
+        const totalSteps = 7;
+
+        function completeStep(stepNumber) {
+            const step = document.getElementById(`step${stepNumber}`);
+            step.classList.add('completed');
+            step.classList.remove('active');
+
+            completedSteps++;
+            updateProgress();
+
+            if (stepNumber < totalSteps) {
+                const nextStep = document.getElementById(`step${stepNumber + 1}`);
+                nextStep.classList.add('active');
+                nextStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                document.querySelector('.container').style.display = 'none';
+                document.getElementById('successMessage').classList.add('show');
+            }
+        }
+
+        function updateProgress() {
+            const progress = (completedSteps / totalSteps) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function generateEnvFiles() {
+            const apiKey = document.getElementById('apiKey').value;
+            const authDomain = document.getElementById('authDomain').value;
+            const projectId = document.getElementById('projectId').value;
+            const storageBucket = document.getElementById('storageBucket').value;
+            const messagingSenderId = document.getElementById('messagingSenderId').value;
+            const appId = document.getElementById('appId').value;
+            const vapidKey = document.getElementById('vapidKey').value;
+
+            if (!apiKey || !projectId || !vapidKey) {
+                alert('Veuillez remplir au moins les champs API Key, Project ID et VAPID Key');
+                return;
+            }
+
+            const clientEnv = `# VITE Configuration
+VITE_API_URL=http://localhost:5000/api
+VITE_APP_NAME=KOLO Tombola
+VITE_ENABLE_ANALYTICS=false
+
+# Firebase Configuration
+VITE_FIREBASE_API_KEY=${apiKey}
+VITE_FIREBASE_AUTH_DOMAIN=${authDomain}
+VITE_FIREBASE_PROJECT_ID=${projectId}
+VITE_FIREBASE_STORAGE_BUCKET=${storageBucket}
+VITE_FIREBASE_MESSAGING_SENDER_ID=${messagingSenderId}
+VITE_FIREBASE_APP_ID=${appId}
+VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+VITE_FIREBASE_VAPID_KEY=${vapidKey}`;
+
+            document.getElementById('clientEnvContent').textContent = clientEnv;
+            document.getElementById('envPreview').style.display = 'block';
+            document.getElementById('step5btn').disabled = false;
+
+            const swConfig = `firebase.initializeApp({
+  apiKey: "${apiKey}",
+  authDomain: "${authDomain}",
+  projectId: "${projectId}",
+  storageBucket: "${storageBucket}",
+  messagingSenderId: "${messagingSenderId}",
+  appId: "${appId}"
+});`;
+
+            document.getElementById('swConfigContent').textContent = swConfig;
+        }
+
+        function copyToClipboard(elementId, button) {
+            const element = document.getElementById(elementId);
+            const text = element ? element.textContent : elementId;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                if (button) {
+                    const originalText = button.textContent;
+                    button.textContent = '✓ Copié !';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                } else {
+                    alert('✓ Copié dans le presse-papiers !');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

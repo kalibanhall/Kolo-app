@@ -5,13 +5,13 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 // Firebase configuration
 // IMPORTANT: Remplacer avec vos vraies credentials Firebase
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kolo-app.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kolo-app",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kolo-app.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:abcdef",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-XXXXXXXXXX"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCAiYvJFyps22vtwxjbD8GxTQ87dS6Vvw0",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kolo-e4711.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kolo-e4711",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kolo-e4711.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "556561408264",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:556561408264:web:f061f8eeaa21a13efa0cbd",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-30CWWRKY2C"
 };
 
 // Initialize Firebase

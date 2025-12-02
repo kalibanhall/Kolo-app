@@ -8,10 +8,6 @@ const { sendPurchaseConfirmation } = require('../services/emailService');
 const { generateInvoicePDF } = require('../services/pdfGenerator');
 const { sendPurchaseConfirmationSMS } = require('../services/africasTalking');
 const router = express.Router();
-
-// Get payment status by purchase ID
-router.get('/status/:purchaseId', verifyToken, async (req, res) => {
-  try {
     const purchaseId = parseInt(req.params.purchaseId);
     
     const result = await query(
