@@ -123,7 +123,7 @@ export const exportCampaigns = (campaigns) => {
     status: 'Statut',
     ticket_price: 'Prix du ticket (USD)',
     total_tickets: 'Total tickets',
-    sold_tickets: 'Tickets vendus',
+    sold_tickets: 'Tickets achetés',
     main_prize: 'Prix principal',
     start_date: 'Date début',
     end_date: 'Date fin',

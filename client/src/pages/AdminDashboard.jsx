@@ -143,9 +143,9 @@ export const AdminDashboard = () => {
     <AdminLayout>
       {/* Stats Grid - Comme dans l'image */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* Tickets vendus */}
+        {/* Tickets achetés */}
         <StatCard
-          title="Tickets vendus"
+          title="Tickets achetés"
           value={`${stats?.campaign?.sold_tickets || 0} / ${stats?.campaign?.total_tickets || 0}`}
           subtitle={`Taux d'occupation: ${occupationRate}%`}
           icon={TicketIcon}

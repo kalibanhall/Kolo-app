@@ -177,7 +177,7 @@ export const CampaignDetailPage = () => {
 
             {availableTickets === 0 && (
               <div className="bg-yellow-100 text-yellow-800 py-4 px-6 rounded-xl text-center font-semibold">
-                ⚠️ Tous les tickets ont été vendus
+                ⚠️ Tous les tickets ont été achetés
               </div>
             )}
           </div>

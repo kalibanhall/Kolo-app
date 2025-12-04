@@ -402,7 +402,7 @@ const DrawResultsPage = () => {
                     .filter(c => c.status === 'closed' && !draws.some(d => d.campaign_id === c.id))
                     .map(campaign => (
                       <option key={campaign.id} value={campaign.id}>
-                        {campaign.title} ({campaign.sold_tickets} tickets vendus)
+                        {campaign.title} ({campaign.sold_tickets} tickets achetés)
                       </option>
                     ))}
                 </select>

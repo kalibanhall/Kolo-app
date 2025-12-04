@@ -222,7 +222,7 @@ export const SalesTrendChart = ({ data }) => {
             stroke="#8B5CF6" 
             strokeWidth={2}
             dot={{ fill: '#8B5CF6', r: 4 }}
-            name="Tickets vendus"
+            name="Tickets achetés"
           />
           <Line 
             type="monotone" 
