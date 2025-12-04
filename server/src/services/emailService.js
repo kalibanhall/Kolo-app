@@ -1,28 +1,15 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Configuration du transporteur email
-const createTransporter = () => {
-  if (process.env.NODE_ENV === 'production') {
-    // Configuration pour production (ex: Gmail, SendGrid, etc.)
-    return nodemailer.createTransporter({
-      service: process.env.EMAIL_SERVICE || 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-  } else {
-    // Configuration pour développement (Ethereal Email - emails de test)
-    return nodemailer.createTransporter({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: {
-        user: process.env.EMAIL_USER || 'ethereal.user@ethereal.email',
-        pass: process.env.EMAIL_PASSWORD || 'ethereal_password'
-      }
-    });
-  }
-};
+// Initialize SendGrid
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('✅ SendGrid initialized for emailService');
+} else {
+  console.warn('⚠️ SENDGRID_API_KEY not configured - Emails will not be sent');
+}
+
+const FROM_EMAIL = process.env.FROM_EMAIL || 'support@kolo.cd';
+const FROM_NAME = process.env.FROM_NAME || 'KOLO Tombola';
 
 /**
  * Envoie un email de confirmation d'achat avec facture
@@ -38,11 +25,12 @@ const createTransporter = () => {
 async function sendPurchaseConfirmation(options) {
   const { to, userName, ticketCount, ticketNumbers, totalAmount, campaignTitle, pdfAttachment, invoiceNumber } = options;
 
-  const transporter = createTransporter();
-
-  const mailOptions = {
-    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+  const msg = {
     to,
+    from: {
+      email: FROM_EMAIL,
+      name: FROM_NAME
+    },
     subject: '🎉 Achat confirmé - Vos tickets KOLO',
     html: `
       <!DOCTYPE html>
@@ -101,22 +89,18 @@ async function sendPurchaseConfirmation(options) {
     `,
     attachments: pdfAttachment ? [
       {
+        content: pdfAttachment.toString('base64'),
         filename: `facture-${invoiceNumber}.pdf`,
-        content: pdfAttachment,
-        contentType: 'application/pdf'
+        type: 'application/pdf',
+        disposition: 'attachment'
       }
     ] : []
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent:', info.messageId);
-    
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📧 Preview URL:', nodemailer.getTestMessageUrl(info));
-    }
-    
-    return { success: true, messageId: info.messageId };
+    await sgMail.send(msg);
+    console.log(`✅ Purchase confirmation email sent to ${to}`);
+    return { success: true };
   } catch (error) {
     console.error('❌ Email sending failed:', error);
     throw error;
@@ -130,11 +114,12 @@ async function sendPurchaseConfirmation(options) {
 async function sendWinnerNotification(options) {
   const { to, userName, prize, ticketNumber, campaignTitle } = options;
 
-  const transporter = createTransporter();
-
-  const mailOptions = {
-    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+  const msg = {
     to,
+    from: {
+      email: FROM_EMAIL,
+      name: FROM_NAME
+    },
     subject: '🏆 FÉLICITATIONS ! Vous avez gagné !',
     html: `
       <!DOCTYPE html>
@@ -180,19 +165,19 @@ async function sendWinnerNotification(options) {
             </p>
           </div>
         </div>
-      </body>
       </html>
     `
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Winner notification sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    await sgMail.send(msg);
+    console.log(`✅ Winner notification sent to ${to}`);
+    return { success: true };
   } catch (error) {
     console.error('❌ Winner notification failed:', error);
     throw error;
   }
+} }
 }
 
 /**
@@ -202,12 +187,14 @@ async function sendWinnerNotification(options) {
 async function sendVerificationEmail(options) {
   const { to, userName, verificationToken } = options;
 
-  const transporter = createTransporter();
   const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
 
-  const mailOptions = {
-    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+  const msg = {
     to,
+    from: {
+      email: FROM_EMAIL,
+      name: FROM_NAME
+    },
     subject: '✉️ Vérifiez votre adresse email - KOLO',
     html: `
       <!DOCTYPE html>
@@ -252,9 +239,9 @@ async function sendVerificationEmail(options) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Verification email sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    await sgMail.send(msg);
+    console.log(`✅ Verification email sent to ${to}`);
+    return { success: true };
   } catch (error) {
     console.error('❌ Verification email failed:', error);
     throw error;
