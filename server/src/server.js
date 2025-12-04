@@ -3,7 +3,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Initialize Sentry FIRST (before any other middleware)
@@ -11,6 +10,19 @@ const { initSentry, sentryErrorHandler } = require('./config/sentry');
 const { setupSwagger } = require('./config/swagger');
 const { initializeFirebase } = require('./services/firebaseNotifications');
 const { initializeSupabase } = require('./services/supabaseService');
+const { initializeCronJobs } = require('./services/cronJobs');
+
+// Import rate limiters
+const {
+  apiLimiter,
+  authLimiter,
+  paymentLimiter,
+  registrationLimiter,
+  passwordResetLimiter,
+  contactLimiter,
+  adminLimiter,
+  drawLimiter,
+} = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -25,29 +37,6 @@ const PORT = process.env.PORT || 5000;
 // Security middleware
 app.use(helmet());
 app.use(compression());
-
-// Rate limiting - General API
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
-
-// Stricter rate limiting for auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 auth requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
-  skipSuccessfulRequests: true // Don't count successful requests
-});
-
-// Ticket purchase rate limiting
-const purchaseLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // limit each IP to 10 ticket purchases per hour
-  message: 'Too many ticket purchase attempts, please try again later.'
-});
 
 // CORS configuration
 const corsOptions = {
@@ -90,16 +79,22 @@ if (process.env.NODE_ENV !== 'production') {
 // Setup Swagger API Documentation
 setupSwagger(app);
 
-// Routes with rate limiting
+// Apply general API rate limiting
+app.use('/api/', apiLimiter);
+
+// Routes with specific rate limiting
+app.use('/api/auth/login', authLimiter, require('./routes/auth'));
+app.use('/api/auth/register', registrationLimiter, require('./routes/auth'));
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/campaigns', require('./routes/campaigns'));
-app.use('/api/tickets', purchaseLimiter, require('./routes/tickets'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/admin', require('./routes/admin'));
+app.use('/api/tickets', paymentLimiter, require('./routes/tickets'));
+app.use('/api/payments', paymentLimiter, require('./routes/payments'));
+app.use('/api/admin', adminLimiter, require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/password-reset', require('./routes/passwordReset'));
+app.use('/api/password-reset', passwordResetLimiter, require('./routes/passwordReset'));
+app.use('/api/contact', contactLimiter, require('./routes/contact'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -150,6 +145,9 @@ app.listen(PORT, () => {
   
   // Initialize Firebase after server starts
   initializeFirebase();
+  
+  // Initialize cron jobs for automated tasks
+  initializeCronJobs();
 });
 
 module.exports = app;

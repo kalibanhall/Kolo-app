@@ -6,6 +6,7 @@ const { logAdminAction } = require('../utils/logger');
 const { selectRandomWinners } = require('../utils/helpers');
 const { sendWinnerNotificationSMS } = require('../services/africasTalking');
 const { sendWinnerNotification } = require('../services/emailService');
+const { drawLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 // All admin routes require authentication and admin role
@@ -119,8 +120,8 @@ router.get('/participants', async (req, res) => {
   }
 });
 
-// Perform lottery draw
-router.post('/draw', [
+// Perform lottery draw (rate limited to 1 per hour)
+router.post('/draw', drawLimiter, [
   body('campaign_id').isInt({ min: 1 }),
   body('bonus_winners_count').optional().isInt({ min: 0, max: 10 }),
   body('draw_method').optional().isIn(['automatic', 'manual']),
@@ -500,6 +501,176 @@ router.get('/suspicious-accounts', (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// Get admin logs with pagination and filters
+router.get('/logs', async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      action,
+      entity_type,
+      admin_id,
+      date_start,
+      date_end,
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    // Build WHERE conditions
+    if (action) {
+      conditions.push(`al.action = $${paramIndex++}`);
+      params.push(action);
+    }
+    if (entity_type) {
+      conditions.push(`al.entity_type = $${paramIndex++}`);
+      params.push(entity_type);
+    }
+    if (admin_id) {
+      conditions.push(`al.admin_id = $${paramIndex++}`);
+      params.push(admin_id);
+    }
+    if (date_start) {
+      conditions.push(`al.created_at >= $${paramIndex++}`);
+      params.push(date_start);
+    }
+    if (date_end) {
+      conditions.push(`al.created_at <= $${paramIndex++}`);
+      params.push(date_end);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM admin_logs al
+      ${whereClause}
+    `;
+    const countResult = await query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get logs with admin user info
+    const logsQuery = `
+      SELECT 
+        al.id,
+        al.admin_id,
+        u.full_name as admin_name,
+        u.email as admin_email,
+        al.action,
+        al.entity_type,
+        al.entity_id,
+        al.details,
+        al.ip_address,
+        al.user_agent,
+        al.created_at
+      FROM admin_logs al
+      LEFT JOIN users u ON al.admin_id = u.id
+      ${whereClause}
+      ORDER BY al.created_at DESC
+      LIMIT $${paramIndex++} OFFSET $${paramIndex}
+    `;
+    params.push(limit, offset);
+
+    const logsResult = await query(logsQuery, params);
+
+    res.json({
+      success: true,
+      data: {
+        logs: logsResult.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Get admin logs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
+  }
+});
+
+// Get admin log statistics
+router.get('/logs/stats', async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_logs,
+        COUNT(DISTINCT admin_id) as unique_admins,
+        COUNT(DISTINCT DATE(created_at)) as active_days,
+        (
+          SELECT action 
+          FROM admin_logs 
+          GROUP BY action 
+          ORDER BY COUNT(*) DESC 
+          LIMIT 1
+        ) as most_common_action,
+        (
+          SELECT COUNT(*) 
+          FROM admin_logs 
+          WHERE created_at >= NOW() - INTERVAL '24 hours'
+        ) as logs_last_24h,
+        (
+          SELECT COUNT(*) 
+          FROM admin_logs 
+          WHERE created_at >= NOW() - INTERVAL '7 days'
+        ) as logs_last_7d
+    `;
+
+    const result = await query(statsQuery);
+    const stats = result.rows[0];
+
+    // Get action breakdown
+    const actionsQuery = `
+      SELECT action, COUNT(*) as count
+      FROM admin_logs
+      GROUP BY action
+      ORDER BY count DESC
+      LIMIT 10
+    `;
+    const actionsResult = await query(actionsQuery);
+
+    // Get recent active admins
+    const adminsQuery = `
+      SELECT 
+        u.id,
+        u.full_name,
+        u.email,
+        COUNT(al.id) as action_count,
+        MAX(al.created_at) as last_action
+      FROM admin_logs al
+      JOIN users u ON al.admin_id = u.id
+      WHERE al.created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY u.id, u.full_name, u.email
+      ORDER BY action_count DESC
+      LIMIT 10
+    `;
+    const adminsResult = await query(adminsQuery);
+
+    res.json({
+      success: true,
+      data: {
+        stats,
+        action_breakdown: actionsResult.rows,
+        active_admins: adminsResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error('Get admin logs stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
     });
   }
 });

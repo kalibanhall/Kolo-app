@@ -28,6 +28,7 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const CampaignDetailPage = lazy(() => import('./pages/CampaignDetailPage'));
 const AdminActionsPage = lazy(() => import('./pages/AdminActionsPage'));
 const AdminLogsPage = lazy(() => import('./pages/AdminLogsPage'));
+const UserInvoicesPage = lazy(() => import('./pages/UserInvoicesPage'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
@@ -92,6 +93,14 @@ function App() {
             element={
               <ProtectedRoute userOnly={true}>
                 <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/invoices"
+            element={
+              <ProtectedRoute userOnly={true}>
+                <UserInvoicesPage />
               </ProtectedRoute>
             }
           />
