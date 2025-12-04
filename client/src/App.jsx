@@ -27,6 +27,7 @@ const VisionPage = lazy(() => import('./pages/VisionPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const CampaignDetailPage = lazy(() => import('./pages/CampaignDetailPage'));
 const AdminActionsPage = lazy(() => import('./pages/AdminActionsPage'));
+const AdminLogsPage = lazy(() => import('./pages/AdminLogsPage'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
@@ -157,6 +158,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AdminActionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/logs"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminLogsPage />
               </ProtectedRoute>
             }
           />
