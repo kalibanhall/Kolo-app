@@ -55,7 +55,7 @@ export const HomePage = () => {
                   </span>
                   <Link
                     to={isAdmin() ? '/admin' : '/profile'}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
                   >
                     {isAdmin() ? (
                       <>
@@ -74,13 +74,13 @@ export const HomePage = () => {
                 <>
                   <Link
                     to="/login"
-                    className="text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="text-green-600 hover:text-green-700 font-medium"
                   >
                     Se connecter
                   </Link>
                   <Link
                     to="/register"
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
                   >
                     S'inscrire
                   </Link>
@@ -104,7 +104,7 @@ export const HomePage = () => {
           {!isAuthenticated() && (
             <Link
               to="/register"
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg text-base transition-colors shadow-lg hover:shadow-xl"
+              className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-3 rounded-lg text-base transition-colors shadow-lg hover:shadow-xl"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -150,7 +150,7 @@ export const HomePage = () => {
                 {isAuthenticated() ? (
                   <Link
                     to="/buy"
-                    className="block w-full text-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-8 py-5 rounded-2xl text-xl transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
+                    className="block w-full text-center bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold px-8 py-5 rounded-2xl text-xl transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
                   >
                     <TicketIcon className="inline-block w-7 h-7 mr-3" />
                     <span>Acheter mes Tickets Maintenant</span>
