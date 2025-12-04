@@ -189,6 +189,25 @@ router.post('/webhook', async (req, res) => {
           [purchase.ticket_count, purchase.campaign_id]
         );
 
+        // Check if campaign is now sold out and close it automatically
+        const campaignCheck = await client.query(
+          `SELECT id, sold_tickets, total_tickets, status 
+           FROM campaigns 
+           WHERE id = $1`,
+          [purchase.campaign_id]
+        );
+        
+        const currentCampaign = campaignCheck.rows[0];
+        if (currentCampaign && currentCampaign.sold_tickets >= currentCampaign.total_tickets && currentCampaign.status === 'open') {
+          await client.query(
+            `UPDATE campaigns 
+             SET status = 'closed', updated_at = CURRENT_TIMESTAMP 
+             WHERE id = $1`,
+            [purchase.campaign_id]
+          );
+          console.log(`🎯 Campaign ${purchase.campaign_id} automatically closed - all tickets sold out!`);
+        }
+
         // Generate invoice
         const invoiceNumber = generateInvoiceNumber();
         await client.query(
@@ -399,6 +418,25 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
          WHERE id = $2`,
         [purchase.ticket_count, purchase.campaign_id]
       );
+
+      // Check if campaign is now sold out and close it automatically
+      const campaignCheck = await client.query(
+        `SELECT id, sold_tickets, total_tickets, status 
+         FROM campaigns 
+         WHERE id = $1`,
+        [purchase.campaign_id]
+      );
+      
+      const currentCampaign = campaignCheck.rows[0];
+      if (currentCampaign && currentCampaign.sold_tickets >= currentCampaign.total_tickets && currentCampaign.status === 'open') {
+        await client.query(
+          `UPDATE campaigns 
+           SET status = 'closed', updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $1`,
+          [purchase.campaign_id]
+        );
+        console.log(`🎯 Campaign ${purchase.campaign_id} automatically closed - all tickets sold out!`);
+      }
 
       // Generate invoice
       const invoiceNumber = generateInvoiceNumber();

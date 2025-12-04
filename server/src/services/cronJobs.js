@@ -10,12 +10,18 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
   try {
     console.log('🔄 Running campaign status update cron job...');
 
-    // Find campaigns that should be closed (end_date has passed and status is still 'open')
+    // Find campaigns that should be closed
+    // Close if: 1) end_date has passed OR 2) all tickets sold (sold_tickets >= total_tickets)
     const campaignsToClose = await query(
-      `SELECT id, title, end_date 
+      `SELECT id, title, end_date, sold_tickets, total_tickets,
+              CASE 
+                WHEN end_date < NOW() THEN 'date_expired'
+                WHEN sold_tickets >= total_tickets THEN 'sold_out'
+                ELSE 'other'
+              END as close_reason
        FROM campaigns 
        WHERE status = 'open' 
-       AND end_date < NOW()`
+       AND (end_date < NOW() OR sold_tickets >= total_tickets)`
     );
 
     if (campaignsToClose.length === 0) {
@@ -24,7 +30,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
     }
 
     console.log(`📌 Found ${campaignsToClose.length} campaign(s) to close:`, 
-      campaignsToClose.map(c => c.title).join(', ')
+      campaignsToClose.map(c => `${c.title} (${c.close_reason})`).join(', ')
     );
 
     // Update campaigns to 'closed' status
@@ -41,10 +47,14 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
 
     // Log the action
     for (const campaign of campaignsToClose) {
+      const reason = campaign.close_reason === 'sold_out' 
+        ? `all tickets sold (${campaign.sold_tickets}/${campaign.total_tickets})`
+        : `end date reached (${campaign.end_date})`;
+      
       logAdminAction(
         null, // No specific admin user for cron jobs
         'CAMPAIGN_CLOSED',
-        `Campaign "${campaign.title}" (ID: ${campaign.id}) automatically closed by cron job (end_date: ${campaign.end_date})`
+        `Campaign "${campaign.title}" (ID: ${campaign.id}) automatically closed by cron job: ${reason}`
       );
     }
 
