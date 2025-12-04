@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { adminAPI } from '../services/api';
+import { exportParticipants, formatDateForExport, formatBooleanForExport } from '../utils/exportUtils';
 
 export const ParticipantsPage = () => {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -13,6 +15,29 @@ export const ParticipantsPage = () => {
   });
   const [sortBy, setSortBy] = useState('tickets');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      // Get all participants for export (without pagination)
+      const response = await adminAPI.getParticipants({ limit: 10000 });
+      const allParticipants = response.data.participants.map(p => ({
+        ...p,
+        created_at: formatDateForExport(p.created_at),
+      }));
+      const success = exportParticipants(allParticipants);
+      if (success) {
+        alert('✅ Export réussi !');
+      } else {
+        alert('❌ Erreur lors de l\'export');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('❌ Erreur lors de l\'export');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     loadParticipants();
@@ -64,10 +89,37 @@ export const ParticipantsPage = () => {
                 Total : {pagination.total} participant{pagination.total > 1 ? 's' : ''}
               </p>
             </div>
-            <button
-              onClick={loadParticipants}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-            >
+            <div className="flex gap-3">
+              <button
+                onClick={handleExport}
+                disabled={exporting || loading}
+                className={`inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
+                  exporting || loading
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+              >
+                {exporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Export...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Exporter CSV
+                  </>
+                )}
+              </button>
+              <button
+                onClick={loadParticipants}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
               🔄 Actualiser
             </button>
           </div>
