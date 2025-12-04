@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { CheckIcon } from '../components/Icons';
+import api from '../services/api';
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +12,8 @@ const ContactPage = () => {
     message: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -19,15 +22,27 @@ const ContactPage = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implémenter l'envoi du message
-    console.log('Contact form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-    }, 3000);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.post('/contact', formData);
+      
+      if (response.data.success) {
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+        }, 5000);
+      }
+    } catch (err) {
+      console.error('Error submitting contact form:', err);
+      setError(err.response?.data?.message || 'Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +63,12 @@ const ContactPage = () => {
           <div className="bg-white rounded-lg shadow-md p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Envoyez-nous un message</h2>
             
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+            )}
+
             {submitted ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
                 <CheckIcon className="w-12 h-12 text-green-600 mx-auto mb-4" />
@@ -138,9 +159,24 @@ const ContactPage = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                  disabled={loading}
+                  className={`w-full py-3 rounded-lg font-semibold transition ${
+                    loading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  Envoyer le message
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Envoi en cours...
+                    </span>
+                  ) : (
+                    'Envoyer le message'
+                  )}
                 </button>
               </form>
             )}
