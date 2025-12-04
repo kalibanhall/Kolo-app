@@ -4,11 +4,27 @@ import { StatCard } from '../components/StatCard';
 import { adminAPI, campaignsAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import { TicketIcon, UsersIcon, MoneyIcon, TargetIcon, TrophyIcon, ChartIcon, CampaignIcon } from '../components/Icons';
+import {
+  RevenueChart,
+  ParticipantsChart,
+  CampaignStatusChart,
+  SalesTrendChart,
+  TopCampaignsChart,
+  PaymentMethodsChart,
+} from '../components/DashboardCharts';
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chartData, setChartData] = useState({
+    revenue: [],
+    participants: [],
+    campaignStatus: [],
+    salesTrend: [],
+    topCampaigns: [],
+    paymentMethods: [],
+  });
 
   useEffect(() => {
     loadStats();
@@ -19,12 +35,61 @@ export const AdminDashboard = () => {
       setLoading(true);
       const response = await adminAPI.getStats();
       setStats(response.data);
+      
+      // Prepare chart data
+      prepareChartData(response.data);
     } catch (err) {
       setError(err.message);
       console.error('Failed to load stats:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const prepareChartData = (data) => {
+    // Mock data for now - TODO: Replace with real API data
+    setChartData({
+      revenue: [
+        { month: 'Jan', revenue: 25000 },
+        { month: 'Fév', revenue: 38000 },
+        { month: 'Mar', revenue: 42000 },
+        { month: 'Avr', revenue: 35000 },
+        { month: 'Mai', revenue: 48000 },
+        { month: 'Juin', revenue: 52000 },
+      ],
+      participants: [
+        { campaign: 'Grand Tirage', participants: 150 },
+        { campaign: 'Super Chance', participants: 120 },
+        { campaign: 'Mega Prix', participants: 180 },
+        { campaign: 'Jackpot', participants: 95 },
+      ],
+      campaignStatus: [
+        { name: 'Ouvertes', value: 5 },
+        { name: 'Fermées', value: 12 },
+        { name: 'Brouillons', value: 3 },
+      ],
+      salesTrend: [
+        { date: '01/06', tickets: 45, revenue: 22500 },
+        { date: '02/06', tickets: 52, revenue: 26000 },
+        { date: '03/06', tickets: 38, revenue: 19000 },
+        { date: '04/06', tickets: 65, revenue: 32500 },
+        { date: '05/06', tickets: 72, revenue: 36000 },
+        { date: '06/06', tickets: 58, revenue: 29000 },
+      ],
+      topCampaigns: [
+        { name: 'Grand Tirage 2024', revenue: 125000 },
+        { name: 'Super Chance Juin', revenue: 98000 },
+        { name: 'Mega Prix Mai', revenue: 87000 },
+        { name: 'Jackpot Spécial', revenue: 72000 },
+        { name: 'Tombola Express', revenue: 65000 },
+      ],
+      paymentMethods: [
+        { name: 'M-Pesa', value: 450 },
+        { name: 'Airtel Money', value: 320 },
+        { name: 'Orange Money', value: 280 },
+        { name: 'Vodacom', value: 190 },
+      ],
+    });
   };
 
   const handleDraw = async () => {
@@ -211,6 +276,29 @@ export const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Analytics Section with Charts */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Analytics et Statistiques</h2>
+        
+        {/* Row 1: Revenue and Participants */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <RevenueChart data={chartData.revenue} />
+          <ParticipantsChart data={chartData.participants} />
+        </div>
+
+        {/* Row 2: Campaign Status and Sales Trend */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <CampaignStatusChart data={chartData.campaignStatus} />
+          <SalesTrendChart data={chartData.salesTrend} />
+        </div>
+
+        {/* Row 3: Top Campaigns and Payment Methods */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TopCampaignsChart data={chartData.topCampaigns} />
+          <PaymentMethodsChart data={chartData.paymentMethods} />
+        </div>
+      </div>
     </AdminLayout>
   );
 };
