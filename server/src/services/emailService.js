@@ -177,7 +177,6 @@ async function sendWinnerNotification(options) {
     console.error('❌ Winner notification failed:', error);
     throw error;
   }
-} }
 }
 
 /**
