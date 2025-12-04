@@ -675,4 +675,390 @@ router.get('/logs/stats', async (req, res) => {
   }
 });
 
+// ============================================
+// PRIZE DELIVERY MANAGEMENT ROUTES
+// ============================================
+
+// Get all winners with delivery tracking
+router.get('/winners', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      delivery_status, 
+      campaign_id,
+      search 
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+    let whereConditions = ['t.is_winner = true'];
+    const queryParams = [];
+    let paramCount = 0;
+
+    if (delivery_status) {
+      paramCount++;
+      whereConditions.push(`t.delivery_status = $${paramCount}`);
+      queryParams.push(delivery_status);
+    }
+
+    if (campaign_id) {
+      paramCount++;
+      whereConditions.push(`t.campaign_id = $${paramCount}`);
+      queryParams.push(campaign_id);
+    }
+
+    if (search) {
+      paramCount++;
+      whereConditions.push(`(u.full_name ILIKE $${paramCount} OR u.phone ILIKE $${paramCount} OR t.ticket_number ILIKE $${paramCount})`);
+      queryParams.push(`%${search}%`);
+    }
+
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ') 
+      : '';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      JOIN campaigns c ON t.campaign_id = c.id
+      ${whereClause}
+    `;
+    const countResult = await query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get winners with pagination
+    const winnersQuery = `
+      SELECT 
+        t.id,
+        t.ticket_number,
+        t.prize_category,
+        t.delivery_status,
+        t.delivery_date,
+        t.delivery_address,
+        t.delivery_notes,
+        t.tracking_number,
+        t.delivery_updated_at,
+        t.created_at as win_date,
+        u.id as user_id,
+        u.full_name,
+        u.email,
+        u.phone,
+        u.address,
+        u.city,
+        u.province,
+        c.id as campaign_id,
+        c.title as campaign_title,
+        c.main_prize,
+        c.bonus_prizes
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      JOIN campaigns c ON t.campaign_id = c.id
+      ${whereClause}
+      ORDER BY t.created_at DESC
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+    
+    queryParams.push(limit, offset);
+    const winnersResult = await query(winnersQuery, queryParams);
+
+    res.json({
+      success: true,
+      data: winnersResult.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get winners error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get winner delivery statistics
+router.get('/winners/stats', async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_winners,
+        COUNT(CASE WHEN delivery_status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN delivery_status = 'contacted' THEN 1 END) as contacted,
+        COUNT(CASE WHEN delivery_status = 'shipped' THEN 1 END) as shipped,
+        COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered,
+        COUNT(CASE WHEN delivery_status = 'claimed' THEN 1 END) as claimed,
+        COUNT(CASE WHEN prize_category = 'main' THEN 1 END) as main_prizes,
+        COUNT(CASE WHEN prize_category = 'bonus' THEN 1 END) as bonus_prizes
+      FROM tickets
+      WHERE is_winner = true
+    `;
+
+    const result = await query(statsQuery);
+    const stats = result.rows[0];
+
+    // Get recent deliveries
+    const recentQuery = `
+      SELECT 
+        t.id,
+        t.ticket_number,
+        t.delivery_status,
+        t.delivery_updated_at,
+        u.full_name,
+        c.title as campaign_title
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      JOIN campaigns c ON t.campaign_id = c.id
+      WHERE t.is_winner = true AND t.delivery_updated_at IS NOT NULL
+      ORDER BY t.delivery_updated_at DESC
+      LIMIT 5
+    `;
+    const recentResult = await query(recentQuery);
+
+    res.json({
+      success: true,
+      data: {
+        stats,
+        recent_updates: recentResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get winner stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Update winner delivery status
+router.patch('/winners/:ticketId/delivery', [
+  body('delivery_status')
+    .isIn(['pending', 'contacted', 'shipped', 'delivered', 'claimed'])
+    .withMessage('Invalid delivery status'),
+  body('delivery_address').optional().trim(),
+  body('delivery_notes').optional().trim(),
+  body('tracking_number').optional().trim(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { ticketId } = req.params;
+    const { 
+      delivery_status, 
+      delivery_address, 
+      delivery_notes, 
+      tracking_number 
+    } = req.body;
+
+    // Check if ticket exists and is a winner
+    const checkQuery = `
+      SELECT t.*, u.full_name, u.email, u.phone, c.title as campaign_title
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      JOIN campaigns c ON t.campaign_id = c.id
+      WHERE t.id = $1 AND t.is_winner = true
+    `;
+    const checkResult = await query(checkQuery, [ticketId]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Winner ticket not found'
+      });
+    }
+
+    const ticket = checkResult.rows[0];
+
+    // Build update query dynamically
+    const updates = ['delivery_status = $1', 'delivery_updated_at = NOW()'];
+    const params = [delivery_status];
+    let paramCount = 1;
+
+    if (delivery_address !== undefined) {
+      paramCount++;
+      updates.push(`delivery_address = $${paramCount}`);
+      params.push(delivery_address);
+    }
+
+    if (delivery_notes !== undefined) {
+      paramCount++;
+      updates.push(`delivery_notes = $${paramCount}`);
+      params.push(delivery_notes);
+    }
+
+    if (tracking_number !== undefined) {
+      paramCount++;
+      updates.push(`tracking_number = $${paramCount}`);
+      params.push(tracking_number);
+    }
+
+    // Set delivery_date when status changes to 'delivered'
+    if (delivery_status === 'delivered') {
+      updates.push('delivery_date = NOW()');
+    }
+
+    paramCount++;
+    params.push(ticketId);
+
+    const updateQuery = `
+      UPDATE tickets
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await query(updateQuery, params);
+    const updatedTicket = result.rows[0];
+
+    // Send notification based on status
+    try {
+      if (delivery_status === 'shipped' && tracking_number) {
+        await sendWinnerNotification({
+          to: ticket.email,
+          name: ticket.full_name,
+          campaignTitle: ticket.campaign_title,
+          ticketNumber: ticket.ticket_number,
+          message: `Votre prix a été expédié ! Numéro de suivi : ${tracking_number}`
+        });
+      } else if (delivery_status === 'delivered') {
+        await sendWinnerNotification({
+          to: ticket.email,
+          name: ticket.full_name,
+          campaignTitle: ticket.campaign_title,
+          ticketNumber: ticket.ticket_number,
+          message: 'Votre prix a été livré ! Merci de confirmer la réception.'
+        });
+      }
+    } catch (notifError) {
+      console.error('Notification error:', notifError);
+      // Continue even if notification fails
+    }
+
+    // Log admin action
+    await logAdminAction(
+      req.user.id,
+      'update_delivery',
+      'ticket',
+      ticketId,
+      {
+        old_status: ticket.delivery_status,
+        new_status: delivery_status,
+        tracking_number,
+        notes: delivery_notes
+      },
+      req.ip,
+      req.get('user-agent')
+    );
+
+    res.json({
+      success: true,
+      message: 'Delivery status updated successfully',
+      data: updatedTicket
+    });
+  } catch (error) {
+    console.error('Update delivery status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Bulk update delivery status
+router.post('/winners/bulk-update', [
+  body('ticket_ids').isArray().withMessage('ticket_ids must be an array'),
+  body('delivery_status')
+    .isIn(['pending', 'contacted', 'shipped', 'delivered', 'claimed'])
+    .withMessage('Invalid delivery status'),
+  body('delivery_notes').optional().trim(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { ticket_ids, delivery_status, delivery_notes } = req.body;
+
+    if (ticket_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No tickets selected'
+      });
+    }
+
+    const updates = ['delivery_status = $1', 'delivery_updated_at = NOW()'];
+    const params = [delivery_status];
+
+    if (delivery_notes) {
+      updates.push('delivery_notes = $2');
+      params.push(delivery_notes);
+    }
+
+    if (delivery_status === 'delivered') {
+      updates.push('delivery_date = NOW()');
+    }
+
+    const placeholders = ticket_ids.map((_, i) => 
+      `$${params.length + i + 1}`
+    ).join(',');
+    params.push(...ticket_ids);
+
+    const updateQuery = `
+      UPDATE tickets
+      SET ${updates.join(', ')}
+      WHERE id IN (${placeholders}) AND is_winner = true
+      RETURNING id, ticket_number
+    `;
+
+    const result = await query(updateQuery, params);
+
+    // Log admin action
+    await logAdminAction(
+      req.user.id,
+      'bulk_update_delivery',
+      'tickets',
+      null,
+      {
+        count: result.rows.length,
+        ticket_ids,
+        new_status: delivery_status,
+        notes: delivery_notes
+      },
+      req.ip,
+      req.get('user-agent')
+    );
+
+    res.json({
+      success: true,
+      message: `Updated ${result.rows.length} tickets successfully`,
+      data: {
+        updated_count: result.rows.length,
+        tickets: result.rows
+      }
+    });
+  } catch (error) {
+    console.error('Bulk update delivery error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router;
