@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogoKolo } from './LogoKolo';
 import { NotificationBell } from './NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -27,29 +28,29 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50">
+    <nav className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition">
             <LogoKolo size="medium" animated />
-            <span className="text-2xl font-bold text-blue-600">KOLO</span>
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">KOLO</span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium transition">
+            <Link to="/" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition">
               Accueil
             </Link>
             <button
               onClick={() => scrollToSection('campagnes')}
-              className="text-gray-700 hover:text-blue-600 font-medium transition"
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition"
             >
               Campagnes
             </button>
             <button
               onClick={() => scrollToSection('mission')}
-              className="text-gray-700 hover:text-blue-600 font-medium transition"
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition"
             >
               À propos
             </button>
@@ -59,6 +60,9 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3">
+                {/* Theme Toggle */}
+                <ThemeToggle />
+                
                 {/* Notification Bell */}
                 <NotificationBell />
                 
@@ -128,6 +132,9 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
+                {/* Theme Toggle for non-logged users */}
+                <ThemeToggle />
+                
                 <Link
                   to="/login"
                   className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium transition"

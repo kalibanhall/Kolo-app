@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 import { SplashScreen } from './components/SplashScreen';
@@ -67,6 +68,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <ThemeProvider>
       <Router>
         <ScrollToTop />
         <AuthProvider>
@@ -205,6 +207,7 @@ function App() {
         </Suspense>
       </AuthProvider>
     </Router>
+    </ThemeProvider>
     </ErrorBoundary>
   );
 }

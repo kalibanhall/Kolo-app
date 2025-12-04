@@ -95,6 +95,7 @@ app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/password-reset', passwordResetLimiter, require('./routes/passwordReset'));
 app.use('/api/contact', contactLimiter, require('./routes/contact'));
+app.use('/api/upload', require('./routes/upload'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
