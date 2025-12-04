@@ -2,7 +2,7 @@
 
 ## Automated Backups with Cron
 
-### Setup Instructions
+### Setup Instructions :
 
 1. **Make scripts executable:**
 ```bash
