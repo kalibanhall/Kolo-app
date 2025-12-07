@@ -73,10 +73,11 @@ export const CampaignDetailPage = () => {
   const availableTickets = campaign.total_tickets - campaign.sold_tickets;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <Navbar />
+      <div className="h-14 sm:h-16" /> {/* Spacer for fixed navbar */}
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="mb-8">
           <Link to="/" className="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">

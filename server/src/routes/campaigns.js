@@ -175,7 +175,11 @@ router.post('/', verifyToken, verifyAdmin, [
   body('ticket_price').isFloat({ min: 0.01 }),
   body('main_prize').notEmpty().trim(),
   body('start_date').isISO8601(),
-  body('end_date').isISO8601()
+  body('end_date').isISO8601(),
+  body('status').optional().isIn(['draft', 'open']),
+  body('draw_date').optional({ nullable: true }).isISO8601(),
+  body('secondary_prizes').optional().trim(),
+  body('rules').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -189,18 +193,21 @@ router.post('/', verifyToken, verifyAdmin, [
 
     const { 
       title, description, total_tickets, ticket_price, 
-      main_prize, image_url, start_date, end_date 
+      main_prize, image_url, start_date, end_date,
+      status, draw_date, secondary_prizes, rules
     } = req.body;
 
     const result = await query(
       `INSERT INTO campaigns (
         title, description, status, total_tickets, ticket_price, 
-        main_prize, image_url, start_date, end_date, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        main_prize, image_url, start_date, end_date, draw_date,
+        secondary_prizes, rules, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
-        title, description, 'draft', total_tickets, ticket_price,
-        main_prize, image_url || null, start_date, end_date, req.user.id
+        title, description, status || 'draft', total_tickets, ticket_price,
+        main_prize, image_url || null, start_date, end_date, draw_date || null,
+        secondary_prizes || null, rules || null, req.user.id
       ]
     );
 

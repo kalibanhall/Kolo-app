@@ -2,13 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { notificationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ compact = false }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+
+  const iconSize = compact ? 'w-4 h-4' : 'w-6 h-6';
+  const buttonSize = compact ? 'p-1.5' : 'p-2';
+  const badgeSize = compact ? 'w-4 h-4 text-[9px]' : 'w-5 h-5 text-xs';
 
   // Load notifications
   const loadNotifications = async () => {
@@ -109,11 +113,11 @@ export const NotificationBell = () => {
       {/* Bell Icon with Badge */}
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg transition-colors"
+        className={`relative ${buttonSize} text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700`}
         aria-label="Notifications"
       >
         <svg
-          className="w-6 h-6"
+          className={iconSize}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -128,7 +132,7 @@ export const NotificationBell = () => {
         
         {/* Badge */}
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+          <span className={`absolute -top-0.5 -right-0.5 inline-flex items-center justify-center ${badgeSize} font-bold leading-none text-white bg-red-500 rounded-full`}>
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

@@ -97,10 +97,11 @@ export const UserInvoicesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex flex-col">
       <Navbar />
+      <div className="h-14 sm:h-16" /> {/* Spacer for fixed navbar */}
 
-      <div className="flex-grow max-w-7xl mx-auto px-4 py-12 w-full">
+      <div className="flex-grow max-w-7xl mx-auto px-4 py-8 sm:py-12 w-full">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Mes Factures</h1>

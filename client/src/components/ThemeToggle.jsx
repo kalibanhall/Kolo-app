@@ -1,19 +1,22 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-export const ThemeToggle = ({ className = '' }) => {
+export const ThemeToggle = ({ className = '', compact = false }) => {
   const { theme, toggleTheme, isDark } = useTheme();
+
+  const iconSize = compact ? 'w-4 h-4' : 'w-6 h-6';
+  const buttonSize = compact ? 'p-1.5' : 'p-2';
 
   return (
     <button
       onClick={toggleTheme}
-      className={`relative inline-flex items-center justify-center p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${className}`}
+      className={`relative inline-flex items-center justify-center ${buttonSize} rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${className}`}
       title={isDark ? 'Passer au mode clair' : 'Passer au mode sombre'}
       aria-label="Toggle theme"
     >
       {/* Sun Icon (Light Mode) */}
       <svg
-        className={`w-6 h-6 transition-all duration-300 ${
+        className={`${iconSize} transition-all duration-300 ${
           isDark ? 'scale-0 opacity-0 absolute' : 'scale-100 opacity-100'
         }`}
         fill="currentColor"
@@ -28,7 +31,7 @@ export const ThemeToggle = ({ className = '' }) => {
 
       {/* Moon Icon (Dark Mode) */}
       <svg
-        className={`w-6 h-6 transition-all duration-300 ${
+        className={`${iconSize} transition-all duration-300 ${
           isDark ? 'scale-100 opacity-100' : 'scale-0 opacity-0 absolute'
         }`}
         fill="currentColor"
