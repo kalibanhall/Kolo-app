@@ -1,10 +1,10 @@
 // Rate limiting middleware for API routes
 const rateLimit = require('express-rate-limit');
 
-// General API limiter - 100 requests per 15 minutes
+// General API limiter - 500 requests per 15 minutes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500,
   message: {
     error: 'Trop de requêtes depuis cette adresse IP, veuillez réessayer dans 15 minutes.',
   },
@@ -12,10 +12,10 @@ const apiLimiter = rateLimit({
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
 });
 
-// Strict limiter for authentication routes - 5 requests per 15 minutes
+// Strict limiter for authentication routes - 30 requests per 15 minutes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 30,
   skipSuccessfulRequests: false,
   message: {
     error: 'Trop de tentatives de connexion. Veuillez réessayer dans 15 minutes.',

@@ -31,7 +31,7 @@ const PendingPaymentsPage = () => {
   };
 
   const handleSimulatePayment = async (purchaseId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir simuler ce paiement ?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir valider ce paiement ?')) {
       return;
     }
 
@@ -42,7 +42,7 @@ const PendingPaymentsPage = () => {
 
       const result = await paymentsAPI.simulate(purchaseId);
       
-      setSuccess(`✅ Paiement simulé avec succès ! ${result.tickets.length} ticket(s) généré(s).`);
+      setSuccess(`✅ Paiement validé avec succès ! ${result.tickets.length} ticket(s) généré(s).`);
       
       // Retirer l'achat de la liste
       setPendingPurchases(prev => prev.filter(p => p.purchase_id !== purchaseId));
@@ -55,7 +55,7 @@ const PendingPaymentsPage = () => {
       
     } catch (err) {
       console.error('Error simulating payment:', err);
-      setError(err.message || 'Erreur lors de la simulation du paiement');
+      setError(err.message || 'Erreur lors de la validation du paiement');
     } finally {
       setSimulatingId(null);
     }
@@ -83,7 +83,7 @@ const PendingPaymentsPage = () => {
                 Paiements en Attente
               </h1>
               <p className="text-gray-600 mt-2">
-                Simulez les paiements pour générer des tickets de test
+                Validez les paiements en attente pour générer les tickets
               </p>
             </div>
             <button
@@ -148,7 +148,7 @@ const PendingPaymentsPage = () => {
                 Aucun achat en attente
               </h3>
               <p className="text-gray-600">
-                Tous les paiements ont été complétés ou simulés.
+                Tous les paiements ont été traités.
               </p>
             </div>
           ) : (
@@ -218,10 +218,10 @@ const PendingPaymentsPage = () => {
                           {simulatingId === purchase.purchase_id ? (
                             <>
                               <span className="inline-block animate-spin mr-2">⏳</span>
-                              Simulation...
+                              Validation...
                             </>
                           ) : (
-                            <>💳 Simuler Paiement</>
+                            <>💳 Valider Paiement</>
                           )}
                         </button>
                       </td>

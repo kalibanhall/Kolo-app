@@ -65,7 +65,7 @@ export const AdminLayout = ({ children }) => {
                 {navItems.find(item => item.path === location.pathname)?.label || 'Administration'}
               </h2>
               <p className="text-sm text-gray-600">
-                Tombola Admin - KOLO 2025
+                Tombola Admin - KOLO
               </p>
             </div>
             
