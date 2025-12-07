@@ -38,6 +38,62 @@ router.get('/current', async (req, res) => {
   }
 });
 
+// Get available ticket numbers for a campaign (for manual selection)
+router.get('/:id/available-numbers', async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    
+    // Get campaign info
+    const campaignResult = await query(
+      'SELECT id, total_tickets, sold_tickets FROM campaigns WHERE id = $1',
+      [campaignId]
+    );
+    
+    if (campaignResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+    
+    const campaign = campaignResult.rows[0];
+    
+    // Get already used ticket numbers
+    const usedResult = await query(
+      'SELECT ticket_number FROM tickets WHERE campaign_id = $1',
+      [campaignId]
+    );
+    
+    const usedNumbers = new Set(usedResult.rows.map(r => r.ticket_number));
+    
+    // Generate available numbers
+    const availableNumbers = [];
+    for (let i = 1; i <= campaign.total_tickets; i++) {
+      const ticketNumber = `KOLO-${String(i).padStart(6, '0')}`;
+      if (!usedNumbers.has(ticketNumber)) {
+        availableNumbers.push({
+          number: i,
+          display: ticketNumber
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      numbers: availableNumbers,
+      total_available: availableNumbers.length,
+      total_tickets: campaign.total_tickets
+    });
+
+  } catch (error) {
+    console.error('Get available numbers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Get all campaigns (admin only)
 router.get('/', verifyToken, verifyAdmin, async (req, res) => {
   try {

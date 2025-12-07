@@ -120,6 +120,36 @@ router.get('/participants', async (req, res) => {
   }
 });
 
+// Get tickets for a specific campaign (for manual draw selection)
+router.get('/campaigns/:campaignId/tickets', async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    
+    const result = await query(
+      `SELECT t.id, t.ticket_number, t.created_at, t.status,
+              u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone
+       FROM tickets t
+       JOIN users u ON t.user_id = u.id
+       WHERE t.campaign_id = $1 AND t.status = 'active'
+       ORDER BY t.ticket_number ASC`,
+      [campaignId]
+    );
+
+    res.json({
+      success: true,
+      tickets: result.rows,
+      total: result.rows.length
+    });
+
+  } catch (error) {
+    console.error('Get campaign tickets error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Perform lottery draw (rate limited to 1 per hour)
 router.post('/draw', drawLimiter, [
   body('campaign_id').isInt({ min: 1 }),

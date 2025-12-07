@@ -143,6 +143,11 @@ export const campaignsAPI = {
       body: JSON.stringify({ status }),
     });
   },
+
+  // Obtenir les numéros disponibles pour une campagne
+  getAvailableNumbers: async (campaignId) => {
+    return await request(`/campaigns/${campaignId}/available-numbers`, { includeAuth: false });
+  },
 };
 
 // ======================
@@ -256,6 +261,11 @@ export const adminAPI = {
   // Obtenir les résultats des tirages
   getDraws: async () => {
     return await request('/admin/draws');
+  },
+
+  // Obtenir les tickets d'une campagne
+  getCampaignTickets: async (campaignId) => {
+    return await request(`/admin/campaigns/${campaignId}/tickets`);
   },
 };
 
