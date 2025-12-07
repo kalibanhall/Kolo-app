@@ -145,11 +145,21 @@ const DrawResultsPage = () => {
     if (hasDrawn) {
       return { label: 'Tirage effectué', color: 'bg-green-100 text-green-800', canDraw: false };
     }
-    if (campaign.status === 'closed' || campaign.status === 'completed') {
-      return { label: 'Prêt pour tirage', color: 'bg-yellow-100 text-yellow-800', canDraw: true };
+    if (campaign.status === 'completed') {
+      return { label: 'Terminée', color: 'bg-gray-100 text-gray-800', canDraw: false };
+    }
+    if (campaign.status === 'closed') {
+      return { label: 'Fermée - Prêt pour tirage', color: 'bg-yellow-100 text-yellow-800', canDraw: true };
     }
     if (campaign.status === 'open') {
-      return { label: 'En cours', color: 'bg-blue-100 text-blue-800', canDraw: false };
+      // Allow draw even on open campaigns with tickets sold
+      const hasTickets = (campaign.sold_tickets || 0) > 0;
+      return { 
+        label: 'En cours', 
+        color: 'bg-blue-100 text-blue-800', 
+        canDraw: hasTickets,
+        warning: hasTickets ? 'Campagne encore ouverte' : null
+      };
     }
     return { label: campaign.status, color: 'bg-gray-100 text-gray-800', canDraw: false };
   };
@@ -292,12 +302,21 @@ const DrawResultsPage = () => {
                           </td>
                           <td className="px-6 py-4">
                             {status.canDraw ? (
-                              <button
-                                onClick={() => openDrawModal(campaign)}
-                                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-                              >
-                                🎲 Effectuer le tirage
-                              </button>
+                              <div className="flex flex-col items-start gap-1">
+                                {status.warning && (
+                                  <span className="text-xs text-orange-600 font-medium">⚠️ {status.warning}</span>
+                                )}
+                                <button
+                                  onClick={() => openDrawModal(campaign)}
+                                  className={`px-4 py-2 rounded-lg transition-colors font-medium ${
+                                    status.warning 
+                                      ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                  }`}
+                                >
+                                  🎲 Effectuer le tirage
+                                </button>
+                              </div>
                             ) : status.label === 'Tirage effectué' ? (
                               <button
                                 onClick={() => setActiveTab('results')}
@@ -305,8 +324,10 @@ const DrawResultsPage = () => {
                               >
                                 👁️ Voir résultat
                               </button>
+                            ) : (campaign.sold_tickets || 0) === 0 ? (
+                              <span className="text-gray-400 text-sm">Aucun ticket vendu</span>
                             ) : (
-                              <span className="text-gray-400 text-sm">Campagne en cours</span>
+                              <span className="text-gray-400 text-sm">-</span>
                             )}
                           </td>
                         </tr>
