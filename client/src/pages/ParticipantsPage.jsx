@@ -243,6 +243,7 @@ export const ParticipantsPage = () => {
           </div>
         )}
       </div>
+      </div>
     </AdminLayout>
   );
 };
