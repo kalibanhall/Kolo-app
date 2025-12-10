@@ -9,3 +9,20 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Firebase Configuration
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyCAiYvJFyps22vtwxjbD8GxTQ87dS6Vvw0
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: kolo-e4711.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: kolo-e4711
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: kolo-e4711.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: "556561408264"
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:556561408264:web:f061f8eeaa21a13efa0cbd
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-30CWWRKY2C
+      - key: VITE_FIREBASE_VAPID_KEY
+        value: BMu_W8HLI86t-qkRWUu9Vcq9OMTtO6qu1rx7fN0FQdD1215eB3jokrvFT99KN-7XQQ4PoJ7vQBflF0BNOkutYRM
