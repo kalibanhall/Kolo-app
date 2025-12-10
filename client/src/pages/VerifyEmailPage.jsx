@@ -77,7 +77,7 @@ export const VerifyEmailPage = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-green-600 mb-2">✅ Email Vérifié !</h3>
+              <h3 className="text-xl font-semibold text-green-600 mb-2">Email Vérifié !</h3>
               <p className="text-gray-600 mb-4">{message}</p>
               <p className="text-sm text-gray-500">Redirection vers la connexion dans 3 secondes...</p>
               <Link
@@ -106,7 +106,7 @@ export const VerifyEmailPage = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-red-600 mb-2">❌ Erreur</h3>
+              <h3 className="text-xl font-semibold text-red-600 mb-2">Erreur</h3>
               <p className="text-gray-600 mb-6">{message}</p>
               <div className="space-y-3">
                 <Link

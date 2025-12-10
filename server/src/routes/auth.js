@@ -527,4 +527,76 @@ router.post('/reset-password', [
   }
 });
 
+// Google Sign-In / Sign-Up
+router.post('/google', async (req, res) => {
+  try {
+    const { email, name, googleId, photoURL } = req.body;
+
+    if (!email || !googleId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and Google ID are required'
+      });
+    }
+
+    // Check if user already exists with this email
+    let user = await query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (user.rows.length > 0) {
+      // User exists - update google_id if not set
+      if (!user.rows[0].google_id) {
+        await query(
+          'UPDATE users SET google_id = $1, photo_url = $2 WHERE email = $3',
+          [googleId, photoURL, email]
+        );
+      }
+      user = user.rows[0];
+    } else {
+      // Create new user with Google account
+      const result = await query(
+        `INSERT INTO users (name, email, google_id, photo_url, is_admin, is_active, email_verified, created_at)
+         VALUES ($1, $2, $3, $4, false, true, true, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [name, email, googleId, photoURL]
+      );
+      user = result.rows[0];
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email,
+        isAdmin: user.is_admin 
+      },
+      process.env.JWT_SECRET || 'kolo-secret-key-2024',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Google authentication successful',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        is_admin: user.is_admin,
+        photo_url: user.photo_url
+      }
+    });
+
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during Google authentication'
+    });
+  }
+});
+
 module.exports = router;

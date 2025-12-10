@@ -19,7 +19,6 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
           <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
-            <div className="text-6xl mb-4">⚠️</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Oops! Une erreur est survenue
             </h1>

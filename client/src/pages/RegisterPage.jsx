@@ -1,23 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogoKolo } from '../components/LogoKolo';
+import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
 import { validatePhoneNumber, formatPhoneDisplay } from '../utils/phoneValidation';
+import { useFormPersistence } from '../hooks/useFormPersistence';
 
 export const RegisterPage = () => {
-  const { register, loading, error } = useAuth();
+  const { register, loginWithGoogle, loading, error } = useAuth();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [googleLoading, setGoogleLoading] = useState(false);
+  
+  // Utiliser la persistance de formulaire
+  const [formData, setFormData, clearFormData] = useFormPersistence('register', {
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     phone: '', // Will store only the number part without +243
   });
+  
   const [localError, setLocalError] = useState('');
   const [phoneValidation, setPhoneValidation] = useState({ valid: false, operator: null, message: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Valider le téléphone au chargement si déjà rempli
+  useEffect(() => {
+    if (formData.phone && formData.phone.length === 9) {
+      const validation = validatePhoneNumber(`+243${formData.phone}`);
+      setPhoneValidation(validation);
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -81,6 +95,8 @@ export const RegisterPage = () => {
         password: formData.password,
         phone: `+243${formData.phone}`
       });
+      // Effacer les données persistées après inscription réussie
+      clearFormData();
       navigate('/dashboard');
     } catch (err) {
       setLocalError(err.message || 'Erreur lors de l\'inscription');
@@ -110,7 +126,7 @@ export const RegisterPage = () => {
 
           {(error || localError) && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700 text-sm">❌ {localError || error}</p>
+              <p className="text-red-700 text-sm">{localError || error}</p>
             </div>
           )}
 
@@ -199,7 +215,7 @@ export const RegisterPage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
@@ -225,14 +241,14 @@ export const RegisterPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none text-xs font-medium"
                 >
-                  {showConfirmPassword ? '🙈' : '👁️'}
+                  {showConfirmPassword ? 'Cacher' : 'Voir'}
                 </button>
               </div>
               {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                 <p className="text-xs text-red-600 mt-1">
-                  ⚠️ Les mots de passe ne correspondent pas
+                  Les mots de passe ne correspondent pas
                 </p>
               )}
             </div>
@@ -244,6 +260,38 @@ export const RegisterPage = () => {
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {loading ? 'Inscription...' : 'S\'inscrire'}
+            </button>
+
+            {/* Divider */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">ou</span>
+              </div>
+            </div>
+
+            {/* Google Sign Up Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                setLocalError('');
+                setGoogleLoading(true);
+                try {
+                  await loginWithGoogle();
+                  navigate('/');
+                } catch (err) {
+                  setLocalError(err.message || 'Erreur lors de l\'inscription Google');
+                } finally {
+                  setGoogleLoading(false);
+                }
+              }}
+              disabled={googleLoading || loading}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg border border-gray-300 transition-colors"
+            >
+              <GoogleIcon className="w-5 h-5" />
+              {googleLoading ? 'Connexion...' : 'S\'inscrire avec Google'}
             </button>
           </form>
 

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { CheckIcon } from '../components/Icons';
 import api from '../services/api';
+import { useFormPersistence } from '../hooks/useFormPersistence';
 
 const ContactPage = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData, clearFormData] = useFormPersistence('contact', {
     name: '',
     email: '',
     phone: '',
@@ -18,10 +19,10 @@ const ContactPage = () => {
   // Note: Add spacer div after Navbar: <div className="h-14 sm:h-16" />
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [e.target.name]: e.target.value
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -34,9 +35,10 @@ const ContactPage = () => {
       
       if (response.data.success) {
         setSubmitted(true);
+        // Effacer les données persistées après envoi réussi
+        clearFormData();
         setTimeout(() => {
           setSubmitted(false);
-          setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
         }, 5000);
       }
     } catch (err) {
@@ -242,9 +244,9 @@ const ContactPage = () => {
                 Suivez-nous pour rester informé des nouvelles campagnes et des gagnants !
               </p>
               <div className="space-y-2">
-                <p className="text-gray-700">📘 Facebook: @KoloCongo</p>
-                <p className="text-gray-700">📷 Instagram: @kolo_cd</p>
-                <p className="text-gray-700">🐦 Twitter: @KoloCongo</p>
+                <p className="text-gray-700">Facebook: @KoloCongo</p>
+                <p className="text-gray-700">Instagram: @kolo_cd</p>
+                <p className="text-gray-700">Twitter: @KoloCongo</p>
               </div>
             </div>
           </div>

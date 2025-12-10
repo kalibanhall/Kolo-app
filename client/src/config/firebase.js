@@ -1,6 +1,7 @@
 // Firebase Configuration for KOLO
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
 // Firebase configuration
 // IMPORTANT: Remplacer avec vos vraies credentials Firebase
@@ -17,9 +18,17 @@ const firebaseConfig = {
 // Initialize Firebase
 let app;
 let messaging;
+let auth;
+let googleProvider;
 
 try {
   app = initializeApp(firebaseConfig);
+  
+  // Initialize Firebase Auth
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+  googleProvider.addScope('email');
+  googleProvider.addScope('profile');
   
   // Check if messaging is supported
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -28,6 +37,8 @@ try {
   } else {
     console.warn('⚠️  Firebase Messaging not supported in this browser');
   }
+  
+  console.log('✅ Firebase Auth initialized');
 } catch (error) {
   console.error('❌ Firebase initialization error:', error);
 }
@@ -121,3 +132,42 @@ export const showNotification = (title, options) => {
 };
 
 export { app, messaging };
+
+// Google Sign-In
+export const signInWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    const idToken = await user.getIdToken();
+    
+    return {
+      success: true,
+      user: {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      },
+      idToken,
+    };
+  } catch (error) {
+    console.error('❌ Google Sign-In error:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+// Sign out from Google
+export const signOutGoogle = async () => {
+  try {
+    await signOut(auth);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Google Sign-Out error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export { auth, googleProvider };

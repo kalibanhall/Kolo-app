@@ -79,16 +79,8 @@ export const NotificationBell = ({ compact = false }) => {
   };
 
   const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'purchase_confirmation':
-        return '🎫';
-      case 'winner':
-        return '🏆';
-      case 'draw_result':
-        return '🎲';
-      default:
-        return '📢';
-    }
+    // Return empty - no icons
+    return '';
   };
 
   const formatDate = (dateString) => {

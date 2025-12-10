@@ -14,13 +14,13 @@ export const SplashScreen = ({ onFinish }) => {
   const logoSrc = getLogoSrc();
 
   useEffect(() => {
-    // Durée du splash screen : 3 secondes
+    // Durée du splash screen : 1.5 secondes (optimisé)
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(() => {
         if (onFinish) onFinish();
-      }, 500); // Attendre la fin de l'animation de fade out
-    }, 3000);
+      }, 300); // Attendre la fin de l'animation de fade out
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [onFinish]);
@@ -68,7 +68,7 @@ export const SplashScreen = ({ onFinish }) => {
               />
             ) : (
               <div className="w-64 h-64 mx-auto flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-full shadow-2xl">
-                <span className="text-9xl">🏆</span>
+                <span className="text-7xl font-bold text-white">KOLO</span>
               </div>
             )}
             
@@ -111,7 +111,7 @@ export const SplashScreen = ({ onFinish }) => {
                 animationDelay: `${Math.random() * 2}s`,
               }}
             >
-              ✨
+              *
             </div>
           ))}
         </div>

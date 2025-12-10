@@ -133,7 +133,7 @@ export const UserInvoicesPage = () => {
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">✅</span>
+                <span className="text-lg font-bold text-green-600">OK</span>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export const UserInvoicesPage = () => {
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">💰</span>
+                <span className="text-lg font-bold text-purple-600">$</span>
               </div>
             </div>
           </div>

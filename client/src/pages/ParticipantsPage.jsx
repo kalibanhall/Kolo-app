@@ -27,13 +27,13 @@ export const ParticipantsPage = () => {
       }));
       const success = exportParticipants(allParticipants);
       if (success) {
-        alert('✅ Export réussi !');
+        alert('Export réussi !');
       } else {
-        alert('❌ Erreur lors de l\'export');
+        alert('Erreur lors de l\'export');
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('❌ Erreur lors de l\'export');
+      alert('Erreur lors de l\'export');
     } finally {
       setExporting(false);
     }
@@ -120,7 +120,7 @@ export const ParticipantsPage = () => {
                 onClick={loadParticipants}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
-              🔄 Actualiser
+              Actualiser
             </button>
           </div>
         </div>

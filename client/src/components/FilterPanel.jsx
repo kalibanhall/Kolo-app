@@ -8,7 +8,7 @@ export const FilterPanel = ({ filters, onFilterChange, onReset, filterConfig }) 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">🔍 Filtres</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Filtres</h3>
         <button
           onClick={onReset}
           className="text-sm text-purple-600 hover:text-purple-700 font-medium"

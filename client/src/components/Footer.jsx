@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { LogoKolo } from './LogoKolo';
+import { EmailIcon, PhoneIcon, LocationIcon } from './Icons';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -60,19 +61,19 @@ const Footer = () => {
           <div>
             <div className="space-y-2">
               <p className="text-sm flex items-center">
-                <span className="mr-2">📧</span>
+                <EmailIcon className="w-4 h-4 mr-2" />
                 <a href="mailto:contact@kolo.cd" className="hover:text-white transition">
                   contact@kolo.cd
                 </a>
               </p>
               <p className="text-sm flex items-center">
-                <span className="mr-2">📱</span>
+                <PhoneIcon className="w-4 h-4 mr-2" />
                 <a href="tel:+243841209627" className="hover:text-white transition">
                   +243 841 209 627
                 </a>
               </p>
               <p className="text-sm flex items-center">
-                <span className="mr-2">📍</span>
+                <LocationIcon className="w-4 h-4 mr-2" />
                 Kinshasa, RDC
               </p>
             </div>

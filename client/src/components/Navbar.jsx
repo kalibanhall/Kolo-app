@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { LogoKolo } from './LogoKolo';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
+import { CartIcon } from './Icons';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { getItemCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  
+  const cartItemCount = getItemCount();
 
   // Detect scroll for navbar effect
   useEffect(() => {
@@ -80,7 +85,7 @@ const Navbar = () => {
               Campagnes
             </button>
             <NavLink to="/about" active={location.pathname === '/about'}>
-              Notre Vision
+              À-propos
             </NavLink>
             <NavLink to="/contact" active={location.pathname === '/contact'}>
               Contact
@@ -92,6 +97,20 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-2">
                 <ThemeToggle compact />
+                
+                {/* Cart Icon */}
+                {cartItemCount > 0 && (
+                  <Link
+                    to="/buy"
+                    className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                  >
+                    <CartIcon className="w-5 h-5" />
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                      {cartItemCount}
+                    </span>
+                  </Link>
+                )}
+                
                 <NotificationBell compact />
                 
                 {/* User Button */}
@@ -130,9 +149,8 @@ const Navbar = () => {
                           <Link
                             to="/admin"
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center space-x-2 px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
+                            className="flex items-center px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
                           >
-                            <span className="text-lg">📊</span>
                             <span className="text-sm font-medium">Dashboard Admin</span>
                           </Link>
                         ) : (
@@ -140,17 +158,15 @@ const Navbar = () => {
                             <Link
                               to="/dashboard"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center space-x-2 px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
+                              className="flex items-center px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
                             >
-                              <span className="text-lg">🎫</span>
                               <span className="text-sm font-medium">Mes Tickets</span>
                             </Link>
                             <Link
                               to="/profile"
                               onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center space-x-2 px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
+                              className="flex items-center px-4 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition"
                             >
-                              <span className="text-lg">👤</span>
                               <span className="text-sm font-medium">Mon Profil</span>
                             </Link>
                           </>
@@ -159,9 +175,8 @@ const Navbar = () => {
                         <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                           <button
                             onClick={handleLogout}
-                            className="flex items-center space-x-2 px-4 py-2.5 w-full text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            className="flex items-center px-4 py-2.5 w-full text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                           >
-                            <span className="text-lg">🚪</span>
                             <span className="text-sm font-medium">Déconnexion</span>
                           </button>
                         </div>
@@ -192,6 +207,18 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center space-x-2">
             <ThemeToggle compact />
+            {/* Mobile Cart Icon */}
+            {user && cartItemCount > 0 && (
+              <Link
+                to="/buy"
+                className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+              >
+                <CartIcon className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {cartItemCount}
+                </span>
+              </Link>
+            )}
             {user && <NotificationBell compact />}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -234,20 +261,19 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="space-y-1">
-            <MobileNavLink to="/" icon="🏠" onClick={() => setMobileMenuOpen(false)}>
+            <MobileNavLink to="/" onClick={() => setMobileMenuOpen(false)}>
               Accueil
             </MobileNavLink>
             <button
               onClick={() => scrollToSection('campagnes')}
-              className="flex items-center space-x-3 w-full px-3 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
+              className="flex items-center w-full px-3 py-2.5 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition"
             >
-              <span className="text-lg">🎟️</span>
               <span className="font-medium text-sm">Campagnes</span>
             </button>
-            <MobileNavLink to="/about" icon="✨" onClick={() => setMobileMenuOpen(false)}>
-              Notre Vision
+            <MobileNavLink to="/about" onClick={() => setMobileMenuOpen(false)}>
+              À-propos
             </MobileNavLink>
-            <MobileNavLink to="/contact" icon="📞" onClick={() => setMobileMenuOpen(false)}>
+            <MobileNavLink to="/contact" onClick={() => setMobileMenuOpen(false)}>
               Contact
             </MobileNavLink>
           </div>
@@ -259,18 +285,18 @@ const Navbar = () => {
               {/* User Actions */}
               <div className="space-y-1">
                 {user.is_admin ? (
-                  <MobileNavLink to="/admin" icon="📊" onClick={() => setMobileMenuOpen(false)}>
+                  <MobileNavLink to="/admin" onClick={() => setMobileMenuOpen(false)}>
                     Dashboard Admin
                   </MobileNavLink>
                 ) : (
                   <>
-                    <MobileNavLink to="/dashboard" icon="🎫" onClick={() => setMobileMenuOpen(false)}>
+                    <MobileNavLink to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                       Mes Tickets
                     </MobileNavLink>
-                    <MobileNavLink to="/buy" icon="🛒" onClick={() => setMobileMenuOpen(false)}>
+                    <MobileNavLink to="/buy" onClick={() => setMobileMenuOpen(false)}>
                       Acheter des Tickets
                     </MobileNavLink>
-                    <MobileNavLink to="/profile" icon="👤" onClick={() => setMobileMenuOpen(false)}>
+                    <MobileNavLink to="/profile" onClick={() => setMobileMenuOpen(false)}>
                       Mon Profil
                     </MobileNavLink>
                   </>
@@ -283,9 +309,8 @@ const Navbar = () => {
                   setMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="flex items-center space-x-3 w-full mt-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+                className="flex items-center w-full mt-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition"
               >
-                <span className="text-lg">🚪</span>
                 <span className="font-semibold text-sm">Déconnexion</span>
               </button>
             </>
@@ -304,16 +329,12 @@ const Navbar = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center justify-center w-full px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition transform hover:scale-[1.02]"
               >
-                🎉 S'inscrire et Participer
+                S'inscrire et Participer
               </Link>
             </div>
           )}
 
-          {/* Bottom Promo */}
-          <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
-            <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium mb-1">🎯 Prochain tirage</p>
-            <p className="text-sm font-bold text-gray-800 dark:text-white">Participez maintenant pour gagner !</p>
-          </div>
+          
         </div>
       </div>
     </nav>

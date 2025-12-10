@@ -90,6 +90,21 @@ export const authAPI = {
   logout: () => {
     removeToken();
   },
+
+  // Authentification Google
+  googleAuth: async (googleData) => {
+    const response = await request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(googleData),
+      includeAuth: false,
+    });
+    
+    if (response.token) {
+      setToken(response.token);
+    }
+    
+    return response;
+  },
 };
 
 // ======================
@@ -307,6 +322,33 @@ export const notificationsAPI = {
   },
 };
 
+// ======================
+// 👤 UTILISATEURS
+// ======================
+
+export const usersAPI = {
+  // Obtenir le profil utilisateur
+  getProfile: async (userId) => {
+    return await request(`/users/profile/${userId}`);
+  },
+
+  // Mettre à jour le profil utilisateur
+  updateProfile: async (userId, profileData) => {
+    return await request(`/users/profile/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  },
+
+  // Sauvegarder le token FCM
+  saveFcmToken: async (fcmToken) => {
+    return await request('/users/fcm-token', {
+      method: 'POST',
+      body: JSON.stringify({ fcm_token: fcmToken }),
+    });
+  },
+};
+
 // Export par défaut
 export default {
   auth: authAPI,
@@ -315,4 +357,5 @@ export default {
   payments: paymentsAPI,
   admin: adminAPI,
   notifications: notificationsAPI,
+  users: usersAPI,
 };

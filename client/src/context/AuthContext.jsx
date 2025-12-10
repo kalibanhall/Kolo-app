@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { signInWithGoogle, signOutGoogle } from '../config/firebase';
 
 const AuthContext = createContext(null);
 
@@ -69,16 +70,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     // Confirmation avant déconnexion
     const confirmed = window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?');
     if (confirmed) {
       authAPI.logout();
+      try {
+        await signOutGoogle();
+      } catch (e) {
+        // Ignore Google sign out errors
+      }
       setUser(null);
       setError(null);
       return true;
     }
     return false;
+  };
+
+  // Google Sign-In
+  const loginWithGoogle = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const googleResult = await signInWithGoogle();
+      
+      if (!googleResult.success) {
+        throw new Error(googleResult.error || 'Google sign-in failed');
+      }
+
+      // Send Google user data to backend
+      const response = await authAPI.googleAuth({
+        email: googleResult.user.email,
+        name: googleResult.user.displayName,
+        googleId: googleResult.user.uid,
+        photoURL: googleResult.user.photoURL,
+      });
+
+      setUser(response.user);
+      return response;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isAdmin = () => {
@@ -94,6 +130,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
+    loginWithGoogle,
     register,
     logout,
     checkAuth,

@@ -63,7 +63,7 @@ export const NotificationPermissionBanner = () => {
             <Bell className="w-6 h-6 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">
-                🔔 Activez les notifications pour ne rien manquer !
+                Activez les notifications pour ne rien manquer !
               </p>
               <p className="text-xs opacity-90 mt-0.5">
                 Recevez des alertes pour vos achats, tirages au sort et plus encore

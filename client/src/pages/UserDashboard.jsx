@@ -89,7 +89,7 @@ export const UserDashboard = () => {
                 <p className="text-sm text-gray-600 mb-1">Mes tickets</p>
                 <p className="text-3xl font-bold text-blue-600">{tickets.length}</p>
               </div>
-              <span className="text-4xl">🎫</span>
+              <span className="text-lg font-bold text-blue-600">T</span>
             </div>
           </div>
 
@@ -101,7 +101,7 @@ export const UserDashboard = () => {
                   ${campaign?.ticket_price || 1}
                 </p>
               </div>
-              <span className="text-4xl">💵</span>
+              <span className="text-lg font-bold text-green-600">$</span>
             </div>
           </div>
 
@@ -113,7 +113,7 @@ export const UserDashboard = () => {
                   ${(tickets.length * (campaign?.ticket_price || 1)).toFixed(2)}
                 </p>
               </div>
-              <span className="text-4xl">💰</span>
+              <span className="text-lg font-bold text-purple-600">$</span>
             </div>
           </div>
         </div>
@@ -121,7 +121,7 @@ export const UserDashboard = () => {
         {/* Campaign Info */}
         {campaign && (
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 mb-8 text-white">
-            <h2 className="text-3xl font-bold mb-4">🏆 {campaign.title}</h2>
+            <h2 className="text-3xl font-bold mb-4">{campaign.title}</h2>
             <p className="text-blue-100 mb-4">{campaign.description}</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
@@ -137,7 +137,7 @@ export const UserDashboard = () => {
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                 <p className="text-blue-200 text-sm mb-1">Statut</p>
                 <p className="font-bold text-lg">
-                  {campaign.status === 'open' ? '✅ Ouvert' : '❌ Fermé'}
+                  {campaign.status === 'open' ? 'Ouvert' : 'Fermé'}
                 </p>
               </div>
             </div>
@@ -152,13 +152,12 @@ export const UserDashboard = () => {
               to="/buy"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
-              🎫 Acheter des tickets
+              Acheter des tickets
             </Link>
           </div>
 
           {tickets.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-6xl mb-4 block">🎫</span>
               <p className="text-gray-600 mb-4">Vous n'avez pas encore de tickets</p>
               <Link
                 to="/buy"

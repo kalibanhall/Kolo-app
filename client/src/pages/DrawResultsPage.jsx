@@ -127,7 +127,7 @@ const DrawResultsPage = () => {
 
       await adminAPI.performDraw(drawData);
       
-      setSuccess(`🎉 Tirage effectué avec succès pour "${selectedCampaign.title}" !`);
+      setSuccess(`Tirage effectué avec succès pour "${selectedCampaign.title}" !`);
       closeModal();
       await loadData();
       
@@ -193,7 +193,7 @@ const DrawResultsPage = () => {
         {/* Header */}
         <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">🎲 Gestion des Tirages</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Gestion des Tirages</h1>
             <p className="text-gray-600 mt-1">Effectuez des tirages manuels ou automatiques</p>
           </div>
         </div>
@@ -201,7 +201,7 @@ const DrawResultsPage = () => {
         {/* Messages */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} className="text-red-700 hover:text-red-900">✕</button>
           </div>
         )}
@@ -224,7 +224,7 @@ const DrawResultsPage = () => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              📋 Campagnes ({allCampaigns.length})
+              Campagnes ({allCampaigns.length})
             </button>
             <button
               onClick={() => setActiveTab('results')}
@@ -234,7 +234,7 @@ const DrawResultsPage = () => {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              🏆 Résultats ({draws.length})
+              Résultats ({draws.length})
             </button>
           </nav>
         </div>
@@ -246,7 +246,7 @@ const DrawResultsPage = () => {
             <div className="p-4 border-b border-gray-200">
               <input
                 type="text"
-                placeholder="🔍 Rechercher une campagne..."
+                placeholder="Rechercher une campagne..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -256,7 +256,6 @@ const DrawResultsPage = () => {
             {/* Campaigns List */}
             {filteredCampaigns.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">📭</div>
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">Aucune campagne</h3>
                 <p className="text-gray-500">Créez d'abord une campagne pour pouvoir effectuer un tirage</p>
               </div>
@@ -304,7 +303,7 @@ const DrawResultsPage = () => {
                             {status.canDraw ? (
                               <div className="flex flex-col items-start gap-1">
                                 {status.warning && (
-                                  <span className="text-xs text-orange-600 font-medium">⚠️ {status.warning}</span>
+                                  <span className="text-xs text-orange-600 font-medium">{status.warning}</span>
                                 )}
                                 <button
                                   onClick={() => openDrawModal(campaign)}
@@ -312,18 +311,18 @@ const DrawResultsPage = () => {
                                     status.warning 
                                       ? 'bg-orange-500 hover:bg-orange-600 text-white' 
                                       : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                  }`}
-                                >
-                                  🎲 Effectuer le tirage
-                                </button>
-                              </div>
-                            ) : status.label === 'Tirage effectué' ? (
-                              <button
-                                onClick={() => setActiveTab('results')}
-                                className="text-indigo-600 hover:text-indigo-800 font-medium"
+                                }`}
                               >
-                                👁️ Voir résultat
+                                Effectuer le tirage
                               </button>
+                            </div>
+                          ) : status.label === 'Tirage effectué' ? (
+                            <button
+                              onClick={() => setActiveTab('results')}
+                              className="text-indigo-600 hover:text-indigo-800 font-medium"
+                            >
+                              Voir résultat
+                            </button>
                             ) : (campaign.sold_tickets || 0) === 0 ? (
                               <span className="text-gray-400 text-sm">Aucun ticket vendu</span>
                             ) : (
@@ -343,7 +342,6 @@ const DrawResultsPage = () => {
           <div>
             {draws.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg shadow-lg">
-                <div className="text-6xl mb-4">🎲</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun tirage effectué</h3>
                 <p className="text-gray-600 mb-6">Effectuez votre premier tirage depuis l'onglet Campagnes</p>
                 <button
@@ -373,7 +371,7 @@ const DrawResultsPage = () => {
                             ? 'bg-yellow-400 text-yellow-900' 
                             : 'bg-green-400 text-green-900'
                         }`}>
-                          {draw.draw_method === 'manual_selection' ? '✍️ Manuel' : '🎲 Automatique'}
+                          {draw.draw_method === 'manual_selection' ? 'Manuel' : 'Automatique'}
                         </span>
                       </div>
                     </div>
@@ -382,7 +380,6 @@ const DrawResultsPage = () => {
                       {/* Gagnant Principal */}
                       <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 mb-4">
                         <div className="flex items-center gap-3 mb-4">
-                          <span className="text-4xl">👑</span>
                           <div>
                             <h4 className="text-xl font-bold text-gray-900">Gagnant Principal</h4>
                             <p className="text-yellow-700 font-medium">{draw.main_prize}</p>
@@ -408,7 +405,6 @@ const DrawResultsPage = () => {
                       {draw.bonus_winners_count > 0 && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">🎁</span>
                             <h5 className="font-bold text-gray-900">
                               {draw.bonus_winners_count} Gagnant(s) Bonus
                             </h5>
@@ -434,7 +430,7 @@ const DrawResultsPage = () => {
               <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white rounded-t-xl">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-2xl font-bold">🎲 Effectuer un Tirage</h3>
+                    <h3 className="text-2xl font-bold">Effectuer un Tirage</h3>
                     <p className="text-indigo-200 mt-1">{selectedCampaign.title}</p>
                   </div>
                   <button onClick={closeModal} className="text-white/80 hover:text-white text-2xl">✕</button>
@@ -469,7 +465,7 @@ const DrawResultsPage = () => {
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="text-3xl mb-2">🎲</div>
+                      <div className="text-lg font-bold mb-2">A</div>
                       <div className="font-bold text-gray-900">Automatique</div>
                       <p className="text-sm text-gray-600 mt-1">
                         Sélection aléatoire par le système
@@ -485,7 +481,7 @@ const DrawResultsPage = () => {
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="text-3xl mb-2">✍️</div>
+                      <div className="text-lg font-bold mb-2">M</div>
                       <div className="font-bold text-gray-900">Manuel</div>
                       <p className="text-sm text-gray-600 mt-1">
                         Choisir un ticket spécifique
@@ -504,7 +500,7 @@ const DrawResultsPage = () => {
                     {/* Search tickets */}
                     <input
                       type="text"
-                      placeholder="🔍 Rechercher par numéro ou nom..."
+                      placeholder="Rechercher par numéro ou nom..."
                       value={ticketSearchTerm}
                       onChange={(e) => setTicketSearchTerm(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -598,12 +594,10 @@ const DrawResultsPage = () => {
                   >
                     {drawing ? (
                       <span className="flex items-center justify-center">
-                        <span className="animate-spin mr-2">⏳</span> Tirage en cours...
+                        <span className="animate-spin mr-2">...</span> Tirage en cours...
                       </span>
                     ) : (
-                      <>
-                        {drawMethod === 'manual' ? '✍️' : '🎲'} Lancer le tirage
-                      </>
+                      'Lancer le tirage'
                     )}
                   </button>
                 </div>

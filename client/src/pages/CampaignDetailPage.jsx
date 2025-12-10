@@ -89,9 +89,9 @@ export const CampaignDetailPage = () => {
             campaign.status === 'closed' ? 'bg-gray-100 text-gray-800' :
             'bg-blue-100 text-blue-800'
           }`}>
-            {campaign.status === 'open' || campaign.status === 'active' ? '✅ OUVERT' : 
-             campaign.status === 'closed' ? '🔒 FERMÉ' : 
-             '🎉 TIRAGE EFFECTUÉ'}
+            {campaign.status === 'open' || campaign.status === 'active' ? 'OUVERT' : 
+             campaign.status === 'closed' ? 'FERMÉ' : 
+             'TIRAGE EFFECTUÉ'}
           </div>
         </div>
 
@@ -172,13 +172,13 @@ export const CampaignDetailPage = () => {
 
             {campaign.status === 'closed' && (
               <div className="bg-gray-100 text-gray-700 py-4 px-6 rounded-xl text-center font-semibold">
-                🔒 Cette campagne est fermée
+                Cette campagne est fermée
               </div>
             )}
 
             {availableTickets === 0 && (
               <div className="bg-yellow-100 text-yellow-800 py-4 px-6 rounded-xl text-center font-semibold">
-                ⚠️ Tous les tickets ont été achetés
+                Tous les tickets ont été achetés
               </div>
             )}
           </div>

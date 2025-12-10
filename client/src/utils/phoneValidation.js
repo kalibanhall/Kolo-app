@@ -1,28 +1,34 @@
 /**
- * Validation des numéros de téléphone congolais
+ * Validation des numéros de téléphone congolais (RDC)
+ * 
+ * Préfixes opérateurs RDC officiels:
+ * - Vodacom (M-Pesa): 81, 82, 83
+ * - Orange Money: 84, 85, 89
+ * - Airtel Money: 97, 99, 90
+ * - Africell: 91
  */
 
 // Préfixes des opérateurs congolais
 const OPERATORS = {
   VODACOM: {
     name: 'Vodacom (M-Pesa)',
-    prefixes: ['081', '082', '083', '084', '085'],
-    regex: /^(\+243|243|0)?8[1-5]\d{7}$/
-  },
-  AIRTEL: {
-    name: 'Airtel',
-    prefixes: ['089', '090', '091', '092', '093', '094', '097', '098', '099'],
-    regex: /^(\+243|243|0)?(89|9[0-4789])\d{7}$/
+    prefixes: ['81', '82', '83'],
+    regex: /^(\+243|243|0)?8[1-3]\d{7}$/
   },
   ORANGE: {
-    name: 'Orange',
-    prefixes: ['080', '084', '085', '086', '087', '088', '089'],
-    regex: /^(\+243|243|0)?8[0-9]\d{7}$/
+    name: 'Orange Money',
+    prefixes: ['84', '85', '89'],
+    regex: /^(\+243|243|0)?(84|85|89)\d{7}$/
+  },
+  AIRTEL: {
+    name: 'Airtel Money',
+    prefixes: ['97', '99', '90'],
+    regex: /^(\+243|243|0)?(97|99|90)\d{7}$/
   },
   AFRICELL: {
     name: 'Africell',
-    prefixes: ['095'],
-    regex: /^(\+243|243|0)?95\d{7}$/
+    prefixes: ['91'],
+    regex: /^(\+243|243|0)?91\d{7}$/
   }
 };
 

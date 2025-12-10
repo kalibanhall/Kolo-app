@@ -1,24 +1,41 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI } from '../services/api';
-import { TicketIcon, TrophyIcon } from '../components/Icons';
+import { TicketIcon, TrophyIcon, OrangeMoneyIcon, MPesaIcon, AirtelMoneyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon } from '../components/Icons';
+import { useFormPersistence } from '../hooks/useFormPersistence';
 
 export const BuyTicketsPage = () => {
   const { user } = useAuth();
+  const { cart, addToCart, removeFromCart, clearCart, isInCart } = useCart();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [ticketCount, setTicketCount] = useState(1);
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showCart, setShowCart] = useState(false);
   
-  // Selection mode
-  const [selectionMode, setSelectionMode] = useState('automatic');
+  // Persistance des données du formulaire d'achat
+  const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
+    ticketCount: 1,
+    phoneNumber: '',
+    selectedNumbers: []
+  });
+  
+  // États dérivés de purchaseData
+  const ticketCount = purchaseData.ticketCount;
+  const phoneNumber = purchaseData.phoneNumber;
+  const selectedNumbers = purchaseData.selectedNumbers;
+  
+  // Fonctions pour mettre à jour les états
+  const setTicketCount = (value) => setPurchaseData(prev => ({ ...prev, ticketCount: typeof value === 'function' ? value(prev.ticketCount) : value }));
+  const setPhoneNumber = (value) => setPurchaseData(prev => ({ ...prev, phoneNumber: value }));
+  const setSelectedNumbers = (value) => setPurchaseData(prev => ({ ...prev, selectedNumbers: typeof value === 'function' ? value(prev.selectedNumbers) : value }));
+  
+  // Sélection manuelle des numéros uniquement
   const [availableNumbers, setAvailableNumbers] = useState([]);
-  const [selectedNumbers, setSelectedNumbers] = useState([]);
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [loadingNumbers, setLoadingNumbers] = useState(false);
 
@@ -42,12 +59,12 @@ export const BuyTicketsPage = () => {
     }
   }, [user]);
 
-  // Load available numbers when manual mode is selected
+  // Load available numbers when campaign is loaded
   useEffect(() => {
-    if (selectionMode === 'manual' && campaign) {
+    if (campaign) {
       loadAvailableNumbers();
     }
-  }, [selectionMode, campaign]);
+  }, [campaign]);
 
   // Reset selected numbers when ticket count changes
   useEffect(() => {
@@ -133,7 +150,7 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) {
+    if (selectedNumbers.length !== ticketCount) {
       setError(`Veuillez sélectionner ${ticketCount} numéro(s) de ticket`);
       return;
     }
@@ -141,20 +158,20 @@ export const BuyTicketsPage = () => {
     try {
       setPurchasing(true);
       
-      const purchaseData = {
+      const purchasePayload = {
         campaign_id: campaign.id,
         ticket_count: ticketCount,
         phone_number: `+243${phoneNumber}`,
-        selection_mode: selectionMode
+        selection_mode: 'manual',
+        selected_numbers: selectedNumbers
       };
 
-      if (selectionMode === 'manual') {
-        purchaseData.selected_numbers = selectedNumbers;
-      }
-
-      await ticketsAPI.purchase(purchaseData);
+      await ticketsAPI.purchase(purchasePayload);
 
       setSuccess(true);
+      // Effacer les données persistées après achat réussi
+      clearPurchaseData();
+      
       alert('Achat initié ! Vous allez recevoir une notification de paiement sur votre téléphone.');
       
       setTimeout(() => {
@@ -182,7 +199,6 @@ export const BuyTicketsPage = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
-          <span className="text-6xl mb-4 block">🚫</span>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Aucune campagne active
           </h2>
@@ -240,13 +256,13 @@ export const BuyTicketsPage = () => {
         <div className="bg-white rounded-lg shadow-xl p-8">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700">❌ {error}</p>
+              <p className="text-red-700">{error}</p>
             </div>
           )}
 
           {success && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-700">✅ Achat initié avec succès ! Vérifiez votre téléphone.</p>
+              <p className="text-green-700">Achat initié avec succès ! Vérifiez votre téléphone.</p>
             </div>
           )}
 
@@ -284,48 +300,11 @@ export const BuyTicketsPage = () => {
               </div>
             </div>
 
-            {/* Selection Mode */}
+            {/* Sélection manuelle des numéros */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Mode de sélection des numéros
+                Choisissez vos numéros de ticket
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('automatic')}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    selectionMode === 'automatic'
-                      ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">🎲</div>
-                  <div className="font-bold text-gray-900">Automatique</div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Numéros générés aléatoirement
-                  </p>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('manual')}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    selectionMode === 'manual'
-                      ? 'border-green-500 bg-green-50 ring-2 ring-green-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">✋</div>
-                  <div className="font-bold text-gray-900">Manuel</div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Choisissez vos numéros
-                  </p>
-                </button>
-              </div>
-            </div>
-
-            {/* Manual Number Selection */}
-            {selectionMode === 'manual' && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-sm font-medium text-gray-700">
@@ -341,7 +320,7 @@ export const BuyTicketsPage = () => {
                 {/* Search */}
                 <input
                   type="text"
-                  placeholder="🔍 Rechercher un numéro..."
+                  placeholder="Rechercher un numéro..."
                   value={numberSearchTerm}
                   onChange={(e) => setNumberSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -407,7 +386,7 @@ export const BuyTicketsPage = () => {
                   </p>
                 )}
               </div>
-            )}
+            </div>
 
             {/* Phone Number */}
             <div>
@@ -444,9 +423,9 @@ export const BuyTicketsPage = () => {
                 <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
               </div>
               <div className="flex justify-between text-gray-700">
-                <span>Mode de sélection</span>
-                <span className="font-semibold">
-                  {selectionMode === 'automatic' ? '🎲 Automatique' : '✋ Manuel'}
+                <span>Numéros choisis</span>
+                <span className="font-semibold text-green-600">
+                  {selectedNumbers.length} / {ticketCount}
                 </span>
               </div>
               <div className="border-t border-gray-300 pt-3 flex justify-between text-lg font-bold text-gray-900">
@@ -455,33 +434,100 @@ export const BuyTicketsPage = () => {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={purchasing || availableTickets === 0 || (selectionMode === 'manual' && selectedNumbers.length !== ticketCount)}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg disabled:cursor-not-allowed"
-            >
-              {purchasing ? (
-                <span className="flex items-center justify-center">
-                  <span className="animate-spin mr-2">⏳</span> Traitement...
-                </span>
-              ) : (
-                `💳 Payer $${totalPrice.toFixed(2)}`
-              )}
-            </button>
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              {/* Add to Cart Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedNumbers.length > 0 && campaign) {
+                    addToCart(campaign.id, campaign, selectedNumbers);
+                    setSelectedNumbers([]);
+                    setShowCart(true);
+                  }
+                }}
+                disabled={selectedNumbers.length === 0}
+                className="w-full flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-lg transition-colors bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white disabled:cursor-not-allowed"
+              >
+                <CartIcon className="w-5 h-5" />
+                Ajouter au panier ({selectedNumbers.length})
+              </button>
+
+              {/* Pay Now Button */}
+              <button
+                type="submit"
+                disabled={purchasing || availableTickets === 0 || selectedNumbers.length !== ticketCount || phoneNumber.length !== 9}
+                className={`w-full font-bold py-4 px-6 rounded-lg transition-colors text-lg ${(phoneNumber.length !== 9 || selectedNumbers.length !== ticketCount) ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} disabled:bg-gray-400 text-white disabled:cursor-not-allowed`}
+              >
+                {purchasing ? (
+                  <span className="flex items-center justify-center">
+                    <span className="animate-spin mr-2">...</span> Traitement...
+                  </span>
+                ) : (
+                  `Payer $${totalPrice.toFixed(2)}`
+                )}
+              </button>
+            </div>
           </form>
 
+          {/* Cart Summary */}
+          {cart.items.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <CartIcon className="w-5 h-5" />
+                  Mon panier ({cart.items.length} tickets)
+                </h4>
+                <button
+                  onClick={clearCart}
+                  className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  Vider
+                </button>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-h-32 overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
+                  {cart.items.map(num => (
+                    <span
+                      key={num}
+                      className="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded text-sm"
+                    >
+                      #{String(num).padStart(4, '0')}
+                      <button
+                        onClick={() => removeFromCart(num)}
+                        className="text-indigo-600 hover:text-red-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">Total panier:</span>
+                <span className="text-lg font-bold text-blue-600">
+                  ${((cart.items.length) * (campaign?.ticket_price || 1)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Payment Methods */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3 font-medium text-center">Méthodes de paiement acceptées :</p>
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 font-medium text-center">Méthodes de paiement acceptées :</p>
             <div className="flex justify-center space-x-4">
-              <div className="bg-orange-50 px-4 py-2 rounded-lg">
-                <p className="text-sm font-semibold text-orange-700">🟠 Orange Money</p>
+              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
+                <OrangeMoneyIcon className="w-8 h-8 mb-1" />
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Orange Money</p>
               </div>
-              <div className="bg-green-50 px-4 py-2 rounded-lg">
-                <p className="text-sm font-semibold text-green-700">📱 M-Pesa</p>
+              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
+                <MPesaIcon className="w-8 h-8 mb-1" />
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">M-Pesa</p>
               </div>
-              <div className="bg-red-50 px-4 py-2 rounded-lg">
-                <p className="text-sm font-semibold text-red-700">📡 Airtel Money</p>
+              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
+                <AirtelMoneyIcon className="w-8 h-8 mb-1" />
+                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Airtel Money</p>
               </div>
             </div>
           </div>

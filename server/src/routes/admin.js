@@ -70,18 +70,18 @@ router.get('/participants', async (req, res) => {
 
     const result = await query(
       `SELECT 
-        u.id, u.name, u.email, u.phone, u.created_at as join_date,
-        COUNT(DISTINCT t.id) as tickets,
+        u.id as user_id, u.name, u.email, u.phone, u.created_at as join_date, u.is_active,
+        COUNT(DISTINCT t.id) as ticket_count,
         COUNT(DISTINCT p.id) as purchases,
         COALESCE(SUM(p.total_amount), 0) as total_spent,
         MAX(p.created_at) as last_purchase,
-        (SELECT COUNT(*) FROM users) as total_count
+        (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_count
        FROM users u
        LEFT JOIN purchases p ON u.id = p.user_id AND p.payment_status = 'completed'
        LEFT JOIN tickets t ON u.id = t.user_id
        WHERE u.is_admin = false
-       GROUP BY u.id, u.name, u.email, u.phone, u.created_at
-       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
+       GROUP BY u.id, u.name, u.email, u.phone, u.created_at, u.is_active
+       ORDER BY ${sortBy === 'tickets' ? 'ticket_count' : sortBy === 'amount' ? 'total_spent' : sortBy} ${sortOrder.toUpperCase()}
        LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
@@ -92,15 +92,16 @@ router.get('/participants', async (req, res) => {
       success: true,
       data: {
         participants: result.rows.map(p => ({
-          id: p.id,
+          user_id: p.user_id,
           name: p.name,
           email: p.email,
           phone: p.phone,
-          tickets: parseInt(p.tickets),
+          ticket_count: parseInt(p.ticket_count),
           purchases: parseInt(p.purchases),
           total_spent: parseFloat(p.total_spent),
           join_date: p.join_date,
-          last_purchase: p.last_purchase
+          last_purchase: p.last_purchase,
+          is_active: p.is_active !== false && parseInt(p.ticket_count) > 0
         })),
         pagination: {
           page,
@@ -591,7 +592,7 @@ router.get('/logs', async (req, res) => {
       SELECT 
         al.id,
         al.admin_id,
-        u.full_name as admin_name,
+        u.name as admin_name,
         u.email as admin_email,
         al.action,
         al.entity_type,
@@ -675,14 +676,14 @@ router.get('/logs/stats', async (req, res) => {
     const adminsQuery = `
       SELECT 
         u.id,
-        u.full_name,
+        u.name,
         u.email,
         COUNT(al.id) as action_count,
         MAX(al.created_at) as last_action
       FROM admin_logs al
       JOIN users u ON al.admin_id = u.id
       WHERE al.created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY u.id, u.full_name, u.email
+      GROUP BY u.id, u.name, u.email
       ORDER BY action_count DESC
       LIMIT 10
     `;
@@ -739,7 +740,7 @@ router.get('/winners', async (req, res) => {
 
     if (search) {
       paramCount++;
-      whereConditions.push(`(u.full_name ILIKE $${paramCount} OR u.phone ILIKE $${paramCount} OR t.ticket_number ILIKE $${paramCount})`);
+      whereConditions.push(`(u.name ILIKE $${paramCount} OR u.phone ILIKE $${paramCount} OR t.ticket_number ILIKE $${paramCount})`);
       queryParams.push(`%${search}%`);
     }
 
@@ -772,16 +773,16 @@ router.get('/winners', async (req, res) => {
         t.delivery_updated_at,
         t.created_at as win_date,
         u.id as user_id,
-        u.full_name,
+        u.name,
         u.email,
         u.phone,
-        u.address,
+        u.address_line1 as address,
         u.city,
         u.province,
         c.id as campaign_id,
         c.title as campaign_title,
         c.main_prize,
-        c.bonus_prizes
+        c.secondary_prizes as bonus_prizes
       FROM tickets t
       JOIN users u ON t.user_id = u.id
       JOIN campaigns c ON t.campaign_id = c.id
@@ -839,7 +840,7 @@ router.get('/winners/stats', async (req, res) => {
         t.ticket_number,
         t.delivery_status,
         t.delivery_updated_at,
-        u.full_name,
+        u.name,
         c.title as campaign_title
       FROM tickets t
       JOIN users u ON t.user_id = u.id
@@ -894,7 +895,7 @@ router.patch('/winners/:ticketId/delivery', [
 
     // Check if ticket exists and is a winner
     const checkQuery = `
-      SELECT t.*, u.full_name, u.email, u.phone, c.title as campaign_title
+      SELECT t.*, u.name, u.email, u.phone, c.title as campaign_title
       FROM tickets t
       JOIN users u ON t.user_id = u.id
       JOIN campaigns c ON t.campaign_id = c.id
@@ -957,7 +958,7 @@ router.patch('/winners/:ticketId/delivery', [
       if (delivery_status === 'shipped' && tracking_number) {
         await sendWinnerNotification({
           to: ticket.email,
-          name: ticket.full_name,
+          name: ticket.name,
           campaignTitle: ticket.campaign_title,
           ticketNumber: ticket.ticket_number,
           message: `Votre prix a été expédié ! Numéro de suivi : ${tracking_number}`
@@ -965,7 +966,7 @@ router.patch('/winners/:ticketId/delivery', [
       } else if (delivery_status === 'delivered') {
         await sendWinnerNotification({
           to: ticket.email,
-          name: ticket.full_name,
+          name: ticket.name,
           campaignTitle: ticket.campaign_title,
           ticketNumber: ticket.ticket_number,
           message: 'Votre prix a été livré ! Merci de confirmer la réception.'

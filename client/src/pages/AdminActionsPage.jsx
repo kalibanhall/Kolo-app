@@ -140,7 +140,6 @@ export const AdminActionsPage = () => {
 
         <div className="grid md:grid-cols-2 gap-6">
           <ActionCard
-            icon="📤"
             title="Exporter les participants"
             description="Téléchargez la liste complète des participants au format CSV pour analyse externe."
             action={handleExportParticipants}
@@ -149,7 +148,6 @@ export const AdminActionsPage = () => {
           />
 
           <ActionCard
-            icon="🎟️"
             title="Exporter les tickets"
             description="Téléchargez tous les tickets vendus avec leurs détails au format CSV."
             action={handleExportTickets}
@@ -158,7 +156,6 @@ export const AdminActionsPage = () => {
           />
 
           <ActionCard
-            icon="📊"
             title="Générer un rapport"
             description="Créez un rapport détaillé des statistiques de la plateforme (revenus, participants, ventes)."
             action={handleGenerateReport}
@@ -167,7 +164,6 @@ export const AdminActionsPage = () => {
           />
 
           <ActionCard
-            icon="📧"
             title="Message groupé"
             description="Envoyez un email à tous les participants ou à une sélection ciblée."
             action={() => setMessage({ type: 'error', text: 'Fonctionnalité en développement' })}
@@ -176,7 +172,6 @@ export const AdminActionsPage = () => {
           />
 
           <ActionCard
-            icon="🔒"
             title="Verrouiller campagne"
             description="Fermez d'urgence une campagne en cours pour suspendre les ventes."
             action={() => setMessage({ type: 'error', text: 'Fonctionnalité en développement' })}
@@ -185,7 +180,6 @@ export const AdminActionsPage = () => {
           />
 
           <ActionCard
-            icon="🗃️"
             title="Archiver campagne"
             description="Déplacez une campagne terminée vers les archives pour nettoyer l'interface."
             action={() => setMessage({ type: 'error', text: 'Fonctionnalité en développement' })}
@@ -197,7 +191,7 @@ export const AdminActionsPage = () => {
         {/* Informations de sécurité */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-            ⚠️ Zone d'actions critiques
+            Zone d'actions critiques
           </h3>
           <p className="text-yellow-800">
             Toutes les actions effectuées sur cette page sont enregistrées dans le journal d'audit.

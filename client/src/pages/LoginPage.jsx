@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogoKolo } from '../components/LogoKolo';
+import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
 
 export const LoginPage = () => {
-  const { login, loading, error, isAdmin } = useAuth();
+  const { login, loginWithGoogle, loading, error, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -12,6 +13,7 @@ export const LoginPage = () => {
   });
   const [localError, setLocalError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -41,6 +43,25 @@ export const LoginPage = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLocalError('');
+    setGoogleLoading(true);
+    
+    try {
+      await loginWithGoogle();
+      
+      if (isAdmin()) {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      setLocalError(err.message || 'Erreur lors de la connexion Google');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -64,7 +85,7 @@ export const LoginPage = () => {
 
           {(error || localError) && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700 text-sm">❌ {localError || error}</p>
+              <p className="text-red-700 text-sm">{localError || error}</p>
             </div>
           )}
 
@@ -103,7 +124,7 @@ export const LoginPage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -125,6 +146,27 @@ export const LoginPage = () => {
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {loading ? 'Connexion...' : 'Se connecter'}
+            </button>
+
+            {/* Divider */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">ou</span>
+              </div>
+            </div>
+
+            {/* Google Sign In Button */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg border border-gray-300 transition-colors"
+            >
+              <GoogleIcon className="w-5 h-5" />
+              {googleLoading ? 'Connexion...' : 'Continuer avec Google'}
             </button>
           </form>
 

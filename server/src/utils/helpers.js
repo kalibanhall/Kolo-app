@@ -48,15 +48,38 @@ const normalizePhoneNumber = (phone) => {
 };
 
 // Detect mobile money provider from phone number
+// Préfixes RDC:
+// - Vodacom (M-Pesa): 81, 82, 83
+// - Orange Money: 84, 85, 89
+// - Airtel Money: 97, 99, 90
+// - Africell: 91
 const detectProvider = (phone) => {
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  // Nettoyer le numéro
+  let cleaned = phone.replace(/[\s\-\(\)+]/g, '');
   
-  if (cleaned.includes('81') || cleaned.includes('82')) {
+  // Retirer le préfixe 243 si présent
+  if (cleaned.startsWith('243')) {
+    cleaned = cleaned.substring(3);
+  }
+  
+  // Prendre les 2 premiers chiffres (préfixe opérateur)
+  const prefix = cleaned.substring(0, 2);
+  
+  // Vodacom M-Pesa: 81, 82, 83
+  if (['81', '82', '83'].includes(prefix)) {
     return 'Vodacom M-Pesa';
-  } else if (cleaned.includes('84') || cleaned.includes('85')) {
+  }
+  // Orange Money: 84, 85, 89
+  else if (['84', '85', '89'].includes(prefix)) {
     return 'Orange Money';
-  } else if (cleaned.includes('89') || cleaned.includes('90') || cleaned.includes('97') || cleaned.includes('99')) {
+  }
+  // Airtel Money: 97, 99, 90
+  else if (['97', '99', '90'].includes(prefix)) {
     return 'Airtel Money';
+  }
+  // Africell: 91
+  else if (prefix === '91') {
+    return 'Africell';
   }
   
   return 'Mobile Money';

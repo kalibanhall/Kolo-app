@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { FilterPanel } from '../components/FilterPanel';
+import { DocumentIcon, PlusIcon, EditIcon, TrashIcon, LockIcon, UnlockIcon, DiceIcon, RefreshIcon, ExportIcon } from '../components/Icons';
 import api from '../services/api';
 
 export const AdminLogsPage = () => {
@@ -106,18 +107,15 @@ export const AdminLogsPage = () => {
 
   const getActionIcon = (action) => {
     const icons = {
-      LOGIN: '🔓',
-      LOGOUT: '🔒',
-      CREATE: '➕',
-      UPDATE: '✏️',
-      DELETE: '🗑️',
-      DRAW: '🎲',
-      CAMPAIGN_CREATED: '📢',
-      CAMPAIGN_UPDATED: '📝',
-      CAMPAIGN_CLOSED: '🔒',
-      LOTTERY_DRAW: '🎰',
+      LOGIN: <LockIcon className="w-4 h-4 inline mr-1" />,
+      LOGOUT: <UnlockIcon className="w-4 h-4 inline mr-1" />,
+      CAMPAIGN_CREATED: <PlusIcon className="w-4 h-4 inline mr-1" />,
+      CAMPAIGN_UPDATED: <EditIcon className="w-4 h-4 inline mr-1" />,
+      CAMPAIGN_DELETED: <TrashIcon className="w-4 h-4 inline mr-1" />,
+      USER_UPDATED: <EditIcon className="w-4 h-4 inline mr-1" />,
+      LOTTERY_DRAW: <DiceIcon className="w-4 h-4 inline mr-1" />,
     };
-    return icons[action] || '📋';
+    return icons[action] || <DocumentIcon className="w-4 h-4 inline mr-1" />;
   };
 
   const formatDate = (dateString) => {
@@ -152,7 +150,7 @@ export const AdminLogsPage = () => {
                   <p className="text-2xl font-bold text-gray-900">{stats.stats.total_logs}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">📊</span>
+                  <span className="text-sm font-bold text-blue-600">LOG</span>
                 </div>
               </div>
             </div>
@@ -164,7 +162,7 @@ export const AdminLogsPage = () => {
                   <p className="text-2xl font-bold text-gray-900">{stats.stats.logs_last_24h}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">⏱️</span>
+                  <span className="text-sm font-bold text-green-600">24H</span>
                 </div>
               </div>
             </div>
@@ -178,7 +176,7 @@ export const AdminLogsPage = () => {
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">👥</span>
+                  <span className="text-sm font-bold text-purple-600">ADM</span>
                 </div>
               </div>
             </div>
@@ -192,7 +190,7 @@ export const AdminLogsPage = () => {
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🔥</span>
+                  <span className="text-sm font-bold text-yellow-600">TOP</span>
                 </div>
               </div>
             </div>

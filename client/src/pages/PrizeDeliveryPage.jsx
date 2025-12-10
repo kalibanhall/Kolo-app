@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { ClockIcon, PhoneIcon, ShippingIcon, CheckIcon, GiftIcon } from '../components/Icons';
 import api from '../services/api';
 
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'En attente', color: 'gray', icon: '⏳' },
-  { value: 'contacted', label: 'Contacté', color: 'blue', icon: '📞' },
-  { value: 'shipped', label: 'Expédié', color: 'yellow', icon: '📦' },
-  { value: 'delivered', label: 'Livré', color: 'green', icon: '✅' },
-  { value: 'claimed', label: 'Réclamé', color: 'purple', icon: '🎁' },
+  { value: 'pending', label: 'En attente', color: 'gray', Icon: ClockIcon },
+  { value: 'contacted', label: 'Contacté', color: 'blue', Icon: PhoneIcon },
+  { value: 'shipped', label: 'Expédié', color: 'yellow', Icon: ShippingIcon },
+  { value: 'delivered', label: 'Livré', color: 'green', Icon: CheckIcon },
+  { value: 'claimed', label: 'Réclamé', color: 'purple', Icon: GiftIcon },
 ];
 
 export const PrizeDeliveryPage = () => {
@@ -164,10 +165,11 @@ export const PrizeDeliveryPage = () => {
       green: 'bg-green-100 text-green-800',
       purple: 'bg-purple-100 text-purple-800',
     };
+    const IconComponent = option.Icon;
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${colors[option.color]}`}>
-        {option.icon} {option.label}
+      <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center ${colors[option.color]}`}>
+        {IconComponent && <IconComponent className="w-3 h-3 mr-1" />} {option.label}
       </span>
     );
   };
@@ -223,15 +225,15 @@ export const PrizeDeliveryPage = () => {
               <p className="text-3xl font-bold text-gray-700">{stats.pending}</p>
             </div>
             <div className="bg-blue-50 rounded-lg shadow-md p-6">
-              <p className="text-sm text-blue-600">📞 Contactés</p>
+              <p className="text-sm text-blue-600">Contactés</p>
               <p className="text-3xl font-bold text-blue-700">{stats.contacted}</p>
             </div>
             <div className="bg-yellow-50 rounded-lg shadow-md p-6">
-              <p className="text-sm text-yellow-600">📦 Expédiés</p>
+              <p className="text-sm text-yellow-600">Expédiés</p>
               <p className="text-3xl font-bold text-yellow-700">{stats.shipped}</p>
             </div>
             <div className="bg-green-50 rounded-lg shadow-md p-6">
-              <p className="text-sm text-green-600">✅ Livrés</p>
+              <p className="text-sm text-green-600">Livrés</p>
               <p className="text-3xl font-bold text-green-700">{stats.delivered + stats.claimed}</p>
             </div>
           </div>
@@ -342,7 +344,7 @@ export const PrizeDeliveryPage = () => {
                           <div className="text-xs text-gray-500">{winner.campaign_title}</div>
                           {winner.prize_category && (
                             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
-                              {winner.prize_category === 'main' ? '🏆 Principal' : '🎁 Bonus'}
+                              {winner.prize_category === 'main' ? 'Principal' : 'Bonus'}
                             </span>
                           )}
                         </td>
@@ -358,7 +360,7 @@ export const PrizeDeliveryPage = () => {
                             onClick={() => handleEditWinner(winner)}
                             className="text-blue-600 hover:text-blue-900 mr-3"
                           >
-                            ✏️ Modifier
+                            Modifier
                           </button>
                         </td>
                       </tr>
@@ -473,7 +475,7 @@ export const PrizeDeliveryPage = () => {
                     disabled={updating[editingWinner.id]}
                     className="flex-1 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50"
                   >
-                    {updating[editingWinner.id] ? 'Enregistrement...' : '💾 Enregistrer'}
+                    {updating[editingWinner.id] ? 'Enregistrement...' : 'Enregistrer'}
                   </button>
                   <button
                     onClick={() => setEditingWinner(null)}

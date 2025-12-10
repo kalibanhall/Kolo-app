@@ -123,7 +123,7 @@ export const AdminDashboard = () => {
     return (
       <AdminLayout>
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700 font-medium">❌ Erreur : {error}</p>
+          <p className="text-red-700 font-medium">Erreur : {error}</p>
           <button
             onClick={loadStats}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -279,7 +279,7 @@ export const AdminDashboard = () => {
 
       {/* Analytics Section with Charts */}
       <div className="mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Analytics et Statistiques</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Analytics et Statistiques</h2>
         
         {/* Row 1: Revenue and Participants */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

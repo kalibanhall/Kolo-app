@@ -42,7 +42,7 @@ const PendingPaymentsPage = () => {
 
       const result = await paymentsAPI.simulate(purchaseId);
       
-      setSuccess(`✅ Paiement validé avec succès ! ${result.tickets.length} ticket(s) généré(s).`);
+      setSuccess(`Paiement validé avec succès ! ${result.tickets.length} ticket(s) généré(s).`);
       
       // Retirer l'achat de la liste
       setPendingPurchases(prev => prev.filter(p => p.purchase_id !== purchaseId));
@@ -91,14 +91,13 @@ const PendingPaymentsPage = () => {
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400"
               disabled={loading}
             >
-              {loading ? 'Chargement...' : '🔄 Actualiser'}
+              {loading ? 'Chargement...' : 'Actualiser'}
             </button>
           </div>
 
           {/* Messages */}
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
-              <span className="text-xl mr-2">⚠️</span>
               <div>
                 <strong className="font-semibold">Erreur:</strong>
                 <p className="mt-1">{error}</p>
@@ -108,7 +107,6 @@ const PendingPaymentsPage = () => {
 
           {success && (
             <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-start">
-              <span className="text-xl mr-2">✅</span>
               <p>{success}</p>
             </div>
           )}
@@ -143,7 +141,6 @@ const PendingPaymentsPage = () => {
             </div>
           ) : pendingPurchases.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🎉</div>
               <h3 className="text-xl font-semibold text-gray-700 mb-2">
                 Aucun achat en attente
               </h3>
@@ -217,11 +214,11 @@ const PendingPaymentsPage = () => {
                         >
                           {simulatingId === purchase.purchase_id ? (
                             <>
-                              <span className="inline-block animate-spin mr-2">⏳</span>
+                              <span className="inline-block animate-spin mr-2">...</span>
                               Validation...
                             </>
                           ) : (
-                            <>💳 Valider Paiement</>
+                            <>Valider Paiement</>
                           )}
                         </button>
                       </td>

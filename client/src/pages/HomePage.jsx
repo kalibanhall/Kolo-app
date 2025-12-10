@@ -88,10 +88,9 @@ export const HomePage = () => {
                   </div>
                 )}
                 
-                {/* Overlay Badge - Prize Amount */}
-                <div className="absolute top-3 right-3 sm:top-6 sm:right-6 bg-yellow-400 text-gray-900 px-3 py-1.5 sm:px-6 sm:py-3 rounded-full shadow-lg">
-                  <p className="text-[10px] sm:text-sm font-semibold">GAGNEZ</p>
-                  <p className="text-sm sm:text-xl md:text-2xl font-bold truncate max-w-[120px] sm:max-w-none">{campaign.main_prize}</p>
+                {/* Overlay Badge - See More */}
+                <div className="absolute top-3 right-3 sm:top-6 sm:right-6 bg-yellow-400 text-gray-900 px-3 py-1.5 sm:px-6 sm:py-3 rounded-full shadow-lg hover:bg-yellow-300 transition cursor-pointer">
+                  <p className="text-xs sm:text-sm font-semibold">Voir plus...</p>
                 </div>
                 
                 {/* Hover overlay */}
@@ -117,7 +116,7 @@ export const HomePage = () => {
                     to="/register"
                     className="flex items-center justify-center w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold px-4 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
                   >
-                    ✨ S'inscrire pour Participer
+                    S'inscrire pour Participer
                   </Link>
                 )}
               </div>
@@ -162,7 +161,7 @@ export const HomePage = () => {
                 </div>
 
                 <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  🔒 Paiement sécurisé via Mobile Money
+                  Paiement sécurisé via Mobile Money
                 </p>
               </div>
             </div>

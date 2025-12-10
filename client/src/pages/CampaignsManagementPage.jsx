@@ -33,13 +33,13 @@ export const CampaignsManagementPage = () => {
       }));
       const success = exportCampaigns(exportData);
       if (success) {
-        alert('✅ Export réussi !');
+        alert('Export réussi !');
       } else {
-        alert('❌ Erreur lors de l\'export');
+        alert('Erreur lors de l\'export');
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert('❌ Erreur lors de l\'export');
+      alert('Erreur lors de l\'export');
     } finally {
       setExporting(false);
     }
@@ -322,7 +322,7 @@ export const CampaignsManagementPage = () => {
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-700">❌ {error}</p>
+            <p className="text-red-700">{error}</p>
           </div>
         )}
 
@@ -424,7 +424,7 @@ export const CampaignsManagementPage = () => {
                       </div>
                     ) : (
                       <div>
-                        <p className="text-gray-600 mb-2">📷 Ajouter une image</p>
+                        <p className="text-gray-600 mb-2">Ajouter une image</p>
                         <input
                           type="file"
                           accept="image/*"
@@ -455,7 +455,7 @@ export const CampaignsManagementPage = () => {
                       </div>
                     ) : (
                       <div>
-                        <p className="text-gray-600 mb-2">🎁 Ajouter une image du prix</p>
+                        <p className="text-gray-600 mb-2">Ajouter une image du prix</p>
                         <input
                           type="file"
                           accept="image/*"
@@ -680,20 +680,20 @@ export const CampaignsManagementPage = () => {
                             onClick={() => handleEdit(campaign)}
                             className="text-blue-600 hover:text-blue-900"
                           >
-                            ✏️ Éditer
+                            Éditer
                           </button>
                           <button
                             onClick={() => handleDelete(campaign.id)}
                             className="text-red-600 hover:text-red-900"
                           >
-                            🗑️ Supprimer
+                            Supprimer
                           </button>
                           {campaign.status === 'draft' && (
                             <button
                               onClick={() => handleStatusChange(campaign.id, 'open')}
                               className="text-green-600 hover:text-green-900"
                             >
-                              🚀 Ouvrir
+                              Ouvrir
                             </button>
                           )}
                           {campaign.status === 'open' && (
@@ -701,7 +701,7 @@ export const CampaignsManagementPage = () => {
                               onClick={() => handleStatusChange(campaign.id, 'closed')}
                               className="text-orange-600 hover:text-orange-900"
                             >
-                              🔒 Fermer
+                              Fermer
                             </button>
                           )}
                         </td>

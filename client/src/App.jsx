@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { CartProvider } from './context/CartContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 import { SplashScreen } from './components/SplashScreen';
@@ -72,6 +73,7 @@ function App() {
       <Router>
         <ScrollToTop />
         <AuthProvider>
+          <CartProvider>
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
               <LoadingSpinner />
@@ -197,6 +199,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        </CartProvider>
       </AuthProvider>
     </Router>
     </ThemeProvider>

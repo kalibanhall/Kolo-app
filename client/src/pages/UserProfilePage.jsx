@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ticketsAPI } from '../services/api';
+import { ticketsAPI, usersAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icons';
 
 const UserProfilePage = () => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -60,17 +61,25 @@ const UserProfilePage = () => {
     }
 
     try {
-      // TODO: Implement API call to update profile
-      console.log('Saving profile:', {
-        ...formData,
+      setSaving(true);
+      
+      await usersAPI.updateProfile(user.id, {
+        name: formData.name,
         phone: `+243${formData.phone}`,
       });
       
-      alert('Profil mis à jour avec succès ! (TODO: implement API)');
+      // Rafraîchir les données utilisateur dans le contexte
+      if (checkAuth) {
+        await checkAuth();
+      }
+      
+      alert('Profil mis à jour avec succès !');
       setEditMode(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Erreur lors de la mise à jour du profil');
+      alert('Erreur lors de la mise à jour du profil: ' + (error.message || 'Erreur inconnue'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -134,14 +143,14 @@ const UserProfilePage = () => {
                     onClick={() => setEditMode(true)}
                     className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
                   >
-                    ✏️ Modifier le profil
+                    Modifier le profil
                   </button>
                 ) : (
                   <button
                     onClick={() => setEditMode(false)}
                     className="mt-4 w-full bg-gray-400 text-white py-2 rounded-lg hover:bg-gray-500 transition"
                   >
-                    ❌ Annuler
+                    Annuler
                   </button>
                 )}
               </div>
@@ -172,7 +181,6 @@ const UserProfilePage = () => {
                 
                 <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">📋</span>
                     <span className="text-gray-700">Campagnes</span>
                   </div>
                   <span className="text-xl font-bold text-purple-600">{stats.campaignsEntered}</span>
@@ -180,7 +188,6 @@ const UserProfilePage = () => {
                 
                 <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">✅</span>
                     <span className="text-gray-700">Tickets actifs</span>
                   </div>
                   <span className="text-xl font-bold text-yellow-600">{stats.activeTickets}</span>
@@ -195,7 +202,7 @@ const UserProfilePage = () => {
             {editMode && (
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  ✏️ Modifier mes informations
+                  Modifier mes informations
                 </h3>
                 <form onSubmit={handleSaveProfile} className="space-y-4">
                   <div>
@@ -259,7 +266,7 @@ const UserProfilePage = () => {
                       type="submit"
                       className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
                     >
-                      💾 Enregistrer
+                      Enregistrer
                     </button>
                     <button
                       type="button"

@@ -171,9 +171,9 @@ export const CreateCampaignPage = () => {
   }).format(totalPotential);
 
   const tabs = [
-    { id: 'info', label: 'Informations', icon: '📝' },
-    { id: 'details', label: 'Configuration', icon: '⚙️' },
-    { id: 'preview', label: 'Prévisualisation', icon: '👁️' },
+    { id: 'info', label: 'Informations', icon: '' },
+    { id: 'details', label: 'Configuration', icon: '' },
+    { id: 'preview', label: 'Prévisualisation', icon: '' },
   ];
 
   return (
@@ -191,7 +191,6 @@ export const CreateCampaignPage = () => {
         {error && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
             <div className="flex items-center">
-              <span className="text-red-500 text-xl mr-3">❌</span>
               <p className="text-red-700 font-medium">{error}</p>
             </div>
           </div>
@@ -200,7 +199,6 @@ export const CreateCampaignPage = () => {
         {success && (
           <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
             <div className="flex items-center">
-              <span className="text-green-500 text-xl mr-3">✅</span>
               <div>
                 <p className="text-green-700 font-medium">Campagne créée avec succès !</p>
                 <p className="text-green-600 text-sm">Redirection vers la liste des campagnes...</p>
@@ -368,7 +366,7 @@ export const CreateCampaignPage = () => {
                 <div className="space-y-6">
                   {/* Tickets et Prix */}
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">💰 Configuration des tickets</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuration des tickets</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -417,7 +415,7 @@ export const CreateCampaignPage = () => {
 
                   {/* Dates */}
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">📅 Calendrier</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Calendrier</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -463,7 +461,7 @@ export const CreateCampaignPage = () => {
 
                   {/* Statut initial */}
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">🎯 Statut initial</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Statut initial</h3>
                     <div className="flex space-x-4">
                       <label className={`flex-1 relative cursor-pointer rounded-lg border-2 p-4 transition ${
                         formData.status === 'draft' 
@@ -479,7 +477,6 @@ export const CreateCampaignPage = () => {
                           className="sr-only"
                         />
                         <div className="flex items-center">
-                          <span className="text-2xl mr-3">📋</span>
                           <div>
                             <p className="font-semibold text-gray-900">Brouillon</p>
                             <p className="text-sm text-gray-500">La campagne ne sera pas visible</p>
@@ -501,7 +498,6 @@ export const CreateCampaignPage = () => {
                           className="sr-only"
                         />
                         <div className="flex items-center">
-                          <span className="text-2xl mr-3">🟢</span>
                           <div>
                             <p className="font-semibold text-gray-900">Ouverte</p>
                             <p className="text-sm text-gray-500">Visible et ouverte aux achats</p>
@@ -564,7 +560,7 @@ export const CreateCampaignPage = () => {
                           ? 'bg-green-500 text-white' 
                           : 'bg-gray-500 text-white'
                       }`}>
-                        {formData.status === 'open' ? '🟢 Ouverte' : '📋 Brouillon'}
+                        {formData.status === 'open' ? 'Ouverte' : 'Brouillon'}
                       </div>
                     </div>
 
@@ -596,7 +592,7 @@ export const CreateCampaignPage = () => {
                       {/* Dates */}
                       {formData.start_date && formData.end_date && (
                         <div className="text-sm text-gray-500 flex items-center justify-center space-x-4">
-                          <span>📅 Du {new Date(formData.start_date).toLocaleDateString('fr-FR')}</span>
+                          <span>Du {new Date(formData.start_date).toLocaleDateString('fr-FR')}</span>
                           <span>au {new Date(formData.end_date).toLocaleDateString('fr-FR')}</span>
                         </div>
                       )}
@@ -615,7 +611,7 @@ export const CreateCampaignPage = () => {
                   {/* Secondary Prizes Preview */}
                   {formData.secondary_prizes && (
                     <div className="max-w-2xl mx-auto bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6">
-                      <h4 className="font-semibold text-gray-900 mb-3">🎁 Autres prix à gagner</h4>
+                      <h4 className="font-semibold text-gray-900 mb-3">Autres prix à gagner</h4>
                       <ul className="space-y-2">
                         {formData.secondary_prizes.split('\n').filter(p => p.trim()).map((prize, idx) => (
                           <li key={idx} className="flex items-center text-gray-700">
