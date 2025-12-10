@@ -244,16 +244,16 @@ export const adminAPI = {
 
   // Effectuer un tirage
   performDraw: async (drawData) => {
-    // Map frontend field names to backend expected names
+    // drawData already has snake_case field names from frontend
     const payload = {
-      campaign_id: drawData.campaignId,
-      bonus_winners_count: drawData.bonusWinners,
-      draw_method: drawData.drawMethod || 'automatic'
+      campaign_id: drawData.campaign_id,
+      bonus_winners_count: drawData.bonus_winners_count || 0,
+      draw_method: drawData.draw_method || 'automatic'
     };
 
     // Add manual ticket number if manual draw
-    if (drawData.drawMethod === 'manual' && drawData.manualTicketNumber) {
-      payload.manual_ticket_number = drawData.manualTicketNumber;
+    if (drawData.draw_method === 'manual' && drawData.manual_ticket_number) {
+      payload.manual_ticket_number = drawData.manual_ticket_number;
     }
 
     return await request('/admin/draw', {
