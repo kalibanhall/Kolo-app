@@ -12,22 +12,29 @@
     {
       "source": "/manifest.json",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Content-Type", "value": "application/json" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Content-Type", "value": "application/manifest+json" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     },
     {
-      "source": "/(.*).json",
+      "source": "/firebase-messaging-sw.js",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     },
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/offline.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     },
     {
