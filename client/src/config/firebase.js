@@ -4,15 +4,29 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
 // Firebase configuration
-// IMPORTANT: Remplacer avec vos vraies credentials Firebase
+// IMPORTANT: Variables d'environnement requises dans .env
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCAiYvJFyps22vtwxjbD8GxTQ87dS6Vvw0",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kolo-e4711.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kolo-e4711",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kolo-e4711.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "556561408264",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:556561408264:web:f061f8eeaa21a13efa0cbd",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-30CWWRKY2C"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+};
+
+// Validation de la configuration Firebase
+const validateFirebaseConfig = () => {
+  const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const missingKeys = requiredKeys.filter(key => !firebaseConfig[key]);
+  
+  if (missingKeys.length > 0) {
+    console.error('❌ Firebase configuration missing keys:', missingKeys);
+    console.error('📋 Please set these environment variables in .env:');
+    console.error('   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID');
+    return false;
+  }
+  return true;
 };
 
 // Initialize Firebase
@@ -20,9 +34,15 @@ let app;
 let messaging;
 let auth;
 let googleProvider;
+let firebaseInitialized = false;
 
 try {
+  if (!validateFirebaseConfig()) {
+    throw new Error('Firebase configuration is incomplete');
+  }
+  
   app = initializeApp(firebaseConfig);
+  firebaseInitialized = true;
   
   // Initialize Firebase Auth
   auth = getAuth(app);
@@ -32,15 +52,21 @@ try {
   
   // Check if messaging is supported
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-    messaging = getMessaging(app);
-    console.log('✅ Firebase Messaging initialized');
+    try {
+      messaging = getMessaging(app);
+      console.log('✅ Firebase Messaging initialized');
+    } catch (msgError) {
+      console.warn('⚠️  Firebase Messaging initialization error:', msgError.message);
+    }
   } else {
     console.warn('⚠️  Firebase Messaging not supported in this browser');
   }
   
   console.log('✅ Firebase Auth initialized');
 } catch (error) {
-  console.error('❌ Firebase initialization error:', error);
+  console.error('❌ Firebase initialization error:', error.message);
+  console.error('⚠️  Auth features may not work. Check your Firebase configuration.');
+  firebaseInitialized = false;
 }
 
 // Request permission and get FCM token
@@ -136,6 +162,14 @@ export { app, messaging };
 // Google Sign-In
 export const signInWithGoogle = async () => {
   try {
+    if (!firebaseInitialized) {
+      throw new Error('Firebase not properly initialized. Check your configuration.');
+    }
+    
+    if (!auth || !googleProvider) {
+      throw new Error('Google Auth provider not initialized');
+    }
+    
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
     const idToken = await user.getIdToken();
@@ -162,6 +196,15 @@ export const signInWithGoogle = async () => {
 // Sign out from Google
 export const signOutGoogle = async () => {
   try {
+    if (!firebaseInitialized) {
+      console.warn('⚠️  Firebase not initialized, clearing local auth state');
+      return { success: true };
+    }
+    
+    if (!auth) {
+      throw new Error('Auth not initialized');
+    }
+    
     await signOut(auth);
     return { success: true };
   } catch (error) {
