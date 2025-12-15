@@ -122,11 +122,33 @@ router.get('/participants', async (req, res) => {
 });
 
 // Get tickets for a specific campaign (for manual draw selection)
+// Returns ALL available tickets (both sold and unsold) that can be selected
 router.get('/campaigns/:campaignId/tickets', async (req, res) => {
   try {
     const { campaignId } = req.params;
-    
-    const result = await query(
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    // Get campaign info to know total tickets
+    const campaignResult = await query(
+      'SELECT id, total_tickets FROM campaigns WHERE id = $1',
+      [campaignId]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+
+    const campaign = campaignResult.rows[0];
+    const totalTickets = campaign.total_tickets;
+
+    // Get sold tickets
+    const soldResult = await query(
       `SELECT t.id, t.ticket_number, t.created_at, t.status,
               u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone
        FROM tickets t
@@ -136,10 +158,63 @@ router.get('/campaigns/:campaignId/tickets', async (req, res) => {
       [campaignId]
     );
 
+    const soldTickets = soldResult.rows;
+    const soldNumbers = new Set(soldTickets.map(t => t.ticket_number));
+
+    // Build array of all available tickets (sold + unsold)
+    const allTickets = [];
+    
+    // Add sold tickets first
+    for (const ticket of soldTickets) {
+      allTickets.push({
+        id: ticket.id,
+        ticket_number: ticket.ticket_number,
+        user_name: ticket.user_name,
+        user_email: ticket.user_email,
+        user_phone: ticket.user_phone,
+        status: ticket.status,
+        is_sold: true
+      });
+    }
+
+    // Add unsold ticket numbers
+    for (let i = 1; i <= totalTickets; i++) {
+      const ticketNumber = `KOLO-${String(i).padStart(6, '0')}`;
+      if (!soldNumbers.has(ticketNumber)) {
+        allTickets.push({
+          id: null,
+          ticket_number: ticketNumber,
+          user_name: 'Disponible',
+          user_email: null,
+          user_phone: null,
+          status: 'available',
+          is_sold: false
+        });
+      }
+    }
+
+    // Filter by search term if provided
+    let filteredTickets = allTickets;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredTickets = allTickets.filter(t =>
+        t.ticket_number.toLowerCase().includes(searchLower) ||
+        (t.user_name && t.user_name.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Apply pagination
+    const paginatedTickets = filteredTickets.slice(offset, offset + limit);
+
     res.json({
       success: true,
-      tickets: result.rows,
-      total: result.rows.length
+      tickets: paginatedTickets,
+      total: filteredTickets.length,
+      total_available: totalTickets - soldTickets.length,
+      total_sold: soldTickets.length,
+      page,
+      limit,
+      has_more: offset + limit < filteredTickets.length
     });
 
   } catch (error) {

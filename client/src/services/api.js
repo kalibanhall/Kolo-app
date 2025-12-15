@@ -290,8 +290,13 @@ export const adminAPI = {
   },
 
   // Obtenir les tickets d'une campagne
-  getCampaignTickets: async (campaignId) => {
-    return await request(`/admin/campaigns/${campaignId}/tickets`);
+  getCampaignTickets: async (campaignId, params = {}) => {
+    const queryString = new URLSearchParams({
+      page: params.page || 1,
+      limit: params.limit || 100,
+      ...(params.search && { search: params.search })
+    }).toString();
+    return await request(`/admin/campaigns/${campaignId}/tickets?${queryString}`);
   },
 };
 

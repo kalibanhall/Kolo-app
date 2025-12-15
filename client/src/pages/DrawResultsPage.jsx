@@ -23,6 +23,10 @@ const DrawResultsPage = () => {
   const [availableTickets, setAvailableTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [ticketSearchTerm, setTicketSearchTerm] = useState('');
+  const [ticketPage, setTicketPage] = useState(1);
+  const [ticketTotalPages, setTicketTotalPages] = useState(1);
+  const [ticketStats, setTicketStats] = useState({ total: 0, total_sold: 0, total_available: 0 });
+  const TICKETS_PER_PAGE = 100;
 
   useEffect(() => {
     loadData();
@@ -62,21 +66,36 @@ const DrawResultsPage = () => {
     }
   };
 
-  const loadCampaignTickets = useCallback(async (campaignId) => {
+  const loadCampaignTickets = useCallback(async (campaignId, page = 1, search = '') => {
     if (!campaignId) return;
     
     setLoadingTickets(true);
     try {
-      const response = await adminAPI.getCampaignTickets(campaignId);
-      const tickets = response.tickets || response.data || response || [];
+      const response = await adminAPI.getCampaignTickets(campaignId, {
+        page,
+        limit: TICKETS_PER_PAGE,
+        search
+      });
+      
+      const tickets = response.tickets || response.data || [];
+      const total = response.total || 0;
+      const totalPages = Math.ceil(total / TICKETS_PER_PAGE);
+      
       setAvailableTickets(Array.isArray(tickets) ? tickets : []);
+      setTicketTotalPages(totalPages);
+      setTicketStats({
+        total: response.total || 0,
+        total_sold: response.total_sold || 0,
+        total_available: response.total_available || 0
+      });
     } catch (err) {
       console.error('Error loading tickets:', err);
       setAvailableTickets([]);
+      setTicketStats({ total: 0, total_sold: 0, total_available: 0 });
     } finally {
       setLoadingTickets(false);
     }
-  }, []);
+  }, [TICKETS_PER_PAGE]);
 
   const openDrawModal = (campaign) => {
     setSelectedCampaign(campaign);
@@ -85,7 +104,8 @@ const DrawResultsPage = () => {
     setManualTicketNumber('');
     setBonusWinners(3);
     setTicketSearchTerm('');
-    loadCampaignTickets(campaign.id);
+    setTicketPage(1);
+    loadCampaignTickets(campaign.id, 1, '');
   };
 
   const closeModal = () => {
@@ -94,6 +114,7 @@ const DrawResultsPage = () => {
     setManualTicketNumber('');
     setAvailableTickets([]);
     setTicketSearchTerm('');
+    setTicketPage(1);
   };
 
   const handleDraw = async (e) => {
@@ -497,12 +518,32 @@ const DrawResultsPage = () => {
                       Sélectionner le ticket gagnant
                     </label>
                     
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2 mb-4 text-sm">
+                      <div className="bg-white p-2 rounded border border-yellow-300">
+                        <div className="text-yellow-600 font-bold">{ticketStats.total}</div>
+                        <div className="text-gray-600 text-xs">Total</div>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-green-300">
+                        <div className="text-green-600 font-bold">{ticketStats.total_available}</div>
+                        <div className="text-gray-600 text-xs">Disponibles</div>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-blue-300">
+                        <div className="text-blue-600 font-bold">{ticketStats.total_sold}</div>
+                        <div className="text-gray-600 text-xs">Vendus</div>
+                      </div>
+                    </div>
+                    
                     {/* Search tickets */}
                     <input
                       type="text"
                       placeholder="Rechercher par numéro ou nom..."
                       value={ticketSearchTerm}
-                      onChange={(e) => setTicketSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setTicketSearchTerm(e.target.value);
+                        setTicketPage(1);
+                        loadCampaignTickets(selectedCampaign.id, 1, e.target.value);
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                     />
                     
@@ -511,38 +552,77 @@ const DrawResultsPage = () => {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto" />
                         <p className="text-sm text-gray-600 mt-2">Chargement des tickets...</p>
                       </div>
-                    ) : filteredTickets.length === 0 ? (
+                    ) : availableTickets.length === 0 ? (
                       <div className="text-center py-4 text-gray-500">
                         Aucun ticket trouvé
                       </div>
                     ) : (
-                      <div className="max-h-48 overflow-y-auto space-y-2">
-                        {filteredTickets.slice(0, 50).map((ticket) => (
-                          <button
-                            key={ticket.id}
-                            type="button"
-                            onClick={() => setManualTicketNumber(ticket.ticket_number)}
-                            className={`w-full p-3 rounded-lg border-2 transition-all text-left flex justify-between items-center ${
-                              manualTicketNumber === ticket.ticket_number
-                                ? 'border-yellow-500 bg-yellow-100'
-                                : 'border-gray-200 bg-white hover:border-yellow-300'
-                            }`}
-                          >
-                            <div>
-                              <span className="font-mono font-bold text-indigo-600">{ticket.ticket_number}</span>
-                              <span className="text-gray-500 ml-2">- {ticket.user_name || 'Utilisateur'}</span>
+                      <>
+                        <div className="max-h-64 overflow-y-auto space-y-2 mb-3">
+                          {availableTickets.map((ticket) => (
+                            <button
+                              key={ticket.id || ticket.ticket_number}
+                              type="button"
+                              onClick={() => setManualTicketNumber(ticket.ticket_number)}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-left flex justify-between items-center ${
+                                manualTicketNumber === ticket.ticket_number
+                                  ? 'border-yellow-500 bg-yellow-100'
+                                  : ticket.is_sold 
+                                    ? 'border-blue-200 bg-blue-50 hover:border-blue-300'
+                                    : 'border-green-200 bg-green-50 hover:border-green-300'
+                              }`}
+                            >
+                              <div>
+                                <span className="font-mono font-bold text-indigo-600">{ticket.ticket_number}</span>
+                                <span className={`text-sm ml-2 ${ticket.is_sold ? 'text-blue-600' : 'text-green-600'}`}>
+                                  - {ticket.user_name || 'Disponible'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {ticket.is_sold && <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Vendu</span>}
+                                {manualTicketNumber === ticket.ticket_number && (
+                                  <span className="text-yellow-600 text-lg">✓</span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {ticketTotalPages > 1 && (
+                          <div className="flex items-center justify-between text-sm mt-3 pt-3 border-t border-yellow-300">
+                            <span className="text-gray-600">
+                              Page {ticketPage} sur {ticketTotalPages}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newPage = Math.max(1, ticketPage - 1);
+                                  setTicketPage(newPage);
+                                  loadCampaignTickets(selectedCampaign.id, newPage, ticketSearchTerm);
+                                }}
+                                disabled={ticketPage === 1}
+                                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-yellow-100"
+                              >
+                                ← Précédent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newPage = Math.min(ticketTotalPages, ticketPage + 1);
+                                  setTicketPage(newPage);
+                                  loadCampaignTickets(selectedCampaign.id, newPage, ticketSearchTerm);
+                                }}
+                                disabled={ticketPage === ticketTotalPages}
+                                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50 hover:bg-yellow-100"
+                              >
+                                Suivant →
+                              </button>
                             </div>
-                            {manualTicketNumber === ticket.ticket_number && (
-                              <span className="text-yellow-600">✓</span>
-                            )}
-                          </button>
-                        ))}
-                        {filteredTickets.length > 50 && (
-                          <p className="text-sm text-gray-500 text-center py-2">
-                            +{filteredTickets.length - 50} autres tickets...
-                          </p>
+                          </div>
                         )}
-                      </div>
+                      </>
                     )}
                     
                     {manualTicketNumber && (
