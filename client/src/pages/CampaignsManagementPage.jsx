@@ -12,12 +12,6 @@ export const CampaignsManagementPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [exporting, setExporting] = useState(false);
-  const [showDrawModal, setShowDrawModal] = useState(false);
-  const [selectedCampaignForDraw, setSelectedCampaignForDraw] = useState(null);
-  const [drawMethod, setDrawMethod] = useState('automatic');
-  const [manualTicketNumber, setManualTicketNumber] = useState('');
-  const [bonusWinners, setBonusWinners] = useState(3);
-  const [drawing, setDrawing] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -215,64 +209,6 @@ export const CampaignsManagementPage = () => {
       loadCampaigns();
     } catch (err) {
       setError('Erreur lors de la suppression');
-    }
-  };
-
-  const handleOpenDrawModal = (campaign) => {
-    setSelectedCampaignForDraw(campaign);
-    setShowDrawModal(true);
-    setDrawMethod('automatic');
-    setManualTicketNumber('');
-    setBonusWinners(3);
-  };
-
-  const handleCloseDrawModal = () => {
-    setShowDrawModal(false);
-    setSelectedCampaignForDraw(null);
-    setDrawMethod('automatic');
-    setManualTicketNumber('');
-    setBonusWinners(3);
-  };
-
-  const handlePerformDraw = async (e) => {
-    e.preventDefault();
-    if (!selectedCampaignForDraw) return;
-
-    if (drawMethod === 'manual' && !manualTicketNumber.trim()) {
-      setError('Veuillez sélectionner un numéro de ticket pour le tirage manuel');
-      return;
-    }
-
-    const confirmMessage = drawMethod === 'manual'
-      ? `Voulez-vous vraiment effectuer un tirage MANUEL avec le ticket ${manualTicketNumber} ?`
-      : `Voulez-vous vraiment effectuer un tirage AUTOMATIQUE pour la campagne "${selectedCampaignForDraw.title}" ?`;
-
-    if (!window.confirm(confirmMessage)) return;
-
-    setDrawing(true);
-    setError('');
-
-    try {
-      const drawData = {
-        campaign_id: selectedCampaignForDraw.id,
-        bonus_winners_count: parseInt(bonusWinners),
-        draw_method: drawMethod
-      };
-
-      if (drawMethod === 'manual') {
-        drawData.manual_ticket_number = manualTicketNumber.trim();
-      }
-
-      await campaignsAPI.performDraw(drawData);
-      setError('');
-      handleCloseDrawModal();
-      loadCampaigns();
-      alert('Tirage effectué avec succès !');
-    } catch (err) {
-      console.error('Error during draw:', err);
-      setError(err.message || 'Erreur lors du tirage');
-    } finally {
-      setDrawing(false);
     }
   };
 
@@ -768,18 +704,6 @@ export const CampaignsManagementPage = () => {
                               Fermer
                             </button>
                           )}
-                          {/* Bouton Effectuer tirage - Gris par défaut, Vert si fermée/terminée */}
-                          <button
-                            onClick={() => handleOpenDrawModal(campaign)}
-                            disabled={campaign.status !== 'closed' && campaign.status !== 'completed'}
-                            className={`px-3 py-1 rounded font-medium transition-colors ${
-                              campaign.status === 'closed' || campaign.status === 'completed'
-                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                : 'bg-gray-400 text-gray-100 cursor-not-allowed'
-                            }`}
-                          >
-                            🎯 Tirage
-                          </button>
                         </td>
                       </tr>
                     )))}
@@ -787,151 +711,6 @@ export const CampaignsManagementPage = () => {
                 </table>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Modal Effectuer Tirage */}
-        {showDrawModal && selectedCampaignForDraw && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Effectuer un tirage</h2>
-                <button
-                  onClick={handleCloseDrawModal}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handlePerformDraw} className="p-6 space-y-6">
-                {/* Infos campagne */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">Campagne sélectionnée</h3>
-                  <p className="text-blue-800">{selectedCampaignForDraw.title}</p>
-                  <p className="text-sm text-blue-600">Prix: {selectedCampaignForDraw.main_prize}</p>
-                  <p className="text-sm text-blue-600">Tickets vendus: {selectedCampaignForDraw.sold_tickets || 0} / {selectedCampaignForDraw.total_tickets}</p>
-                </div>
-
-                {/* Méthode de tirage */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Méthode de tirage
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setDrawMethod('automatic')}
-                      className={`p-4 rounded-xl border-2 transition-all text-left ${
-                        drawMethod === 'automatic'
-                          ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="text-lg font-bold mb-2">🎲</div>
-                      <div className="font-bold text-gray-900">Automatique</div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Sélection aléatoire par le système
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDrawMethod('manual')}
-                      className={`p-4 rounded-xl border-2 transition-all text-left ${
-                        drawMethod === 'manual'
-                          ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-200'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="text-lg font-bold mb-2">M</div>
-                      <div className="font-bold text-gray-900">Manuel</div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Choisir un ticket spécifique
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sélection manuelle du ticket */}
-                {drawMethod === 'manual' && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Numéro de ticket gagnant
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: KOLO-000001"
-                      value={manualTicketNumber}
-                      onChange={(e) => setManualTicketNumber(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                    />
-                    {manualTicketNumber && (
-                      <div className="mt-3 p-3 bg-yellow-100 rounded-lg border border-yellow-300">
-                        <p className="text-sm text-yellow-800">
-                          <strong>Ticket sélectionné :</strong> {manualTicketNumber}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Gagnants Bonus */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre de gagnants bonus (0-10)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={bonusWinners}
-                    onChange={(e) => setBonusWinners(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Les gagnants bonus sont toujours sélectionnés automatiquement
-                  </p>
-                </div>
-
-                {/* Erreur */}
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {error}
-                  </div>
-                )}
-
-                {/* Boutons */}
-                <div className="flex gap-4 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={handleCloseDrawModal}
-                    disabled={drawing}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={drawing || (drawMethod === 'manual' && !manualTicketNumber)}
-                    className={`flex-1 px-4 py-3 rounded-lg text-white font-medium transition-colors ${
-                      drawing || (drawMethod === 'manual' && !manualTicketNumber)
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700'
-                    }`}
-                  >
-                    {drawing ? (
-                      <>
-                        <span className="inline-block animate-spin mr-2">⏳</span>
-                        Tirage en cours...
-                      </>
-                    ) : (
-                      'Effectuer le tirage'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
           </div>
         )}
       </div>

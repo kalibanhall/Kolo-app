@@ -223,14 +223,14 @@ const DrawResultsPage = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError('')} className="text-red-700 hover:text-red-900">✕</button>
+            <button onClick={() => setError('')} className="text-red-700 hover:text-red-900 text-xl font-bold">×</button>
           </div>
         )}
         
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
             <span>{success}</span>
-            <button onClick={() => setSuccess('')} className="text-green-700 hover:text-green-900">✕</button>
+            <button onClick={() => setSuccess('')} className="text-green-700 hover:text-green-900 text-xl font-bold">×</button>
           </div>
         )}
 
@@ -454,7 +454,7 @@ const DrawResultsPage = () => {
                     <h3 className="text-2xl font-bold">Effectuer un Tirage</h3>
                     <p className="text-indigo-200 mt-1">{selectedCampaign.title}</p>
                   </div>
-                  <button onClick={closeModal} className="text-white/80 hover:text-white text-2xl">✕</button>
+                  <button onClick={closeModal} className="text-white/80 hover:text-white text-2xl font-bold">×</button>
                 </div>
               </div>
               
@@ -581,7 +581,7 @@ const DrawResultsPage = () => {
                               <div className="flex items-center gap-2">
                                 {ticket.is_sold && <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Vendu</span>}
                                 {manualTicketNumber === ticket.ticket_number && (
-                                  <span className="text-yellow-600 text-lg">✓</span>
+                                  <span className="text-yellow-600 text-lg font-bold">X</span>
                                 )}
                               </div>
                             </button>
