@@ -122,7 +122,7 @@ router.get('/participants', async (req, res) => {
 });
 
 // Get tickets for a specific campaign (for manual draw selection)
-// Returns ALL available tickets (both sold and unsold) that can be selected
+// Returns SOLD tickets only (only existing tickets can be drawn)
 router.get('/campaigns/:campaignId/tickets', async (req, res) => {
   try {
     const { campaignId } = req.params;
@@ -131,7 +131,7 @@ router.get('/campaigns/:campaignId/tickets', async (req, res) => {
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
 
-    // Get campaign info to know total tickets
+    // Get campaign info
     const campaignResult = await query(
       'SELECT id, total_tickets FROM campaigns WHERE id = $1',
       [campaignId]
@@ -144,77 +144,52 @@ router.get('/campaigns/:campaignId/tickets', async (req, res) => {
       });
     }
 
-    const campaign = campaignResult.rows[0];
-    const totalTickets = campaign.total_tickets;
-
-    // Get sold tickets
-    const soldResult = await query(
-      `SELECT t.id, t.ticket_number, t.created_at, t.status,
-              u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone
+    // Count total sold tickets
+    const countResult = await query(
+      `SELECT COUNT(*) as total
        FROM tickets t
-       JOIN users u ON t.user_id = u.id
-       WHERE t.campaign_id = $1 AND t.status = 'active'
-       ORDER BY t.ticket_number ASC`,
+       WHERE t.campaign_id = $1 AND t.status = 'active'`,
       [campaignId]
     );
+    const totalSold = parseInt(countResult.rows[0].total);
 
-    const soldTickets = soldResult.rows;
-    const soldNumbers = new Set(soldTickets.map(t => t.ticket_number));
+    // Get sold tickets with optional search
+    let query_str = `
+      SELECT t.id, t.ticket_number, t.created_at, t.status,
+             u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      WHERE t.campaign_id = $1 AND t.status = 'active'
+    `;
+    const params = [campaignId];
 
-    // Build array of all available tickets (sold + unsold)
-    const allTickets = [];
-    
-    // Add sold tickets first
-    for (const ticket of soldTickets) {
-      allTickets.push({
-        id: ticket.id,
-        ticket_number: ticket.ticket_number,
-        user_name: ticket.user_name,
-        user_email: ticket.user_email,
-        user_phone: ticket.user_phone,
-        status: ticket.status,
-        is_sold: true
-      });
-    }
-
-    // Add unsold ticket numbers
-    for (let i = 1; i <= totalTickets; i++) {
-      const ticketNumber = `KOLO-${String(i).padStart(6, '0')}`;
-      if (!soldNumbers.has(ticketNumber)) {
-        allTickets.push({
-          id: null,
-          ticket_number: ticketNumber,
-          user_name: 'Disponible',
-          user_email: null,
-          user_phone: null,
-          status: 'available',
-          is_sold: false
-        });
-      }
-    }
-
-    // Filter by search term if provided
-    let filteredTickets = allTickets;
     if (search) {
-      const searchLower = search.toLowerCase();
-      filteredTickets = allTickets.filter(t =>
-        t.ticket_number.toLowerCase().includes(searchLower) ||
-        (t.user_name && t.user_name.toLowerCase().includes(searchLower))
-      );
+      query_str += ` AND (t.ticket_number ILIKE $2 OR u.name ILIKE $2)`;
+      params.push(`%${search}%`);
     }
 
-    // Apply pagination
-    const paginatedTickets = filteredTickets.slice(offset, offset + limit);
+    query_str += ` ORDER BY t.ticket_number ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const ticketsResult = await query(query_str, params);
 
     res.json({
       success: true,
-      tickets: paginatedTickets,
-      total: filteredTickets.length,
-      total_available: totalTickets - soldTickets.length,
-      total_sold: soldTickets.length,
+      tickets: ticketsResult.rows.map(t => ({
+        id: t.id,
+        ticket_number: t.ticket_number,
+        user_name: t.user_name,
+        user_email: t.user_email,
+        user_phone: t.user_phone,
+        status: t.status,
+        is_sold: true
+      })),
+      total: totalSold,
+      total_available: 0, // No unsold tickets shown for draw
+      total_sold: totalSold,
       page,
       limit,
-      has_more: offset + limit < filteredTickets.length
+      has_more: offset + limit < totalSold
     });
 
   } catch (error) {

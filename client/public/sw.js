@@ -6,9 +6,7 @@ const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo-kolo.png',
-  '/assets/logo-192.png',
-  '/assets/logo-512.png'
+  '/offline.html'
 ];
 
 // Install event - cache core assets
