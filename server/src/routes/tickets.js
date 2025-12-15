@@ -4,6 +4,7 @@ const { query, transaction } = require('../config/database');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { normalizePhoneNumber, detectProvider } = require('../utils/helpers');
 const { simulatePayment } = require('../services/africasTalking');
+const { paymentLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 // Get user tickets (authentication required)
@@ -45,7 +46,7 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
 });
 
 // Initiate ticket purchase (creates purchase record, initiates payment)
-router.post('/purchase', verifyToken, [
+router.post('/purchase', verifyToken, paymentLimiter, [
   body('campaign_id').isInt({ min: 1 }),
   body('ticket_count').isInt({ min: 1, max: 5 }),
   body('phone_number').notEmpty().trim()

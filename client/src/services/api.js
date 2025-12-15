@@ -218,6 +218,17 @@ export const paymentsAPI = {
       method: 'POST',
     });
   },
+
+  // Obtenir les factures de l'utilisateur
+  getInvoices: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/payments/invoices${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Obtenir une facture spécifique
+  getInvoice: async (invoiceId) => {
+    return await request(`/payments/invoices/${invoiceId}`);
+  },
 };
 
 // ======================

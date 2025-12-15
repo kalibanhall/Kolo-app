@@ -7,6 +7,7 @@ const { generateTicketNumber, generateInvoiceNumber } = require('../utils/helper
 const { sendPurchaseConfirmation } = require('../services/emailService');
 const { generateInvoicePDF } = require('../services/pdfGenerator');
 const { sendPurchaseConfirmationSMS } = require('../services/africasTalking');
+const { uploadPDF } = require('../services/cloudinaryService');
 const router = express.Router();
 
 // Get payment status
@@ -269,6 +270,28 @@ router.post('/webhook', async (req, res) => {
           pdfDoc.end();
         });
 
+        // Upload PDF to Cloudinary
+        let pdfUrl = null;
+        try {
+          console.log('☁️ Uploading PDF to Cloudinary...');
+          const uploadResult = await uploadPDF(
+            pdfBuffer,
+            `invoice-${ticketData.invoiceNumber}`,
+            'kolo/invoices'
+          );
+          pdfUrl = uploadResult.url;
+          console.log('✅ PDF uploaded to Cloudinary:', pdfUrl);
+
+          // Update invoice with PDF URL
+          await query(
+            `UPDATE invoices SET pdf_url = $1 WHERE purchase_id = $2`,
+            [pdfUrl, purchase.id]
+          );
+        } catch (uploadError) {
+          console.error('❌ Error uploading PDF to Cloudinary:', uploadError);
+          // Don't fail the process if Cloudinary upload fails
+        }
+
         // Send confirmation email with PDF
         console.log('📧 Sending purchase confirmation email...');
         await sendPurchaseConfirmation({
@@ -497,6 +520,85 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Server error'
+    });
+  }
+});
+
+// Get user invoices
+router.get('/invoices', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const result = await query(
+      `SELECT i.id, i.invoice_number, i.amount, i.pdf_url, i.sent_at, i.created_at,
+              p.ticket_count, c.title as campaign_title
+       FROM invoices i
+       JOIN purchases p ON i.purchase_id = p.id
+       JOIN campaigns c ON p.campaign_id = c.id
+       WHERE i.user_id = $1
+       ORDER BY i.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+
+    const countResult = await query(
+      'SELECT COUNT(*) as count FROM invoices WHERE user_id = $1',
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        invoices: result.rows,
+        total_count: parseInt(countResult.rows[0].count),
+        limit,
+        offset
+      }
+    });
+
+  } catch (error) {
+    console.error('Get invoices error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get specific invoice
+router.get('/invoices/:invoiceId', verifyToken, async (req, res) => {
+  try {
+    const invoiceId = parseInt(req.params.invoiceId);
+    const userId = req.user.id;
+
+    const result = await query(
+      `SELECT i.*, p.ticket_count, c.title as campaign_title
+       FROM invoices i
+       JOIN purchases p ON i.purchase_id = p.id
+       JOIN campaigns c ON p.campaign_id = c.id
+       WHERE i.id = $1 AND i.user_id = $2`,
+      [invoiceId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Get invoice error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 });

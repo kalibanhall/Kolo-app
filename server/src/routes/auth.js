@@ -6,10 +6,11 @@ const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { validatePhoneNumber, normalizePhoneNumber } = require('../utils/helpers');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { authLimiter, registrationLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 // Register new user
-router.post('/register', [
+router.post('/register', registrationLimiter, [
   body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
@@ -122,7 +123,7 @@ router.post('/register', [
 });
 
 // Login
-router.post('/login', [
+router.post('/login', authLimiter, [
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty().trim()
 ], async (req, res) => {
@@ -396,7 +397,7 @@ router.post('/resend-verification', [
 });
 
 // Forgot password - Send reset email
-router.post('/forgot-password', [
+router.post('/forgot-password', passwordResetLimiter, [
   body('email').isEmail().normalizeEmail()
 ], async (req, res) => {
   try {

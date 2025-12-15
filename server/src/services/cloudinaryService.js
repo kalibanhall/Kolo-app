@@ -93,10 +93,39 @@ const getOptimizedImageUrl = (publicId, transformations = {}) => {
   });
 };
 
+/**
+ * Upload a PDF to Cloudinary
+ * @param {Buffer|string} fileData - PDF file buffer or path
+ * @param {string} fileName - Name of the file (without extension)
+ * @param {string} folder - Cloudinary folder name
+ * @returns {Promise<object>} - Upload result with url and public_id
+ */
+const uploadPDF = async (fileData, fileName, folder = 'kolo/invoices') => {
+  try {
+    const result = await cloudinary.uploader.upload(fileData, {
+      folder: folder,
+      resource_type: 'raw',
+      public_id: fileName,
+      format: 'pdf',
+    });
+
+    return {
+      success: true,
+      url: result.secure_url,
+      public_id: result.public_id,
+      bytes: result.bytes,
+    };
+  } catch (error) {
+    console.error('Cloudinary PDF upload error:', error);
+    throw new Error('Failed to upload PDF to Cloudinary');
+  }
+};
+
 module.exports = {
   cloudinary,
   uploadImage,
   deleteImage,
   uploadMultipleImages,
+  uploadPDF,
   getOptimizedImageUrl,
 };

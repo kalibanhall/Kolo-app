@@ -19,8 +19,8 @@ export const UserInvoicesPage = () => {
   const loadInvoices = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/invoices/user/${user.id}`);
-      setInvoices(response.data.data || []);
+      const response = await api.payments.getInvoices({ limit: 50 });
+      setInvoices(response.data.invoices || []);
     } catch (error) {
       console.error('Error loading invoices:', error);
     } finally {
@@ -28,41 +28,57 @@ export const UserInvoicesPage = () => {
     }
   };
 
-  const handleDownload = async (invoiceId, invoiceNumber) => {
+  const handleDownload = async (invoice) => {
     try {
-      setDownloading({ ...downloading, [invoiceId]: true });
+      setDownloading({ ...downloading, [invoice.id]: true });
 
-      const response = await api.get(`/invoices/${invoiceId}/pdf`, {
-        responseType: 'blob',
-      });
+      // If PDF URL exists, download directly from Cloudinary
+      if (invoice.pdf_url) {
+        const link = document.createElement('a');
+        link.href = invoice.pdf_url;
+        link.download = `KOLO_Facture_${invoice.invoice_number}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Fallback: try to get PDF from server
+        const response = await api.get(`/payments/invoices/${invoice.id}/pdf`, {
+          responseType: 'blob',
+        });
 
-      // Create blob URL and download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `KOLO_Facture_${invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = `KOLO_Facture_${invoice.invoice_number}.pdf`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error('Error downloading invoice:', error);
       alert('Erreur lors du téléchargement de la facture');
     } finally {
-      setDownloading({ ...downloading, [invoiceId]: false });
+      setDownloading({ ...downloading, [invoice.id]: false });
     }
   };
 
-  const handleView = async (invoiceId) => {
+  const handleView = async (invoice) => {
     try {
-      const response = await api.get(`/invoices/${invoiceId}/pdf`, {
-        responseType: 'blob',
-      });
+      // If PDF URL exists, open directly from Cloudinary
+      if (invoice.pdf_url) {
+        window.open(invoice.pdf_url, '_blank');
+      } else {
+        // Fallback: try to get PDF from server
+        const response = await api.get(`/payments/invoices/${invoice.id}/pdf`, {
+          responseType: 'blob',
+        });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
     } catch (error) {
       console.error('Error viewing invoice:', error);
       alert('Erreur lors de l\'ouverture de la facture');
@@ -129,7 +145,7 @@ export const UserInvoicesPage = () => {
               <div>
                 <p className="text-sm text-gray-600">Factures payées</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {invoices.filter((i) => i.payment_status === 'completed').length}
+                  {invoices.length}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -143,7 +159,7 @@ export const UserInvoicesPage = () => {
               <div>
                 <p className="text-sm text-gray-600">Total dépensé</p>
                 <p className="text-3xl font-bold text-purple-600">
-                  ${invoices.reduce((sum, i) => sum + parseFloat(i.total_amount || 0), 0).toFixed(2)}
+                  ${invoices.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0).toFixed(2)}
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -220,16 +236,18 @@ export const UserInvoicesPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
-                          ${parseFloat(invoice.total_amount).toFixed(2)}
+                          ${parseFloat(invoice.amount).toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(invoice.payment_status)}
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Payée
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleView(invoice.id)}
+                            onClick={() => handleView(invoice)}
                             className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +257,7 @@ export const UserInvoicesPage = () => {
                             Voir
                           </button>
                           <button
-                            onClick={() => handleDownload(invoice.id, invoice.invoice_number)}
+                            onClick={() => handleDownload(invoice)}
                             disabled={downloading[invoice.id]}
                             className={`flex items-center gap-1 ${
                               downloading[invoice.id]
