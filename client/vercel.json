@@ -1,12 +1,7 @@
 {
   "rewrites": [
-    { "source": "/manifest.json", "destination": "/manifest.json" },
-    { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/firebase-messaging-sw.js", "destination": "/firebase-messaging-sw.js" },
-    { "source": "/favicon.ico", "destination": "/favicon.ico" },
-    { "source": "/robots.txt", "destination": "/robots.txt" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "https://kolo-api.onrender.com/api/$1" },
+    { "source": "/((?!manifest\\.json|sw\\.js|firebase-messaging-sw\\.js|favicon\\.ico|robots\\.txt|assets|logo-).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
