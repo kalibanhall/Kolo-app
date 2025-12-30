@@ -183,18 +183,13 @@ export const AdminDashboard = () => {
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Actions rapides</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={handleDraw}
-            disabled={stats?.draw_completed}
-            className={`flex items-center justify-center space-x-2 px-6 py-4 rounded-lg font-medium transition-all ${
-              stats?.draw_completed
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-            }`}
+          <Link
+            to="/admin/draws"
+            className="flex items-center justify-center space-x-2 px-6 py-4 rounded-lg font-medium transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg"
           >
             <TargetIcon className="w-5 h-5" />
-            <span>Effectuer le tirage</span>
-          </button>
+            <span>Gestion des tirages</span>
+          </Link>
 
           <Link
             to="/admin/participants"

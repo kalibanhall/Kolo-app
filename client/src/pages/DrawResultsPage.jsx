@@ -321,33 +321,31 @@ const DrawResultsPage = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            {status.canDraw ? (
-                              <div className="flex flex-col items-start gap-1">
-                                {status.warning && (
-                                  <span className="text-xs text-orange-600 font-medium">{status.warning}</span>
-                                )}
-                                <button
-                                  onClick={() => openDrawModal(campaign)}
-                                  className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                                    status.warning 
-                                      ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                }`}
+                            {status.label === 'Tirage effectué' ? (
+                              <button
+                                onClick={() => setActiveTab('results')}
+                                className="text-indigo-600 hover:text-indigo-800 font-medium"
+                              >
+                                Voir résultat
+                              </button>
+                            ) : campaign.status === 'closed' ? (
+                              <button
+                                onClick={() => openDrawModal(campaign)}
+                                className="px-4 py-2 rounded-lg transition-colors font-medium bg-indigo-600 hover:bg-indigo-700 text-white"
                               >
                                 Effectuer le tirage
                               </button>
-                            </div>
-                          ) : status.label === 'Tirage effectué' ? (
-                            <button
-                              onClick={() => setActiveTab('results')}
-                              className="text-indigo-600 hover:text-indigo-800 font-medium"
-                            >
-                              Voir résultat
-                            </button>
-                            ) : (campaign.sold_tickets || 0) === 0 ? (
-                              <span className="text-gray-400 text-sm">Aucun ticket vendu</span>
                             ) : (
-                              <span className="text-gray-400 text-sm">-</span>
+                              <div className="flex flex-col items-start gap-1">
+                                <button
+                                  disabled
+                                  className="px-4 py-2 rounded-lg font-medium bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  title="La campagne doit être clôturée pour effectuer le tirage"
+                                >
+                                  Effectuer le tirage
+                                </button>
+                                <span className="text-xs text-gray-500">Clôturez la campagne d'abord</span>
+                              </div>
                             )}
                           </td>
                         </tr>

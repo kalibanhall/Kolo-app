@@ -18,9 +18,9 @@ router.get('/stats', async (req, res) => {
     const statsQuery = `
       SELECT 
         (SELECT COUNT(*) FROM campaigns WHERE status IN ('open', 'active')) as active_campaigns,
-        (SELECT COUNT(*) FROM users WHERE is_active = true) as total_users,
-        (SELECT COUNT(DISTINCT user_id) FROM tickets) as participants,
-        (SELECT COUNT(*) FROM tickets) as total_tickets_sold,
+        (SELECT COUNT(*) FROM users WHERE is_active = true AND is_admin = false) as total_users,
+        (SELECT COUNT(DISTINCT user_id) FROM tickets WHERE status = 'active') as participants_count,
+        (SELECT COUNT(*) FROM tickets WHERE status IN ('active', 'winner')) as total_tickets_sold,
         (SELECT COUNT(*) FROM purchases WHERE payment_status = 'pending') as pending_payments,
         (SELECT COUNT(*) FROM purchases WHERE payment_status = 'completed') as completed_payments,
         (SELECT COALESCE(SUM(total_amount), 0) FROM purchases WHERE payment_status = 'completed') as total_revenue,
@@ -30,24 +30,45 @@ router.get('/stats', async (req, res) => {
     const result = await query(statsQuery);
     const stats = result.rows[0];
 
-    // Get current campaign stats
+    // Get current/active campaign stats  
     const campaignResult = await query(
-      `SELECT id, title, total_tickets, sold_tickets, ticket_price, status, draw_date
-       FROM campaigns
-       WHERE status IN ('open', 'active')
-       ORDER BY created_at DESC
+      `SELECT c.id, c.title, c.total_tickets, c.sold_tickets, c.ticket_price, c.status, c.draw_date,
+              (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id) as actual_sold
+       FROM campaigns c
+       WHERE c.status IN ('open', 'active')
+       ORDER BY c.created_at DESC
        LIMIT 1`
     );
 
-    const campaign = campaignResult.rows[0] || null;
+    let campaign = campaignResult.rows[0] || null;
+    
+    // Sync sold_tickets if different from actual count
+    if (campaign && parseInt(campaign.actual_sold) !== parseInt(campaign.sold_tickets)) {
+      await query(
+        'UPDATE campaigns SET sold_tickets = $1 WHERE id = $2',
+        [campaign.actual_sold, campaign.id]
+      );
+      campaign.sold_tickets = parseInt(campaign.actual_sold);
+    }
 
     res.json({
       success: true,
       data: {
-        ...stats,
-        current_campaign: campaign,
-        revenue: parseFloat(stats.total_revenue)
+        active_campaigns: parseInt(stats.active_campaigns),
+        total_users: parseInt(stats.total_users),
+        participants_count: parseInt(stats.participants_count),
+        total_tickets_sold: parseInt(stats.total_tickets_sold),
+        pending_payments: parseInt(stats.pending_payments),
+        completed_payments: parseInt(stats.completed_payments),
+        total_revenue: parseFloat(stats.total_revenue),
+        total_winners: parseInt(stats.total_winners),
+        campaign: campaign ? {
+          ...campaign,
+          sold_tickets: parseInt(campaign.sold_tickets),
+          total_tickets: parseInt(campaign.total_tickets)
+        } : null
       }
+    });
     });
 
   } catch (error) {
@@ -1326,36 +1347,100 @@ router.patch('/transactions/:id', [
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await query(
-      `UPDATE purchases 
-       SET payment_status = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      [status, id]
+    // Get purchase info first
+    const purchaseResult = await query(
+      'SELECT * FROM purchases WHERE id = $1',
+      [id]
     );
 
-    if (result.rows.length === 0) {
+    if (purchaseResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Transaction not found'
       });
     }
 
-    // Log admin action
-    await logAdminAction(
-      req.user.id,
-      'UPDATE_TRANSACTION',
-      'purchase',
-      id,
-      { new_status: status },
-      req.ip,
-      req.get('user-agent')
-    );
+    const purchase = purchaseResult.rows[0];
+    const wasCompleted = purchase.payment_status === 'completed';
+    const isNowCompleted = status === 'completed';
+
+    // Use transaction for ticket creation
+    await transaction(async (client) => {
+      // Update purchase status
+      await client.query(
+        `UPDATE purchases 
+         SET payment_status = $1, updated_at = NOW(), completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
+         WHERE id = $2`,
+        [status, id]
+      );
+
+      // If status changed TO completed - create tickets
+      if (!wasCompleted && isNowCompleted) {
+        // Generate unique ticket numbers
+        for (let i = 0; i < purchase.ticket_count; i++) {
+          let ticketNumber;
+          let isUnique = false;
+          
+          while (!isUnique) {
+            ticketNumber = 'TK-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            const checkResult = await client.query(
+              'SELECT id FROM tickets WHERE ticket_number = $1',
+              [ticketNumber]
+            );
+            isUnique = checkResult.rows.length === 0;
+          }
+
+          // Insert ticket
+          await client.query(
+            `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
+             VALUES ($1, $2, $3, $4, 'active')`,
+            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id]
+          );
+        }
+
+        // Update campaign sold_tickets
+        await client.query(
+          `UPDATE campaigns SET sold_tickets = sold_tickets + $1 WHERE id = $2`,
+          [purchase.ticket_count, purchase.campaign_id]
+        );
+      }
+
+      // If status changed FROM completed to something else - remove tickets
+      if (wasCompleted && !isNowCompleted) {
+        // Delete tickets
+        await client.query(
+          'DELETE FROM tickets WHERE purchase_id = $1',
+          [id]
+        );
+
+        // Decrease campaign sold_tickets
+        await client.query(
+          `UPDATE campaigns SET sold_tickets = GREATEST(0, sold_tickets - $1) WHERE id = $2`,
+          [purchase.ticket_count, purchase.campaign_id]
+        );
+      }
+
+      // Log admin action
+      await client.query(
+        `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          req.user.id,
+          'UPDATE_TRANSACTION',
+          'purchase',
+          id,
+          JSON.stringify({ 
+            old_status: purchase.payment_status, 
+            new_status: status,
+            tickets_created: !wasCompleted && isNowCompleted ? purchase.ticket_count : 0 
+          })
+        ]
+      );
+    });
 
     res.json({
       success: true,
-      message: 'Transaction updated successfully',
-      data: result.rows[0]
+      message: 'Transaction updated successfully'
     });
 
   } catch (error) {

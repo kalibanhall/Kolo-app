@@ -1,7 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://kolo-api.onrender.com/api/$1" },
-    { "source": "/((?!manifest\\.json|sw\\.js|firebase-messaging-sw\\.js|favicon\\.ico|robots\\.txt|assets|logo-).*)", "destination": "/index.html" }
+    { "source": "/((?!manifest\\.json|sw\\.js|firebase-messaging-sw\\.js|favicon\\.ico|robots\\.txt|assets/|logo-|.*\\..*).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
