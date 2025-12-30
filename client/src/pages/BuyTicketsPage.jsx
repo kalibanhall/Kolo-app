@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI } from '../services/api';
-import { TicketIcon, TrophyIcon, OrangeMoneyIcon, MPesaIcon, AirtelMoneyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon } from '../components/Icons';
+import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
+import { LogoKolo } from '../components/LogoKolo';
 
 export const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { cart, addToCart, removeFromCart, clearCart, isInCart } = useCart();
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [showCart, setShowCart] = useState(false);
+  const [showCartDropdown, setShowCartDropdown] = useState(false);
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -118,7 +121,6 @@ export const BuyTicketsPage = () => {
         return prev.filter(n => n !== number);
       }
       if (prev.length >= ticketCount) {
-        // Replace the oldest selection
         return [...prev.slice(1), number];
       }
       return [...prev, number];
@@ -148,7 +150,6 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    // Vérifier qu'il y a assez de tickets disponibles
     const availableCount = (campaign.total_tickets || 0) - (campaign.sold_tickets || 0);
     if (ticketCount > availableCount) {
       setError(`Il ne reste que ${availableCount.toLocaleString('fr-FR')} tickets disponibles`);
@@ -160,7 +161,6 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    // Validation selon le mode de sélection
     if (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) {
       setError(`Veuillez sélectionner ${ticketCount} numéro(s) de ticket`);
       return;
@@ -180,7 +180,6 @@ export const BuyTicketsPage = () => {
       await ticketsAPI.purchase(purchasePayload);
 
       setSuccess(true);
-      // Effacer les données persistées après achat réussi
       clearPurchaseData();
       
       alert('Achat initié ! Vous allez recevoir une notification de paiement sur votre téléphone.');
@@ -195,12 +194,22 @@ export const BuyTicketsPage = () => {
     }
   };
 
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className={`min-h-screen flex items-center justify-center ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+      }`}>
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-          <p className="mt-4 text-gray-600">Chargement...</p>
+          <div className={`inline-block animate-spin rounded-full h-12 w-12 border-b-2 ${
+            isDarkMode ? 'border-cyan-500' : 'border-blue-600'
+          }`} />
+          <p className={`mt-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Chargement...</p>
         </div>
       </div>
     );
@@ -208,17 +217,23 @@ export const BuyTicketsPage = () => {
 
   if (!campaign || campaign.status !== 'open') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+      <div className={`min-h-screen flex items-center justify-center p-4 ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+      }`}>
+        <div className={`max-w-md w-full rounded-2xl shadow-xl p-8 text-center ${
+          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
+        }`}>
+          <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Aucune campagne active
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Il n'y a pas de tombola ouverte pour le moment. Revenez plus tard !
           </p>
           <Link
             to="/dashboard"
-            className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
           >
             Retour au tableau de bord
           </Link>
@@ -231,424 +246,566 @@ export const BuyTicketsPage = () => {
   const availableTickets = campaign.total_tickets - campaign.sold_tickets;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
-      <div className="max-w-2xl mx-auto py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link to="/" className="text-blue-600 hover:text-blue-700 mb-4 inline-block">
-            ← Retour à l'accueil
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+    }`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-20 backdrop-blur-lg border-b ${
+        isDarkMode 
+          ? 'bg-gray-900/80 border-gray-700' 
+          : 'bg-white/80 border-gray-200'
+      }`}>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link
+            to="/"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all hover:scale-105 ${
+              isDarkMode 
+                ? 'text-cyan-400 hover:bg-gray-800' 
+                : 'text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium hidden sm:inline">Retour</span>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center space-x-2">
-            <TicketIcon className="w-8 h-8" />
-            <span>Acheter des tickets</span>
-          </h1>
-          <p className="text-gray-600">{campaign.title}</p>
+          
+          <div className="flex items-center gap-2">
+            <LogoKolo size="small" />
+            <h1 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Acheter des tickets
+            </h1>
+          </div>
+          
+          {/* Cart Dropdown */}
+          <div 
+            className="relative"
+            onMouseEnter={() => setShowCartDropdown(true)}
+            onMouseLeave={() => setShowCartDropdown(false)}
+          >
+            <button className={`relative p-2 rounded-xl transition-all ${
+              isDarkMode 
+                ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' 
+                : 'bg-blue-50 hover:bg-blue-100 text-blue-600'
+            }`}>
+              <CartIcon className="w-6 h-6" />
+              {cart.items.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                  {cart.items.length}
+                </span>
+              )}
+            </button>
+            
+            {/* Cart Dropdown Menu */}
+            {showCartDropdown && (
+              <div className={`absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-2xl overflow-hidden z-50 ${
+                isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+              }`}>
+                <div className={`p-3 border-b flex items-center justify-between ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Mon Panier
+                  </h4>
+                  {cart.items.length > 0 && (
+                    <button
+                      onClick={clearCart}
+                      className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Vider
+                    </button>
+                  )}
+                </div>
+                
+                {cart.items.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <CartIcon className={`w-12 h-12 mx-auto mb-2 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Votre panier est vide
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="max-h-48 overflow-y-auto p-3">
+                      <div className="flex flex-wrap gap-2">
+                        {cart.items.map(num => (
+                          <span
+                            key={num}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
+                              isDarkMode 
+                                ? 'bg-cyan-900/30 text-cyan-400' 
+                                : 'bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            #{String(num).padStart(4, '0')}
+                            <button
+                              onClick={() => removeFromCart(num)}
+                              className={`hover:text-red-500 ${isDarkMode ? 'text-cyan-300' : 'text-blue-600'}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Total ({cart.items.length} tickets)
+                        </span>
+                        <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+                          {formatCurrency(cart.items.length * (campaign?.ticket_price || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+      </header>
 
+      <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Campaign Info Card */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-6 mb-8 text-white">
-          <h2 className="text-2xl font-bold mb-4 flex items-center space-x-2">
-            <TrophyIcon className="w-7 h-7" />
-            <span>{campaign.main_prize}</span>
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <p className="text-blue-200 text-sm">Prix du ticket</p>
-              <p className="text-2xl font-bold">${campaign.ticket_price}</p>
+        <div className={`relative rounded-2xl overflow-hidden mb-6 ${
+          isDarkMode 
+            ? 'bg-gradient-to-r from-cyan-900/50 via-blue-900/50 to-indigo-900/50 border border-gray-700' 
+            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600'
+        }`}>
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100" height="100" fill="url(#grid)" />
+            </svg>
+          </div>
+          
+          <div className="relative p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <TrophyIcon className="w-8 h-8 text-yellow-400" />
+              <h2 className="text-2xl font-bold text-white">{campaign.main_prize}</h2>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-              <p className="text-blue-200 text-sm">Tickets disponibles</p>
-              <p className="text-2xl font-bold">{availableTickets}</p>
+            <p className="text-white/80 text-sm mb-4">{campaign.title}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`rounded-xl p-4 ${isDarkMode ? 'bg-white/5' : 'bg-white/10'} backdrop-blur-sm`}>
+                <p className="text-blue-200 text-sm">Prix du ticket</p>
+                <p className="text-2xl font-bold text-white">{formatCurrency(campaign.ticket_price)}</p>
+              </div>
+              <div className={`rounded-xl p-4 ${isDarkMode ? 'bg-white/5' : 'bg-white/10'} backdrop-blur-sm`}>
+                <p className="text-blue-200 text-sm">Tickets disponibles</p>
+                <p className="text-2xl font-bold text-white">{availableTickets.toLocaleString('fr-FR')}</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Purchase Form */}
-        <div className="bg-white rounded-lg shadow-xl p-8">
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
+        <div className={`rounded-2xl overflow-hidden ${
+          isDarkMode 
+            ? 'bg-gray-800/50 border border-gray-700 backdrop-blur-sm' 
+            : 'bg-white shadow-xl'
+        }`}>
+          <div className="p-6">
+            {error && (
+              <div className={`mb-6 rounded-xl p-4 ${
+                isDarkMode ? 'bg-red-900/30 border border-red-800' : 'bg-red-50 border border-red-200'
+              }`}>
+                <p className={isDarkMode ? 'text-red-400' : 'text-red-700'}>{error}</p>
+              </div>
+            )}
 
-          {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-700">Achat initié avec succès ! Vérifiez votre téléphone.</p>
-            </div>
-          )}
+            {success && (
+              <div className={`mb-6 rounded-xl p-4 ${
+                isDarkMode ? 'bg-green-900/30 border border-green-800' : 'bg-green-50 border border-green-200'
+              }`}>
+                <p className={isDarkMode ? 'text-green-400' : 'text-green-700'}>
+                  Achat initié avec succès ! Vérifiez votre téléphone.
+                </p>
+              </div>
+            )}
 
-          <form onSubmit={handlePurchase} className="space-y-6">
-            {/* Ticket Stats */}
-            {campaign && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-4">
+            <form onSubmit={handlePurchase} className="space-y-6">
+              {/* Ticket Stats */}
+              <div className={`rounded-xl p-4 ${
+                isDarkMode ? 'bg-gray-900/50' : 'bg-gradient-to-r from-blue-50 to-indigo-50'
+              }`}>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Total</p>
-                    <p className="text-xl font-bold text-gray-900">
+                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Total</p>
+                    <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {(campaign.total_tickets || 0).toLocaleString('fr-FR')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Vendus</p>
-                    <p className="text-xl font-bold text-red-600">
+                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Vendus</p>
+                    <p className="text-xl font-bold text-red-500">
                       {(campaign.sold_tickets || 0).toLocaleString('fr-FR')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Disponibles</p>
-                    <p className="text-xl font-bold text-green-600">
-                      {((campaign.total_tickets || 0) - (campaign.sold_tickets || 0)).toLocaleString('fr-FR')}
+                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Disponibles</p>
+                    <p className="text-xl font-bold text-green-500">
+                      {availableTickets.toLocaleString('fr-FR')}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3">
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className={`w-full rounded-full h-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                     <div 
                       className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(100, ((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 text-center">
+                  <p className={`text-xs mt-1 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                     {Math.round(((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}% vendus
                   </p>
                 </div>
               </div>
-            )}
 
-            {/* Ticket Count */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre de tickets (max 5 par sélection)
-              </label>
-              <div className="flex items-center space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setTicketCount(prev => Math.max(1, prev - 1))}
-                  className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 text-xl font-bold transition-colors"
-                  disabled={ticketCount <= 1}
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  value={ticketCount}
-                  onChange={(e) => setTicketCount(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
-                  min="1"
-                  max="5"
-                  className="w-20 text-center px-4 py-3 border border-gray-300 rounded-lg text-2xl font-bold"
-                />
-                <button
-                  type="button"
-                  onClick={() => setTicketCount(prev => Math.min(5, prev + 1))}
-                  className="w-12 h-12 rounded-lg bg-gray-100 hover:bg-gray-200 text-xl font-bold transition-colors"
-                  disabled={ticketCount >= 5}
-                >
-                  +
-                </button>
-              </div>
-              {/* Quick selection buttons */}
-              <div className="flex flex-wrap gap-2 mt-3">
-                {[1, 2, 3, 4, 5].map(num => (
+              {/* Ticket Count */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Nombre de tickets (max 5 par sélection)
+                </label>
+                <div className="flex items-center gap-4">
                   <button
-                    key={num}
                     type="button"
-                    onClick={() => setTicketCount(num)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      ticketCount === num 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    onClick={() => setTicketCount(prev => Math.max(1, prev - 1))}
+                    className={`w-12 h-12 rounded-xl text-xl font-bold transition-colors ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                     }`}
+                    disabled={ticketCount <= 1}
                   >
-                    {num} ticket{num > 1 ? 's' : ''}
+                    −
                   </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Ajoutez au panier puis sélectionnez à nouveau pour acheter plus de 5 tickets
-              </p>
-            </div>
-
-            {/* Mode de sélection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Mode de sélection des numéros
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('automatic')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    selectionMode === 'automatic'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2 text-gray-400">●</div>
-                  <div className="font-semibold">Automatique</div>
-                  <div className="text-xs text-gray-500 mt-1">Numéros attribués aléatoirement</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('manual')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    selectionMode === 'manual'
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-2xl mb-2 text-gray-400">✋</div>
-                  <div className="font-semibold">Manuel</div>
-                  <div className="text-xs text-gray-500 mt-1">Choisissez vos numéros</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Sélection manuelle des numéros */}
-            {selectionMode === 'manual' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Choisissez vos numéros de ticket
-              </label>
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Sélectionnez {ticketCount} numéro(s)
-                  </label>
-                  <span className={`text-sm font-bold ${
-                    selectedNumbers.length === ticketCount ? 'text-green-600' : 'text-orange-600'
-                  }`}>
-                    {selectedNumbers.length} / {ticketCount} sélectionné(s)
-                  </span>
+                  <input
+                    type="number"
+                    value={ticketCount}
+                    onChange={(e) => setTicketCount(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+                    min="1"
+                    max="5"
+                    className={`w-20 text-center px-4 py-3 rounded-xl text-2xl font-bold ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } border`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTicketCount(prev => Math.min(5, prev + 1))}
+                    className={`w-12 h-12 rounded-xl text-xl font-bold transition-colors ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
+                    disabled={ticketCount >= 5}
+                  >
+                    +
+                  </button>
                 </div>
-                
-                {/* Search */}
-                <input
-                  type="text"
-                  placeholder="Rechercher un numéro..."
-                  value={numberSearchTerm}
-                  onChange={(e) => setNumberSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-                
-                {/* Selected Numbers Display */}
-                {selectedNumbers.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {selectedNumbers.map((num, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center"
-                      >
-                        {typeof num === 'object' ? num.display : `KOLO-${String(num).padStart(6, '0')}`}
-                        <button
-                          type="button"
-                          onClick={() => toggleNumberSelection(num)}
-                          className="ml-2 hover:text-red-200"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Numbers Grid */}
-                {loadingNumbers ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto" />
-                    <p className="text-sm text-gray-600 mt-2">Chargement des numéros...</p>
-                  </div>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {filteredNumbers.map((num) => {
-                      const isSelected = selectedNumbers.some(
-                        s => (typeof s === 'object' ? s.number : s) === (typeof num === 'object' ? num.number : num)
-                      );
-                      return (
-                        <button
-                          key={num.number || num}
-                          type="button"
-                          onClick={() => toggleNumberSelection(num)}
-                          disabled={!isSelected && selectedNumbers.length >= ticketCount}
-                          className={`p-2 rounded-lg border-2 text-xs font-mono font-bold transition-all ${
-                            isSelected
-                              ? 'border-green-500 bg-green-100 text-green-700'
-                              : selectedNumbers.length >= ticketCount
-                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                              : 'border-gray-200 bg-white hover:border-green-300 text-gray-700'
-                          }`}
-                        >
-                          {num.display || `#${num}`}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {availableNumbers.length > 100 && (
-                  <p className="text-xs text-gray-500 mt-2 text-center">
-                    Utilisez la recherche pour trouver un numéro spécifique
-                  </p>
-                )}
-              </div>
-            </div>
-            )}
-
-            {/* Info pour mode automatique */}
-            {selectionMode === 'automatic' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-start space-x-3">
-                  <div className="text-2xl">ℹ️</div>
-                  <div>
-                    <h4 className="font-semibold text-blue-800">Mode automatique sélectionné</h4>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Vos {ticketCount.toLocaleString('fr-FR')} numéro(s) seront attribués automatiquement 
-                      parmi les tickets disponibles après validation du paiement.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Phone Number */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Numéro de téléphone (Mobile Money)
-              </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-4 py-3 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-700 font-medium">
-                  +243
-                </span>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                  required
-                  maxLength="9"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="812345678"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Vous recevrez une notification USSD pour confirmer le paiement
-              </p>
-            </div>
-
-            {/* Price Summary */}
-            <div className="bg-gray-50 rounded-lg p-6 space-y-3">
-              <div className="flex justify-between text-gray-700">
-                <span>Prix unitaire</span>
-                <span className="font-semibold">${campaign.ticket_price}</span>
-              </div>
-              <div className="flex justify-between text-gray-700">
-                <span>Quantité</span>
-                <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
-              </div>
-              <div className="flex justify-between text-gray-700">
-                <span>Numéros choisis</span>
-                <span className="font-semibold text-green-600">
-                  {selectedNumbers.length} / {ticketCount}
-                </span>
-              </div>
-              <div className="border-t border-gray-300 pt-3 flex justify-between text-lg font-bold text-gray-900">
-                <span>Montant total :</span>
-                <span className="text-blue-600">${totalPrice.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              {/* Add to Cart Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedNumbers.length > 0 && campaign) {
-                    addToCart(campaign.id, campaign, selectedNumbers);
-                    setSelectedNumbers([]);
-                    setShowCart(true);
-                  }
-                }}
-                disabled={selectedNumbers.length === 0}
-                className="w-full flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-lg transition-colors bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white disabled:cursor-not-allowed"
-              >
-                <CartIcon className="w-5 h-5" />
-                Ajouter au panier ({selectedNumbers.length})
-              </button>
-
-              {/* Pay Now Button */}
-              <button
-                type="submit"
-                disabled={purchasing || availableTickets === 0 || selectedNumbers.length !== ticketCount || phoneNumber.length !== 9}
-                className={`w-full font-bold py-4 px-6 rounded-lg transition-colors text-lg ${(phoneNumber.length !== 9 || selectedNumbers.length !== ticketCount) ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} disabled:bg-gray-400 text-white disabled:cursor-not-allowed`}
-              >
-                {purchasing ? (
-                  <span className="flex items-center justify-center">
-                    <span className="animate-spin mr-2">...</span> Traitement...
-                  </span>
-                ) : (
-                  `Payer $${totalPrice.toFixed(2)}`
-                )}
-              </button>
-            </div>
-          </form>
-
-          {/* Cart Summary */}
-          {cart.items.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <CartIcon className="w-5 h-5" />
-                  Mon panier ({cart.items.length} tickets)
-                </h4>
-                <button
-                  onClick={clearCart}
-                  className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                  Vider
-                </button>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-h-32 overflow-y-auto">
-                <div className="flex flex-wrap gap-2">
-                  {cart.items.map(num => (
-                    <span
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {[1, 2, 3, 4, 5].map(num => (
+                    <button
                       key={num}
-                      className="inline-flex items-center gap-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded text-sm"
+                      type="button"
+                      onClick={() => setTicketCount(num)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                        ticketCount === num 
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white' 
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                     >
-                      #{String(num).padStart(4, '0')}
-                      <button
-                        onClick={() => removeFromCart(num)}
-                        className="text-indigo-600 hover:text-red-600"
-                      >
-                        ×
-                      </button>
-                    </span>
+                      {num} ticket{num > 1 ? 's' : ''}
+                    </button>
                   ))}
                 </div>
               </div>
-              <div className="mt-3 flex justify-between items-center">
-                <span className="text-gray-600 dark:text-gray-400">Total panier:</span>
-                <span className="text-lg font-bold text-blue-600">
-                  ${((cart.items.length) * (campaign?.ticket_price || 1)).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          )}
 
-          {/* Payment Methods */}
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 font-medium text-center">Méthodes de paiement acceptées :</p>
-            <div className="flex justify-center space-x-4">
-              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
-                <OrangeMoneyIcon className="w-8 h-8 mb-1" />
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Orange Money</p>
+              {/* Mode de sélection */}
+              <div>
+                <label className={`block text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Mode de sélection des numéros
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectionMode('automatic')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      selectionMode === 'automatic'
+                        ? isDarkMode
+                          ? 'border-cyan-500 bg-cyan-900/30 text-cyan-400'
+                          : 'border-blue-500 bg-blue-50 text-blue-700'
+                        : isDarkMode
+                          ? 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`text-2xl mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <div className="font-semibold">Automatique</div>
+                    <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Numéros attribués aléatoirement
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectionMode('manual')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      selectionMode === 'manual'
+                        ? isDarkMode
+                          ? 'border-green-500 bg-green-900/30 text-green-400'
+                          : 'border-green-500 bg-green-50 text-green-700'
+                        : isDarkMode
+                          ? 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className={`text-2xl mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                      </svg>
+                    </div>
+                    <div className="font-semibold">Manuel</div>
+                    <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Choisissez vos numéros
+                    </div>
+                  </button>
+                </div>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
-                <MPesaIcon className="w-8 h-8 mb-1" />
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">M-Pesa</p>
+
+              {/* Sélection manuelle des numéros */}
+              {selectionMode === 'manual' && (
+                <div className={`rounded-xl p-4 ${
+                  isDarkMode ? 'bg-green-900/20 border border-green-800' : 'bg-green-50 border border-green-200'
+                }`}>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Sélectionnez {ticketCount} numéro(s)
+                    </label>
+                    <span className={`text-sm font-bold ${
+                      selectedNumbers.length === ticketCount 
+                        ? 'text-green-500' 
+                        : isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                    }`}>
+                      {selectedNumbers.length} / {ticketCount}
+                    </span>
+                  </div>
+                  
+                  <input
+                    type="text"
+                    placeholder="Rechercher un numéro..."
+                    value={numberSearchTerm}
+                    onChange={(e) => setNumberSearchTerm(e.target.value)}
+                    className={`w-full px-4 py-2 rounded-xl mb-3 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } border focus:ring-2 focus:ring-green-500`}
+                  />
+                  
+                  {selectedNumbers.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {selectedNumbers.map((num, idx) => (
+                        <span
+                          key={idx}
+                          className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center"
+                        >
+                          {typeof num === 'object' ? num.display : `KOLO-${String(num).padStart(6, '0')}`}
+                          <button
+                            type="button"
+                            onClick={() => toggleNumberSelection(num)}
+                            className="ml-2 hover:text-red-200"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {loadingNumbers ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto" />
+                    </div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {filteredNumbers.map((num) => {
+                        const isSelected = selectedNumbers.some(
+                          s => (typeof s === 'object' ? s.number : s) === (typeof num === 'object' ? num.number : num)
+                        );
+                        return (
+                          <button
+                            key={num.number || num}
+                            type="button"
+                            onClick={() => toggleNumberSelection(num)}
+                            disabled={!isSelected && selectedNumbers.length >= ticketCount}
+                            className={`p-2 rounded-lg border-2 text-xs font-mono font-bold transition-all ${
+                              isSelected
+                                ? 'border-green-500 bg-green-100 text-green-700'
+                                : selectedNumbers.length >= ticketCount
+                                ? isDarkMode
+                                  ? 'border-gray-700 bg-gray-800 text-gray-600 cursor-not-allowed'
+                                  : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                : isDarkMode
+                                  ? 'border-gray-700 bg-gray-800 hover:border-green-600 text-gray-300'
+                                  : 'border-gray-200 bg-white hover:border-green-300 text-gray-700'
+                            }`}
+                          >
+                            {num.display || `#${num}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Info pour mode automatique */}
+              {selectionMode === 'automatic' && (
+                <div className={`rounded-xl p-4 ${
+                  isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <svg className={`w-6 h-6 flex-shrink-0 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h4 className={`font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                        Mode automatique sélectionné
+                      </h4>
+                      <p className={`text-sm mt-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
+                        Vos {ticketCount} numéro(s) seront attribués automatiquement après validation du paiement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Phone Number */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Numéro de téléphone (Mobile Money)
+                </label>
+                <div className="flex">
+                  <span className={`inline-flex items-center px-4 py-3 rounded-l-xl border border-r-0 font-medium ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-gray-400' 
+                      : 'bg-gray-100 border-gray-300 text-gray-700'
+                  }`}>
+                    +243
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    required
+                    maxLength="9"
+                    className={`flex-1 px-4 py-3 rounded-r-xl border focus:ring-2 focus:ring-blue-500 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    placeholder="812345678"
+                  />
+                </div>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Vous recevrez une notification USSD pour confirmer le paiement
+                </p>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg flex flex-col items-center">
-                <AirtelMoneyIcon className="w-8 h-8 mb-1" />
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Airtel Money</p>
+
+              {/* Price Summary */}
+              <div className={`rounded-xl p-6 space-y-3 ${
+                isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50'
+              }`}>
+                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span>Prix unitaire</span>
+                  <span className="font-semibold">{formatCurrency(campaign.ticket_price)}</span>
+                </div>
+                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span>Quantité</span>
+                  <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
+                </div>
+                {selectionMode === 'manual' && (
+                  <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <span>Numéros choisis</span>
+                    <span className={`font-semibold ${selectedNumbers.length === ticketCount ? 'text-green-500' : 'text-orange-500'}`}>
+                      {selectedNumbers.length} / {ticketCount}
+                    </span>
+                  </div>
+                )}
+                <div className={`border-t pt-3 flex justify-between text-lg font-bold ${
+                  isDarkMode ? 'border-gray-700 text-white' : 'border-gray-300 text-gray-900'
+                }`}>
+                  <span>Montant total :</span>
+                  <span className={isDarkMode ? 'text-cyan-400' : 'text-blue-600'}>
+                    {formatCurrency(totalPrice)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedNumbers.length > 0 && campaign) {
+                      addToCart(campaign.id, campaign, selectedNumbers);
+                      setSelectedNumbers([]);
+                    }
+                  }}
+                  disabled={selectedNumbers.length === 0}
+                  className="w-full flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-xl transition-all bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white disabled:cursor-not-allowed"
+                >
+                  <CartIcon className="w-5 h-5" />
+                  Ajouter au panier ({selectedNumbers.length})
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={purchasing || availableTickets === 0 || selectedNumbers.length !== ticketCount || phoneNumber.length !== 9}
+                  className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
+                    (phoneNumber.length !== 9 || selectedNumbers.length !== ticketCount) 
+                      ? 'bg-gray-500 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                  } text-white disabled:cursor-not-allowed`}
+                >
+                  {purchasing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Traitement...
+                    </span>
+                  ) : (
+                    `Payer ${formatCurrency(totalPrice)}`
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Payment Methods */}
+            <div className={`mt-8 pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <p className={`text-sm mb-4 font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Méthodes de paiement acceptées :
+              </p>
+              <div className="flex justify-center">
+                <img 
+                  src="/assets/mobilemoney.webp" 
+                  alt="Mobile Money - Orange Money, M-Pesa, Airtel Money" 
+                  className="h-16 object-contain"
+                />
               </div>
             </div>
           </div>
