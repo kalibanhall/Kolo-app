@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon } from './Icons';
+import { LogoKolo } from './LogoKolo';
 
 export const AdminLayout = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
@@ -24,8 +25,8 @@ export const AdminLayout = ({ children }) => {
       <aside className="fixed top-0 left-0 h-full w-64 bg-slate-800 text-white shadow-xl z-40">
         {/* Logo */}
         <div className="p-6 border-b border-slate-700">
-          <div className="flex items-center space-x-2">
-            <TrophyIcon className="w-8 h-8 text-yellow-400" />
+          <div className="flex items-center space-x-3">
+            <LogoKolo size="small" />
             <div>
               <h1 className="text-xl font-bold">KOLO ADMIN</h1>
               <p className="text-xs text-slate-400">Tombola</p>

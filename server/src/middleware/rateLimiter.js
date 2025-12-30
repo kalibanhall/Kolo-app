@@ -35,11 +35,12 @@ const paymentLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Registration limiter - 3 registrations per hour per IP
+// Registration limiter - 10 registrations per hour per IP
 const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,
+  max: 10,
   message: {
+    success: false,
     error: 'Trop de créations de compte depuis cette adresse IP. Veuillez réessayer dans 1 heure.',
   },
   standardHeaders: true,
