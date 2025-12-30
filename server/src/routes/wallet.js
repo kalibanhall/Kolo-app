@@ -362,17 +362,21 @@ router.post('/purchase', verifyToken, [
       });
     }
 
-    const totalAmount = campaign.ticket_price * ticket_count;
+    // Le prix du ticket est en USD, le portefeuille est en CDF
+    // Taux de conversion: 1 USD = 2500 CDF
+    const USD_TO_CDF_RATE = 2500;
+    const ticketPriceUSD = parseFloat(campaign.ticket_price);
+    const totalAmountCDF = Math.ceil(ticketPriceUSD * ticket_count * USD_TO_CDF_RATE);
 
-    // Check wallet balance
-    if (parseFloat(wallet.balance) < totalAmount) {
+    // Check wallet balance (in CDF)
+    if (parseFloat(wallet.balance) < totalAmountCDF) {
       return res.status(400).json({
         success: false,
         message: 'Solde insuffisant',
         data: {
           balance: parseFloat(wallet.balance),
-          required: totalAmount,
-          missing: totalAmount - parseFloat(wallet.balance)
+          required: totalAmountCDF,
+          missing: totalAmountCDF - parseFloat(wallet.balance)
         }
       });
     }
@@ -387,28 +391,28 @@ router.post('/purchase', verifyToken, [
     try {
       await client.query('BEGIN');
 
-      // Debit wallet
-      const newBalance = parseFloat(wallet.balance) - totalAmount;
+      // Debit wallet (in CDF)
+      const newBalance = parseFloat(wallet.balance) - totalAmountCDF;
       await client.query(
         `UPDATE wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
         [newBalance, wallet.id]
       );
 
-      // Record wallet transaction
+      // Record wallet transaction (in CDF)
       await client.query(
         `INSERT INTO wallet_transactions 
          (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
          VALUES ($1, 'purchase', $2, $3, $4, $5, 'completed', $6)`,
-        [wallet.id, totalAmount, wallet.balance, newBalance, reference, `Achat de ${ticket_count} ticket(s)`]
+        [wallet.id, totalAmountCDF, wallet.balance, newBalance, reference, `Achat de ${ticket_count} ticket(s) - ${ticketPriceUSD * ticket_count}$`]
       );
 
-      // Create purchase record
+      // Create purchase record (store USD amount for reporting)
       const purchaseResult = await client.query(
         `INSERT INTO purchases 
          (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider)
          VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet')
          RETURNING *`,
-        [userId, campaign_id, ticket_count, totalAmount, purchaseTransactionId]
+        [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId]
       );
 
       const purchase = purchaseResult.rows[0];
@@ -445,7 +449,8 @@ router.post('/purchase', verifyToken, [
             id: t.id,
             ticket_number: t.ticket_number
           })),
-          amount_paid: totalAmount,
+          amount_paid_cdf: totalAmountCDF,
+          amount_paid_usd: ticketPriceUSD * ticket_count,
           new_balance: newBalance
         }
       });

@@ -21,6 +21,7 @@ export const BuyTicketsPage = () => {
   const [success, setSuccess] = useState(false);
   const [showCartDropdown, setShowCartDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
+  const [paymentCurrency, setPaymentCurrency] = useState('CDF'); // 'CDF' or 'USD' for mobile money
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -181,18 +182,23 @@ export const BuyTicketsPage = () => {
         ticket_count: ticketCount,
         selection_mode: selectionMode,
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
-        amount: totalPrice
+        amount: totalPrice,
+        amount_cdf: totalPrice * 2500,
+        currency: paymentMethod === 'wallet' ? 'CDF' : paymentCurrency
       };
 
-      // Payment with wallet balance
+      // Payment with wallet balance (always in CDF)
       if (paymentMethod === 'wallet') {
-        if (!wallet || wallet.balance < totalPrice) {
+        if (!wallet || wallet.balance < totalPrice * 2500) {
           setError('Solde insuffisant. Veuillez recharger votre portefeuille.');
           setPurchasing(false);
           return;
         }
 
-        const response = await walletAPI.purchase(purchasePayload);
+        const response = await walletAPI.purchase({
+          ...purchasePayload,
+          amount: totalPrice * 2500 // Send CDF amount for wallet
+        });
         
         if (response.success) {
           setSuccess(true);
@@ -226,8 +232,24 @@ export const BuyTicketsPage = () => {
     }
   };
 
+  // Format en USD (prix de la campagne)
   const formatCurrency = (amount) => {
+    return '$' + new Intl.NumberFormat('en-US').format(amount);
+  };
+
+  // Format en CDF (portefeuille)
+  const formatCurrencyCDF = (amount) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
+  };
+
+  // Format selon la devise choisie pour mobile money
+  const formatPaymentAmount = (amount, currency = paymentCurrency) => {
+    if (currency === 'USD') {
+      return '$' + new Intl.NumberFormat('en-US').format(amount);
+    }
+    // Conversion approximative USD -> CDF (taux: 1 USD = 2500 CDF)
+    const cdfAmount = amount * 2500;
+    return new Intl.NumberFormat('fr-FR').format(cdfAmount) + ' FC';
   };
 
   if (loading) {
@@ -772,13 +794,13 @@ export const BuyTicketsPage = () => {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold ${
-                        wallet && wallet.balance >= totalPrice
+                        wallet && wallet.balance >= totalPrice * 2500
                           ? 'text-green-500'
                           : 'text-red-500'
                       }`}>
-                        {wallet ? formatCurrency(wallet.balance) : '0 FC'}
+                        {wallet ? formatCurrencyCDF(wallet.balance) : '0 FC'}
                       </p>
-                      {wallet && wallet.balance < totalPrice && (
+                      {wallet && wallet.balance < totalPrice * 2500 && (
                         <Link 
                           to="/wallet"
                           className="text-xs text-blue-500 hover:underline"
@@ -788,9 +810,9 @@ export const BuyTicketsPage = () => {
                       )}
                     </div>
                   </div>
-                  {wallet && wallet.balance < totalPrice && (
+                  {wallet && wallet.balance < totalPrice * 2500 && (
                     <p className="mt-2 text-sm text-red-500">
-                      Solde insuffisant (manque {formatCurrency(totalPrice - wallet.balance)})
+                      Solde insuffisant (manque {formatCurrencyCDF(totalPrice * 2500 - wallet.balance)})
                     </p>
                   )}
                 </div>
@@ -825,6 +847,49 @@ export const BuyTicketsPage = () => {
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Currency Selection for Mobile Money */}
+                  {paymentMethod === 'mobile_money' && (
+                    <div className="mt-4 pt-4 border-t border-gray-600/30" onClick={(e) => e.stopPropagation()}>
+                      <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Choisir la devise de paiement:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentCurrency('CDF')}
+                          className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                            paymentCurrency === 'CDF'
+                              ? 'bg-orange-500 text-white'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="block text-lg">FC</span>
+                          <span className="block text-xs opacity-75">(Franc Congolais)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentCurrency('USD')}
+                          className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                            paymentCurrency === 'USD'
+                              ? 'bg-green-500 text-white'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span className="block text-lg">$</span>
+                          <span className="block text-xs opacity-75">(Dollar USD)</span>
+                        </button>
+                      </div>
+                      <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Montant: {formatPaymentAmount(totalPrice)}
+                        {paymentCurrency === 'CDF' && <span className="block">(Taux: 1$ = 2 500 FC)</span>}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -835,11 +900,11 @@ export const BuyTicketsPage = () => {
                   purchasing || 
                   availableTickets === 0 || 
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice * 2500))
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice * 2500))
                     ? 'bg-gray-500 cursor-not-allowed' 
                     : paymentMethod === 'wallet'
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
@@ -852,9 +917,9 @@ export const BuyTicketsPage = () => {
                     {paymentMethod === 'wallet' ? 'Achat en cours...' : 'Redirection...'}
                   </span>
                 ) : paymentMethod === 'wallet' ? (
-                  `Payer avec mon solde (${formatCurrency(totalPrice)})`
+                  `Payer avec mon solde (${formatCurrencyCDF(totalPrice * 2500)})`
                 ) : (
-                  `Payer via Mobile Money (${formatCurrency(totalPrice)})`
+                  `Payer via Mobile Money (${formatPaymentAmount(totalPrice)})`
                 )}
               </button>
             </form>
