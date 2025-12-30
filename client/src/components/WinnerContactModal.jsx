@@ -90,7 +90,7 @@ export const WinnerContactModal = ({ isOpen, winner, onClose, onContact }) => {
                   onChange={(e) => setContactMethod(e.target.value)}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span className="ml-3 text-sm text-gray-700">📧 Email</span>
+                <span className="ml-3 text-sm text-gray-700">Email</span>
               </label>
               <label className="flex items-center">
                 <input
@@ -101,7 +101,7 @@ export const WinnerContactModal = ({ isOpen, winner, onClose, onContact }) => {
                   onChange={(e) => setContactMethod(e.target.value)}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span className="ml-3 text-sm text-gray-700">📱 SMS</span>
+                <span className="ml-3 text-sm text-gray-700">SMS</span>
               </label>
               <label className="flex items-center">
                 <input
@@ -112,7 +112,7 @@ export const WinnerContactModal = ({ isOpen, winner, onClose, onContact }) => {
                   onChange={(e) => setContactMethod(e.target.value)}
                   className="w-4 h-4 text-blue-600"
                 />
-                <span className="ml-3 text-sm text-gray-700">📧 + 📱 Les deux</span>
+                <span className="ml-3 text-sm text-gray-700">Email + SMS</span>
               </label>
             </div>
           </div>
@@ -135,14 +135,14 @@ export const WinnerContactModal = ({ isOpen, winner, onClose, onContact }) => {
           {/* Success Message */}
           {success && (
             <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-800 rounded-lg text-sm">
-              ✅ {success}
+              {success}
             </div>
           )}
 
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg text-sm">
-              ❌ {error}
+              {error}
             </div>
           )}
 
@@ -169,7 +169,7 @@ export const WinnerContactModal = ({ isOpen, winner, onClose, onContact }) => {
                   Envoi...
                 </>
               ) : (
-                <>📤 Envoyer</>
+                <>Envoyer</>
               )}
             </button>
           </div>

@@ -364,7 +364,7 @@ export const BuyTicketsPage = () => {
                 ))}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                💡 Ajoutez au panier puis sélectionnez à nouveau pour acheter plus de 5 tickets
+                Ajoutez au panier puis sélectionnez à nouveau pour acheter plus de 5 tickets
               </p>
             </div>
 
@@ -383,7 +383,7 @@ export const BuyTicketsPage = () => {
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <div className="text-2xl mb-2">🎲</div>
+                  <div className="text-2xl mb-2 text-gray-400">●</div>
                   <div className="font-semibold">Automatique</div>
                   <div className="text-xs text-gray-500 mt-1">Numéros attribués aléatoirement</div>
                 </button>
@@ -396,7 +396,7 @@ export const BuyTicketsPage = () => {
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <div className="text-2xl mb-2">✋</div>
+                  <div className="text-2xl mb-2 text-gray-400">✋</div>
                   <div className="font-semibold">Manuel</div>
                   <div className="text-xs text-gray-500 mt-1">Choisissez vos numéros</div>
                 </button>

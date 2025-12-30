@@ -182,12 +182,12 @@ export const RegisterPage = () => {
               </p>
               {phoneValidation.operator && (
                 <p className="text-xs text-green-600 mt-1">
-                  ✓ {phoneValidation.operator}
+                  <span className="text-green-500">Opérateur: {phoneValidation.operator}</span>
                 </p>
               )}
               {formData.phone.length === 9 && !phoneValidation.valid && (
                 <p className="text-xs text-red-600 mt-1">
-                  ✗ {phoneValidation.message}
+                  <span className="text-red-500">{phoneValidation.message}</span>
                 </p>
               )}
             </div>

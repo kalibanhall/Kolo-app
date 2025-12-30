@@ -221,7 +221,7 @@ export const PrizeDeliveryPage = () => {
               <p className="text-3xl font-bold text-gray-900">{stats.total_winners}</p>
             </div>
             <div className="bg-gray-50 rounded-lg shadow-md p-6">
-              <p className="text-sm text-gray-600">⏳ En attente</p>
+              <p className="text-sm text-gray-600">En attente</p>
               <p className="text-3xl font-bold text-gray-700">{stats.pending}</p>
             </div>
             <div className="bg-blue-50 rounded-lg shadow-md p-6">

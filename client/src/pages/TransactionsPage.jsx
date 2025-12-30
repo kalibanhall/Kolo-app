@@ -103,9 +103,12 @@ const TransactionsPage = () => {
           </div>
           <button 
             onClick={fetchTransactions}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-            🔄 Actualiser
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Actualiser
           </button>
         </div>
 
@@ -175,7 +178,9 @@ const TransactionsPage = () => {
             </div>
           ) : filteredTransactions.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
-              <p className="text-4xl mb-4">📭</p>
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
               <p>Aucune transaction trouvée</p>
             </div>
           ) : (
@@ -238,22 +243,22 @@ const TransactionsPage = () => {
                               disabled={processingId === transaction.id}
                               className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
                             >
-                              {processingId === transaction.id ? '...' : '✓ Valider'}
+                              {processingId === transaction.id ? '...' : 'Valider'}
                             </button>
                             <button
                               onClick={() => updateTransactionStatus(transaction.id, 'failed')}
                               disabled={processingId === transaction.id}
                               className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
                             >
-                              {processingId === transaction.id ? '...' : '✗ Rejeter'}
+                              {processingId === transaction.id ? '...' : 'Rejeter'}
                             </button>
                           </div>
                         )}
                         {transaction.status === 'completed' && (
-                          <span className="text-green-600 text-sm">✓ Validée</span>
+                          <span className="text-green-600 text-sm font-medium">Validée</span>
                         )}
                         {transaction.status === 'failed' && (
-                          <span className="text-red-600 text-sm">✗ Rejetée</span>
+                          <span className="text-red-600 text-sm font-medium">Rejetée</span>
                         )}
                       </td>
                     </tr>
@@ -262,16 +267,6 @@ const TransactionsPage = () => {
               </table>
             </div>
           )}
-        </div>
-
-        {/* Legend */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <h3 className="font-medium text-blue-800 mb-2">📋 Flux des transactions</h3>
-          <div className="text-sm text-blue-700 space-y-1">
-            <p>1. <strong>En attente</strong> : L'utilisateur a initié un achat, en attente de confirmation du paiement</p>
-            <p>2. <strong>Effectué</strong> : Paiement confirmé par l'agrégateur Mobile Money → Les tickets sont générés automatiquement</p>
-            <p>3. <strong>Échoué</strong> : Le paiement n'a pas abouti ou a été rejeté</p>
-          </div>
         </div>
       </div>
     </AdminLayout>

@@ -248,7 +248,7 @@ const DrawManagementPage = () => {
                         <td className="px-6 py-4">
                           {drawStatus.status === 'drawn' ? (
                             <div className="text-sm">
-                              <p className="text-green-600 font-medium">✓ Tirage effectué</p>
+                              <p className="text-green-600 font-medium">Tirage effectué</p>
                               <p className="text-gray-500 text-xs">
                                 Gagnant: {draw?.winner_name || 'N/A'}
                               </p>
@@ -261,7 +261,7 @@ const DrawManagementPage = () => {
                               onClick={() => openDrawModal(campaign)}
                               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
                             >
-                              🎲 Lancer le tirage
+                              Lancer le tirage
                             </button>
                           ) : (
                             <div className="flex flex-col gap-1">
@@ -269,7 +269,7 @@ const DrawManagementPage = () => {
                                 disabled
                                 className="px-4 py-2 bg-gray-200 text-gray-400 rounded-lg font-medium cursor-not-allowed text-sm"
                               >
-                                🎲 Lancer le tirage
+                                Lancer le tirage
                               </button>
                               <span className="text-xs text-gray-400">
                                 Clôturez la campagne d'abord
@@ -414,10 +414,11 @@ const DrawManagementPage = () => {
                   >
                     {drawing ? (
                       <span className="flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span> Tirage en cours...
+                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                        Tirage en cours...
                       </span>
                     ) : (
-                      '🎲 Lancer le tirage'
+                      'Lancer le tirage'
                     )}
                   </button>
                 </div>

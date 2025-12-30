@@ -93,7 +93,7 @@ export const AdminLayout = ({ children }) => {
 
         {/* Footer */}
         <footer className="px-8 py-4 text-center text-sm text-gray-500 border-t">
-          © 2026 KOLO - Tableau de bord administrateur
+          © {new Date().getFullYear()} KOLO - Tableau de bord administrateur
         </footer>
       </div>
     </div>
