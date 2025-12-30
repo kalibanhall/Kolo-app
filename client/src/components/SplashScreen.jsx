@@ -39,57 +39,44 @@ export const SplashScreen = ({ onFinish }) => {
       {/* Container principal */}
       <div className="relative z-10 text-center">
         {/* Logo K avec animation de remplissage */}
-        <div className="mb-8 relative">
-          <svg 
-            viewBox="0 0 200 180" 
-            className="w-48 h-48 mx-auto"
-            style={{ filter: 'drop-shadow(0 0 20px rgba(94, 223, 214, 0.3))' }}
-          >
-            {/* Définition du clip path pour le remplissage */}
-            <defs>
-              {/* Masque pour le logo K */}
-              <clipPath id="kLogoClip">
-                {/* Forme gauche du K */}
-                <path d="M20 10 L70 10 L55 170 L5 170 Z" />
-                {/* Forme droite du K - partie supérieure */}
-                <path d="M60 10 L130 10 L80 85 Z" />
-                {/* Forme droite du K - partie inférieure */}
-                <path d="M80 95 L130 170 L60 170 Z" />
-              </clipPath>
-              
-              {/* Gradient pour le remplissage */}
-              <linearGradient id="fillGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" stopColor="#5EDFD6" />
-                <stop offset="100%" stopColor="#4FD1C5" />
-              </linearGradient>
-            </defs>
-            
-            {/* Contour du logo K (toujours visible) */}
-            <g stroke="#5EDFD6" strokeWidth="2" fill="none" opacity="0.3">
-              <path d="M20 10 L70 10 L55 170 L5 170 Z" />
-              <path d="M60 10 L130 10 L80 85 Z" />
-              <path d="M80 95 L130 170 L60 170 Z" />
-            </g>
-            
-            {/* Rectangle de remplissage avec clip */}
-            <g clipPath="url(#kLogoClip)">
-              <rect 
-                x="0" 
-                y={180 - (progress * 1.8)} 
-                width="200" 
-                height="180" 
-                fill="url(#fillGradient)"
-                className="transition-all duration-100 ease-out"
-              />
-            </g>
-          </svg>
+        <div className="mb-8 relative w-48 h-48 mx-auto">
+          {/* Image du logo en gris (vide) - toujours visible */}
+          <img 
+            src="/logo-kolo-k.png" 
+            alt="KOLO"
+            className="absolute inset-0 w-full h-full object-contain opacity-20"
+            style={{ filter: 'grayscale(100%) brightness(0.5)' }}
+          />
           
-          {/* Effet de brillance animé */}
-          {progress > 50 && (
+          {/* Container du remplissage avec masque */}
+          <div 
+            className="absolute inset-0 w-full h-full overflow-hidden"
+            style={{
+              WebkitMaskImage: 'url(/logo-kolo-k.png)',
+              maskImage: 'url(/logo-kolo-k.png)',
+              WebkitMaskSize: 'contain',
+              maskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
+            }}
+          >
+            {/* Rectangle qui monte pour créer l'effet de remplissage */}
             <div 
-              className="absolute inset-0 flex items-center justify-center animate-pulse"
+              className="absolute bottom-0 left-0 right-0 bg-[#5EDFD6] transition-all duration-100 ease-out"
+              style={{
+                height: `${progress}%`,
+              }}
+            />
+          </div>
+          
+          {/* Effet de brillance quand complet */}
+          {progress >= 100 && (
+            <div 
+              className="absolute inset-0 animate-pulse"
               style={{ 
-                background: 'radial-gradient(circle, rgba(94, 223, 214, 0.2) 0%, transparent 70%)',
+                background: 'radial-gradient(circle, rgba(94, 223, 214, 0.4) 0%, transparent 70%)',
               }}
             />
           )}
