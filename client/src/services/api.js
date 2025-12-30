@@ -240,7 +240,48 @@ export const paymentsAPI = {
 };
 
 // ======================
-// 👨‍💼 ADMIN
+// � WALLET (PORTEFEUILLE)
+// ======================
+
+export const walletAPI = {
+  // Obtenir le portefeuille de l'utilisateur
+  getWallet: async () => {
+    return await request('/wallet/me');
+  },
+
+  // Obtenir l'historique des transactions
+  getTransactions: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/wallet/transactions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Initier un dépôt (rechargement)
+  initiateDeposit: async (amount) => {
+    return await request('/wallet/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+  },
+
+  // Acheter avec le solde du portefeuille
+  purchase: async (purchaseData) => {
+    return await request('/wallet/purchase', {
+      method: 'POST',
+      body: JSON.stringify(purchaseData),
+    });
+  },
+
+  // Simuler un dépôt (dev uniquement)
+  simulateDeposit: async (reference) => {
+    return await request('/wallet/simulate-deposit', {
+      method: 'POST',
+      body: JSON.stringify({ reference }),
+    });
+  },
+};
+
+// ======================
+// �👨‍💼 ADMIN
 // ======================
 
 export const adminAPI = {

@@ -89,6 +89,7 @@ app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/tickets', paymentLimiter, require('./routes/tickets'));
 app.use('/api/payments', paymentLimiter, require('./routes/payments'));
+app.use('/api/wallet', paymentLimiter, require('./routes/wallet'));
 app.use('/api/admin', adminLimiter, require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/invoices', require('./routes/invoices'));

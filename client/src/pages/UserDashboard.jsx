@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { ticketsAPI, campaignsAPI } from '../services/api';
+import { ticketsAPI, campaignsAPI, walletAPI } from '../services/api';
 import { LogoKoloFull } from '../components/LogoKolo';
+import { MoneyIcon } from '../components/Icons';
 
 export const UserDashboard = () => {
   const { user, logout } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [campaign, setCampaign] = useState(null);
+  const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,11 +27,19 @@ export const UserDashboard = () => {
       // Charger la campagne active
       const campaignResponse = await campaignsAPI.getCurrent();
       setCampaign(campaignResponse.data);
+
+      // Charger le portefeuille
+      const walletResponse = await walletAPI.getWallet();
+      setWallet(walletResponse.data.wallet);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
   };
 
   if (loading) {
@@ -52,6 +62,13 @@ export const UserDashboard = () => {
             <LogoKoloFull size="small" darkMode={false} />
             
             <div className="flex items-center space-x-4">
+              <Link
+                to="/wallet"
+                className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <MoneyIcon className="w-4 h-4" />
+                {wallet ? formatCurrency(wallet.balance) : '0 FC'}
+              </Link>
               <Link
                 to="/profile"
                 className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors text-sm font-medium"

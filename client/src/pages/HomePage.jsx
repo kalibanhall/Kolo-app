@@ -128,38 +128,23 @@ export const HomePage = () => {
                   <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2 sm:line-clamp-none">{campaign.description}</p>
                 </div>
 
-                {/* Stats Grid - Responsive */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-800/30 rounded-lg sm:rounded-xl p-2 sm:p-4 text-center border border-indigo-200 dark:border-indigo-700">
-                    <p className="text-[10px] sm:text-sm text-indigo-600 dark:text-indigo-400 font-semibold mb-0.5">Prix</p>
-                    <p className="text-lg sm:text-2xl md:text-3xl font-bold text-indigo-900 dark:text-indigo-100">${campaign.ticket_price}</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-lg sm:rounded-xl p-2 sm:p-4 text-center border border-green-200 dark:border-green-700">
-                    <p className="text-[10px] sm:text-sm text-green-600 dark:text-green-400 font-semibold mb-0.5">Vendus</p>
-                    <p className="text-lg sm:text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100">{campaign.sold_tickets}</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg sm:rounded-xl p-2 sm:p-4 text-center border border-orange-200 dark:border-orange-700">
-                    <p className="text-[10px] sm:text-sm text-orange-600 dark:text-orange-400 font-semibold mb-0.5">Restants</p>
-                    <p className="text-lg sm:text-2xl md:text-3xl font-bold text-orange-900 dark:text-orange-100">{campaign.total_tickets - campaign.sold_tickets}</p>
+                {/* Stats - Only Remaining Tickets */}
+                <div className="mb-4 sm:mb-6">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/30 dark:to-emerald-800/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center border border-green-200 dark:border-green-700">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <TicketIcon className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400" />
+                      <p className="text-sm sm:text-base text-green-600 dark:text-green-400 font-semibold">Tickets Disponibles</p>
+                    </div>
+                    <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-green-700 dark:text-green-300">
+                      {(campaign.total_tickets - campaign.sold_tickets).toLocaleString('fr-FR')}
+                    </p>
+                    <p className="text-xs sm:text-sm text-green-600/70 dark:text-green-400/70 mt-1">
+                      sur {campaign.total_tickets.toLocaleString('fr-FR')} au total
+                    </p>
                   </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    <span>Progression</span>
-                    <span className="font-semibold">{occupationRate}%</span>
-                  </div>
-                  <div className="h-2 sm:h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(occupationRate, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
+                {/* Payment Info */}
                 <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   Paiement sécurisé via Mobile Money
                 </p>

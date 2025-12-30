@@ -3,8 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { ticketsAPI, campaignsAPI } from '../services/api';
-import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon } from '../components/Icons';
+import { ticketsAPI, campaignsAPI, walletAPI } from '../services/api';
+import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon, MoneyIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
@@ -14,11 +14,13 @@ export const BuyTicketsPage = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
+  const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showCartDropdown, setShowCartDropdown] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -59,6 +61,7 @@ export const BuyTicketsPage = () => {
 
   useEffect(() => {
     loadCampaign();
+    loadWallet();
     if (user?.phone) {
       const cleanPhone = user.phone.replace('+243', '').replace(/\D/g, '');
       setPhoneNumber(cleanPhone);
@@ -88,6 +91,15 @@ export const BuyTicketsPage = () => {
       setError('Impossible de charger la campagne active');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWallet = async () => {
+    try {
+      const response = await walletAPI.getWallet();
+      setWallet(response.data.wallet);
+    } catch (err) {
+      console.error('Failed to load wallet:', err);
     }
   };
 
@@ -172,19 +184,40 @@ export const BuyTicketsPage = () => {
         amount: totalPrice
       };
 
-      // Créer la commande et obtenir l'URL de paiement de l'agrégateur
-      const response = await ticketsAPI.initiatePurchase(purchasePayload);
-      
-      if (response.data?.payment_url) {
-        // Redirection vers le portail de paiement de l'agrégateur
-        window.location.href = response.data.payment_url;
+      // Payment with wallet balance
+      if (paymentMethod === 'wallet') {
+        if (!wallet || wallet.balance < totalPrice) {
+          setError('Solde insuffisant. Veuillez recharger votre portefeuille.');
+          setPurchasing(false);
+          return;
+        }
+
+        const response = await walletAPI.purchase(purchasePayload);
+        
+        if (response.success) {
+          setSuccess(true);
+          clearPurchaseData();
+          setWallet(prev => ({ ...prev, balance: response.data.new_balance }));
+          
+          // Show success message with ticket numbers
+          const ticketNumbers = response.data.tickets.map(t => t.ticket_number).join(', ');
+          alert(`Achat réussi ! Vos tickets: ${ticketNumbers}`);
+          
+          setTimeout(() => navigate('/dashboard'), 2000);
+        }
       } else {
-        // Fallback: si pas d'URL, utiliser l'ancien comportement
-        await ticketsAPI.purchase(purchasePayload);
-        setSuccess(true);
-        clearPurchaseData();
-        alert('Achat initié ! Vous serez redirigé vers le paiement.');
-        setTimeout(() => navigate('/dashboard'), 2000);
+        // Payment via Mobile Money aggregator
+        const response = await ticketsAPI.initiatePurchase(purchasePayload);
+        
+        if (response.data?.payment_url) {
+          window.location.href = response.data.payment_url;
+        } else {
+          await ticketsAPI.purchase(purchasePayload);
+          setSuccess(true);
+          clearPurchaseData();
+          alert('Achat initié ! Vous serez redirigé vers le paiement.');
+          setTimeout(() => navigate('/dashboard'), 2000);
+        }
       }
     } catch (err) {
       setError(err.message || 'Erreur lors de l\'initiation du paiement');
@@ -702,79 +735,139 @@ export const BuyTicketsPage = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedNumbers.length > 0 && campaign) {
-                      addToCart(campaign.id, campaign, selectedNumbers);
-                      setSelectedNumbers([]);
-                    }
-                  }}
-                  disabled={selectedNumbers.length === 0}
-                  className="w-full flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-xl transition-all bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white disabled:cursor-not-allowed"
+              {/* Payment Method Selection */}
+              <div className="mb-6">
+                <label className={`block text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Mode de paiement
+                </label>
+                
+                {/* Wallet Option */}
+                <div 
+                  onClick={() => setPaymentMethod('wallet')}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${
+                    paymentMethod === 'wallet'
+                      ? isDarkMode
+                        ? 'border-green-500 bg-green-900/30'
+                        : 'border-green-500 bg-green-50'
+                      : isDarkMode
+                        ? 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
                 >
-                  <CartIcon className="w-5 h-5" />
-                  Ajouter au panier ({selectedNumbers.length})
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={purchasing || availableTickets === 0 || (selectionMode === 'manual' && selectedNumbers.length !== ticketCount)}
-                  className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
-                    (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) 
-                      ? 'bg-gray-500 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                  } text-white disabled:cursor-not-allowed`}
-                >
-                  {purchasing ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Redirection vers le paiement...
-                    </span>
-                  ) : (
-                    `Payer ${formatCurrency(totalPrice)}`
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        isDarkMode ? 'bg-green-900/50' : 'bg-green-100'
+                      }`}>
+                        <MoneyIcon className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          Portefeuille KOLO
+                        </p>
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Paiement instantané
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold ${
+                        wallet && wallet.balance >= totalPrice
+                          ? 'text-green-500'
+                          : 'text-red-500'
+                      }`}>
+                        {wallet ? formatCurrency(wallet.balance) : '0 FC'}
+                      </p>
+                      {wallet && wallet.balance < totalPrice && (
+                        <Link 
+                          to="/wallet"
+                          className="text-xs text-blue-500 hover:underline"
+                        >
+                          Recharger
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                  {wallet && wallet.balance < totalPrice && (
+                    <p className="mt-2 text-sm text-red-500">
+                      Solde insuffisant (manque {formatCurrency(totalPrice - wallet.balance)})
+                    </p>
                   )}
-                </button>
+                </div>
+
+                {/* Mobile Money Option */}
+                <div 
+                  onClick={() => setPaymentMethod('mobile_money')}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    paymentMethod === 'mobile_money'
+                      ? isDarkMode
+                        ? 'border-blue-500 bg-blue-900/30'
+                        : 'border-blue-500 bg-blue-50'
+                      : isDarkMode
+                        ? 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      isDarkMode ? 'bg-blue-900/50' : 'bg-blue-100'
+                    }`}>
+                      <svg className={`w-5 h-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Mobile Money
+                      </p>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Orange, M-Pesa, Airtel, Afrimoney
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Action Button */}
+              <button
+                type="submit"
+                disabled={
+                  purchasing || 
+                  availableTickets === 0 || 
+                  (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice))
+                }
+                className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
+                  (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice))
+                    ? 'bg-gray-500 cursor-not-allowed' 
+                    : paymentMethod === 'wallet'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                } text-white disabled:cursor-not-allowed`}
+              >
+                {purchasing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    {paymentMethod === 'wallet' ? 'Achat en cours...' : 'Redirection...'}
+                  </span>
+                ) : paymentMethod === 'wallet' ? (
+                  `Payer avec mon solde (${formatCurrency(totalPrice)})`
+                ) : (
+                  `Payer via Mobile Money (${formatCurrency(totalPrice)})`
+                )}
+              </button>
             </form>
 
-            {/* Payment Methods */}
-            <div className={`mt-8 pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <p className={`text-sm mb-3 font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Méthodes de paiement acceptées :
+            {/* Info Footer */}
+            <div className={`mt-6 p-4 rounded-xl ${
+              isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50'
+            }`}>
+              <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                En cliquant sur Payer, vous acceptez nos conditions générales de vente.
+                <br />
+                Paiement 100% sécurisé.
               </p>
-              <div className="flex flex-wrap justify-center gap-3">
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  isDarkMode 
-                    ? 'bg-orange-900/30 text-orange-400 border border-orange-800' 
-                    : 'bg-orange-50 text-orange-700 border border-orange-200'
-                }`}>
-                  Orange Money
-                </span>
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  isDarkMode 
-                    ? 'bg-green-900/30 text-green-400 border border-green-800' 
-                    : 'bg-green-50 text-green-700 border border-green-200'
-                }`}>
-                  M-Pesa
-                </span>
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  isDarkMode 
-                    ? 'bg-red-900/30 text-red-400 border border-red-800' 
-                    : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
-                  Airtel Money
-                </span>
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  isDarkMode 
-                    ? 'bg-blue-900/30 text-blue-400 border border-blue-800' 
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
-                }`}>
-                  Afrimoney
-                </span>
-              </div>
             </div>
           </div>
         </div>
