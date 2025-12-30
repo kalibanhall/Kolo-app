@@ -69,7 +69,6 @@ router.get('/stats', async (req, res) => {
         } : null
       }
     });
-    });
 
   } catch (error) {
     console.error('Get admin stats error:', error);
