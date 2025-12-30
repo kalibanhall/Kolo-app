@@ -156,11 +156,6 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (phoneNumber.length !== 9) {
-      setError('Le numéro de téléphone doit contenir 9 chiffres');
-      return;
-    }
-
     if (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) {
       setError(`Veuillez sélectionner ${ticketCount} numéro(s) de ticket`);
       return;
@@ -172,23 +167,27 @@ export const BuyTicketsPage = () => {
       const purchasePayload = {
         campaign_id: campaign.id,
         ticket_count: ticketCount,
-        phone_number: `+243${phoneNumber}`,
         selection_mode: selectionMode,
-        selected_numbers: selectionMode === 'manual' ? selectedNumbers : []
+        selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
+        amount: totalPrice
       };
 
-      await ticketsAPI.purchase(purchasePayload);
-
-      setSuccess(true);
-      clearPurchaseData();
+      // Créer la commande et obtenir l'URL de paiement de l'agrégateur
+      const response = await ticketsAPI.initiatePurchase(purchasePayload);
       
-      alert('Achat initié ! Vous allez recevoir une notification de paiement sur votre téléphone.');
-      
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      if (response.data?.payment_url) {
+        // Redirection vers le portail de paiement de l'agrégateur
+        window.location.href = response.data.payment_url;
+      } else {
+        // Fallback: si pas d'URL, utiliser l'ancien comportement
+        await ticketsAPI.purchase(purchasePayload);
+        setSuccess(true);
+        clearPurchaseData();
+        alert('Achat initié ! Vous serez redirigé vers le paiement.');
+        setTimeout(() => navigate('/dashboard'), 2000);
+      }
     } catch (err) {
-      setError(err.message || 'Erreur lors de l\'achat');
+      setError(err.message || 'Erreur lors de l\'initiation du paiement');
     } finally {
       setPurchasing(false);
     }
@@ -432,39 +431,15 @@ export const BuyTicketsPage = () => {
             )}
 
             <form onSubmit={handlePurchase} className="space-y-6">
-              {/* Ticket Stats */}
-              <div className={`rounded-xl p-4 ${
+              {/* Tickets Disponibles */}
+              <div className={`rounded-xl p-6 text-center ${
                 isDarkMode ? 'bg-gray-900/50' : 'bg-gradient-to-r from-blue-50 to-indigo-50'
               }`}>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Total</p>
-                    <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {(campaign.total_tickets || 0).toLocaleString('fr-FR')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Vendus</p>
-                    <p className="text-xl font-bold text-red-500">
-                      {(campaign.sold_tickets || 0).toLocaleString('fr-FR')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className={`text-xs uppercase ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Disponibles</p>
-                    <p className="text-xl font-bold text-green-500">
-                      {availableTickets.toLocaleString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <div className={`w-full rounded-full h-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                    <div 
-                      className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, ((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}%` }}
-                    />
-                  </div>
-                  <p className={`text-xs mt-1 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {Math.round(((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}% vendus
+                <div className="flex flex-col items-center">
+                  <TicketIcon className={`w-10 h-10 mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} />
+                  <p className={`text-sm uppercase font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Tickets Disponibles</p>
+                  <p className="text-4xl font-bold text-green-500 mt-1">
+                    {availableTickets.toLocaleString('fr-FR')}
                   </p>
                 </div>
               </div>
@@ -695,37 +670,7 @@ export const BuyTicketsPage = () => {
                 </div>
               )}
 
-              {/* Phone Number */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Numéro de téléphone (Mobile Money)
-                </label>
-                <div className="flex">
-                  <span className={`inline-flex items-center px-4 py-3 rounded-l-xl border border-r-0 font-medium ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-gray-400' 
-                      : 'bg-gray-100 border-gray-300 text-gray-700'
-                  }`}>
-                    +243
-                  </span>
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                    required
-                    maxLength="9"
-                    className={`flex-1 px-4 py-3 rounded-r-xl border focus:ring-2 focus:ring-blue-500 ${
-                      isDarkMode 
-                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' 
-                        : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                    placeholder="812345678"
-                  />
-                </div>
-                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                  Vous recevrez une notification USSD pour confirmer le paiement
-                </p>
-              </div>
+
 
               {/* Price Summary */}
               <div className={`rounded-xl p-6 space-y-3 ${
@@ -776,9 +721,9 @@ export const BuyTicketsPage = () => {
 
                 <button
                   type="submit"
-                  disabled={purchasing || availableTickets === 0 || selectedNumbers.length !== ticketCount || phoneNumber.length !== 9}
+                  disabled={purchasing || availableTickets === 0 || (selectionMode === 'manual' && selectedNumbers.length !== ticketCount)}
                   className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
-                    (phoneNumber.length !== 9 || selectedNumbers.length !== ticketCount) 
+                    (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) 
                       ? 'bg-gray-500 cursor-not-allowed' 
                       : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
                   } text-white disabled:cursor-not-allowed`}
@@ -786,7 +731,7 @@ export const BuyTicketsPage = () => {
                   {purchasing ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Traitement...
+                      Redirection vers le paiement...
                     </span>
                   ) : (
                     `Payer ${formatCurrency(totalPrice)}`
@@ -797,15 +742,38 @@ export const BuyTicketsPage = () => {
 
             {/* Payment Methods */}
             <div className={`mt-8 pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <p className={`text-sm mb-4 font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm mb-3 font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Méthodes de paiement acceptées :
               </p>
-              <div className="flex justify-center">
-                <img 
-                  src="/assets/mobilemoney.webp" 
-                  alt="Mobile Money - Orange Money, M-Pesa, Airtel Money" 
-                  className="h-16 object-contain"
-                />
+              <div className="flex flex-wrap justify-center gap-3">
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  isDarkMode 
+                    ? 'bg-orange-900/30 text-orange-400 border border-orange-800' 
+                    : 'bg-orange-50 text-orange-700 border border-orange-200'
+                }`}>
+                  Orange Money
+                </span>
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  isDarkMode 
+                    ? 'bg-green-900/30 text-green-400 border border-green-800' 
+                    : 'bg-green-50 text-green-700 border border-green-200'
+                }`}>
+                  M-Pesa
+                </span>
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  isDarkMode 
+                    ? 'bg-red-900/30 text-red-400 border border-red-800' 
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  Airtel Money
+                </span>
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  isDarkMode 
+                    ? 'bg-blue-900/30 text-blue-400 border border-blue-800' 
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  Afrimoney
+                </span>
               </div>
             </div>
           </div>

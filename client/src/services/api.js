@@ -170,7 +170,15 @@ export const campaignsAPI = {
 // ======================
 
 export const ticketsAPI = {
-  // Acheter des tickets
+  // Initier un achat et obtenir l'URL de paiement de l'agrégateur
+  initiatePurchase: async (purchaseData) => {
+    return await request('/tickets/initiate-purchase', {
+      method: 'POST',
+      body: JSON.stringify(purchaseData),
+    });
+  },
+
+  // Acheter des tickets (ancienne méthode, fallback)
   purchase: async (purchaseData) => {
     return await request('/tickets/purchase', {
       method: 'POST',

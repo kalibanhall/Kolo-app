@@ -17,6 +17,131 @@ const generateTransactionId = () => {
   return transactionId;
 };
 
+// Initiate purchase - Create order and return payment URL for aggregator redirect
+router.post('/initiate-purchase', verifyToken, paymentLimiter, [
+  body('campaign_id').isInt({ min: 1 }),
+  body('ticket_count').isInt({ min: 1, max: 1000 }),
+  body('selection_mode').optional().isIn(['manual', 'automatic']),
+  body('amount').isFloat({ min: 0 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { campaign_id, ticket_count, selection_mode, selected_numbers, amount } = req.body;
+    const user_id = req.user.id;
+
+    // Check campaign exists and is open
+    const campaignResult = await query(
+      `SELECT id, status, total_tickets, sold_tickets, ticket_price
+       FROM campaigns WHERE id = $1`,
+      [campaign_id]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campagne non trouvée'
+      });
+    }
+
+    const campaign = campaignResult.rows[0];
+
+    if (campaign.status !== 'open') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette campagne n\'est plus ouverte aux achats'
+      });
+    }
+
+    // Check ticket availability
+    if (campaign.sold_tickets + ticket_count > campaign.total_tickets) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pas assez de tickets disponibles'
+      });
+    }
+
+    // Verify amount matches
+    const expected_amount = campaign.ticket_price * ticket_count;
+    if (Math.abs(amount - expected_amount) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        message: 'Montant invalide'
+      });
+    }
+
+    // Generate unique transaction ID
+    const transactionId = generateTransactionId();
+
+    // Create pending purchase record
+    const purchaseResult = await query(
+      `INSERT INTO purchases (
+        user_id, campaign_id, ticket_count, total_amount, 
+        payment_status, transaction_id, selection_mode, selected_numbers
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [
+        user_id, 
+        campaign_id, 
+        ticket_count, 
+        expected_amount, 
+        'pending', 
+        transactionId,
+        selection_mode || 'automatic',
+        JSON.stringify(selected_numbers || [])
+      ]
+    );
+
+    const purchase = purchaseResult.rows[0];
+
+    // Build payment URL for aggregator (configure your aggregator here)
+    // Example with common aggregators format
+    const aggregatorBaseUrl = process.env.PAYMENT_AGGREGATOR_URL || 'https://pay.example.com';
+    const callbackUrl = encodeURIComponent(`${process.env.API_URL || 'https://kolo-api.onrender.com'}/api/payments/callback`);
+    const returnUrl = encodeURIComponent(`${process.env.FRONTEND_URL || 'https://kolo.cd'}/payment/success?transaction=${transactionId}`);
+    const cancelUrl = encodeURIComponent(`${process.env.FRONTEND_URL || 'https://kolo.cd'}/payment/cancel?transaction=${transactionId}`);
+    
+    // Generic payment URL format - customize based on your aggregator
+    const paymentUrl = `${aggregatorBaseUrl}/checkout?` +
+      `merchant_id=${process.env.PAYMENT_MERCHANT_ID || 'KOLO_MERCHANT'}` +
+      `&transaction_id=${transactionId}` +
+      `&amount=${expected_amount}` +
+      `&currency=CDF` +
+      `&description=${encodeURIComponent(`KOLO Tombola - ${ticket_count} ticket(s)`)}` +
+      `&callback_url=${callbackUrl}` +
+      `&return_url=${returnUrl}` +
+      `&cancel_url=${cancelUrl}` +
+      `&customer_email=${encodeURIComponent(req.user.email)}` +
+      `&customer_name=${encodeURIComponent(req.user.name)}`;
+
+    res.json({
+      success: true,
+      message: 'Commande créée, redirection vers le paiement',
+      data: {
+        purchase_id: purchase.id,
+        transaction_id: transactionId,
+        amount: expected_amount,
+        ticket_count: ticket_count,
+        payment_url: paymentUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Initiate purchase error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'initiation du paiement'
+    });
+  }
+});
+
 // Get user tickets (authentication required)
 router.get('/user/:userId', verifyToken, async (req, res) => {
   try {

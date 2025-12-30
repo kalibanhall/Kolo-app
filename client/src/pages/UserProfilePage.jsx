@@ -367,14 +367,14 @@ const UserProfilePage = () => {
             Mes Tickets
           </button>
           <Link
-            to="/profile/invoices"
+            to="/transactions"
             className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
               isDarkMode
                 ? 'text-gray-400 hover:text-white'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Mes Factures
+            Mes Transactions
           </Link>
         </div>
 
