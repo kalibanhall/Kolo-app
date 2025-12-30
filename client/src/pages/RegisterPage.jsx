@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogoKolo } from '../components/LogoKolo';
+import { LogoKoloFull } from '../components/LogoKolo';
 import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
 import { validatePhoneNumber, formatPhoneDisplay } from '../utils/phoneValidation';
 import { useFormPersistence } from '../hooks/useFormPersistence';
@@ -104,17 +104,14 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
-            <div className="mb-4">
-              <LogoKolo size="large" animated />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 hover:text-blue-600 transition-colors">KOLO</h1>
+            <LogoKoloFull size="large" darkMode={true} animated />
           </Link>
-          <p className="text-gray-600 mt-2">Tombola</p>
+          <p className="text-gray-400 mt-4">Plateforme de Tombola en ligne</p>
         </div>
 
         {/* Form Card */}

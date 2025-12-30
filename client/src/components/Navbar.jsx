@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { LogoKolo } from './LogoKolo';
+import { LogoKoloIcon } from './LogoKolo';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
 import { CartIcon } from './Icons';
@@ -60,11 +60,11 @@ const Navbar = () => {
           {/* Logo - Compact */}
           <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition group">
             <div className="relative">
-              <LogoKolo size="small" animated />
+              <LogoKoloIcon size="small" animated />
               <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl font-extrabold text-[#5EDFD6]">
                 KOLO
               </span>
               <span className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 -mt-1 font-medium tracking-wider">

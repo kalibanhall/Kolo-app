@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LogoKolo } from './LogoKolo';
+import { LogoKoloFull } from './LogoKolo';
 import { EmailIcon, PhoneIcon, LocationIcon } from './Icons';
 
 const Footer = () => {
@@ -12,9 +12,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Logo et Description */}
           <div>
-            <div className="flex items-center space-x-2 mb-4">
-              <LogoKolo size="small" />
-              <span className="text-2xl font-bold text-white">KOLO</span>
+            <div className="mb-4">
+              <LogoKoloFull size="medium" darkMode={true} />
             </div>
             <p className="text-sm text-gray-400">
               Plateforme sécurisée de tombola en ligne

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI } from '../services/api';
-import { LogoKolo } from '../components/LogoKolo';
+import { LogoKoloFull } from '../components/LogoKolo';
 
 export const UserDashboard = () => {
   const { user, logout } = useAuth();
@@ -49,13 +49,7 @@ export const UserDashboard = () => {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <LogoKolo size="medium" animated />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">KOLO</h1>
-                <p className="text-sm text-gray-600">Tombola</p>
-              </div>
-            </div>
+            <LogoKoloFull size="small" darkMode={false} />
             
             <div className="flex items-center space-x-4">
               <Link

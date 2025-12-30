@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogoKolo } from '../components/LogoKolo';
+import { LogoKoloFull } from '../components/LogoKolo';
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -48,13 +48,13 @@ export const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <LogoKolo size="large" animated />
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            <LogoKoloFull size="large" darkMode={false} animated />
+            <h2 className="mt-6 text-2xl font-bold text-gray-900">
               Mot de passe oublié
             </h2>
             <p className="mt-2 text-sm text-gray-600 text-center">
