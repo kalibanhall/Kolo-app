@@ -7,6 +7,16 @@ const { simulatePayment } = require('../services/africasTalking');
 const { paymentLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
+// Generate transaction ID: 16 characters alphanumeric (letters + numbers)
+const generateTransactionId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let transactionId = '';
+  for (let i = 0; i < 16; i++) {
+    transactionId += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return transactionId;
+};
+
 // Get user tickets (authentication required)
 router.get('/user/:userId', verifyToken, async (req, res) => {
   try {
@@ -101,14 +111,17 @@ router.post('/purchase', verifyToken, paymentLimiter, [
 
     const total_amount = campaign.ticket_price * ticket_count;
 
+    // Generate unique transaction ID
+    const transactionId = generateTransactionId();
+
     // Create purchase record with pending status
     const purchaseResult = await query(
       `INSERT INTO purchases (
         user_id, campaign_id, ticket_count, total_amount, 
-        phone_number, payment_provider, payment_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        phone_number, payment_provider, payment_status, transaction_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
-      [user_id, campaign_id, ticket_count, total_amount, normalizedPhone, provider, 'pending']
+      [user_id, campaign_id, ticket_count, total_amount, normalizedPhone, provider, 'pending', transactionId]
     );
 
     const purchase = purchaseResult.rows[0];
@@ -130,21 +143,15 @@ router.post('/purchase', verifyToken, paymentLimiter, [
       paymentResponse = await simulatePayment(normalizedPhone, total_amount);
     }
 
-    // Update purchase with transaction ID
-    if (paymentResponse.transactionId) {
-      await query(
-        `UPDATE purchases SET transaction_id = $1 WHERE id = $2`,
-        [paymentResponse.transactionId, purchase.id]
-      );
-    }
-
     res.json({
       success: true,
-      message: 'Payment initiated. Please confirm on your phone.',
+      message: 'Demande d\'achat enregistrée. Veuillez valider le paiement sur votre téléphone.',
       data: {
         purchase_id: purchase.id,
-        transaction_id: paymentResponse.transactionId,
-        status: 'pending_confirmation',
+        transaction_id: transactionId,
+        external_transaction_id: paymentResponse?.transactionId || null,
+        status: 'pending',
+        status_label: 'En attente de paiement',
         amount: total_amount,
         provider: provider,
         ticket_count: ticket_count

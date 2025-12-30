@@ -1,30 +1,21 @@
 {
-  "name": "KOLO - Tombola Digitale",
-  "short_name": "KOLO",
-  "description": "Participez à des tombolas légales et transparentes. Devenez propriétaire avec KOLO!",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
-  "orientation": "portrait",
+  "name": "MyWebSite",
+  "short_name": "MySite",
   "icons": [
     {
-      "src": "/logo-kolo-192.png",
+      "src": "/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
-      "src": "/logo-kolo-512.png",
+      "src": "/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
-  "categories": ["entertainment", "games"],
-  "screenshots": [],
-  "lang": "fr-CD",
-  "dir": "ltr",
-  "scope": "/",
-  "prefer_related_applications": false
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
 }

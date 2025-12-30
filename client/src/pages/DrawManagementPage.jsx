@@ -40,11 +40,14 @@ const DrawManagementPage = () => {
     }
   };
 
-  // Générer un ID de transaction unique
+  // Générer un ID de transaction unique (16 caractères alphanumériques)
   const generateTransactionId = () => {
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 11).toUpperCase();
-    return `${timestamp}-${randomStr}`;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let transactionId = '';
+    for (let i = 0; i < 16; i++) {
+      transactionId += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return transactionId;
   };
 
   const getCampaignDrawStatus = (campaign) => {
