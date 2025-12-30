@@ -13,7 +13,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/campaigns', label: 'Gestion des campagnes', Icon: CampaignIcon },
     { path: '/admin/participants', label: 'Participants', Icon: UsersIcon },
     { path: '/admin/transactions', label: 'Gestion des transactions', Icon: MoneyIcon },
-    { path: '/admin/draw', label: 'Gestion des Tirages', Icon: TargetIcon },
+    { path: '/admin/draws', label: 'Gestion des Tirages', Icon: TargetIcon },
     { path: '/admin/delivery', label: 'Livraison des prix', Icon: TrophyIcon },
     { path: '/admin/logs', label: 'Journal & Sécurité', Icon: SettingsIcon },
   ];

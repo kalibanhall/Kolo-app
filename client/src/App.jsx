@@ -21,7 +21,7 @@ const UserDashboard = lazy(() => import('./pages/UserDashboard').then(m => ({ de
 const BuyTicketsPage = lazy(() => import('./pages/BuyTicketsPage').then(m => ({ default: m.BuyTicketsPage })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const ParticipantsPage = lazy(() => import('./pages/ParticipantsPage').then(m => ({ default: m.ParticipantsPage })));
-const DrawResultsPage = lazy(() => import('./pages/DrawResultsPage'));
+const DrawManagementPage = lazy(() => import('./pages/DrawManagementPage'));
 const CampaignsManagementPage = lazy(() => import('./pages/CampaignsManagementPage').then(m => ({ default: m.CampaignsManagementPage })));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
@@ -141,7 +141,15 @@ function App() {
             path="/admin/draw"
             element={
               <ProtectedRoute adminOnly={true}>
-                <DrawResultsPage />
+                <DrawManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/draws"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <DrawManagementPage />
               </ProtectedRoute>
             }
           />
