@@ -58,19 +58,8 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo - Compact */}
-          <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition group">
-            <div className="relative">
-              <LogoKoloIcon size="small" animated />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-extrabold text-[#5EDFD6]">
-                KOLO
-              </span>
-              <span className="text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 -mt-1 font-medium tracking-wider">
-                TOMBOLA
-              </span>
-            </div>
+          <Link to="/" className="flex items-center hover:opacity-80 transition group">
+            <LogoKoloIcon size="medium" animated />
           </Link>
 
           {/* Desktop Navigation - Centered */}
