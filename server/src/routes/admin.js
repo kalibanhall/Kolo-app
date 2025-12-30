@@ -59,6 +59,105 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Get analytics data for charts (REAL DATA)
+router.get('/analytics', async (req, res) => {
+  try {
+    // 1. Revenue by month (last 6 months)
+    const revenueResult = await query(`
+      SELECT 
+        TO_CHAR(created_at, 'Mon') as month,
+        COALESCE(SUM(total_amount), 0)::numeric as revenue
+      FROM purchases 
+      WHERE payment_status = 'completed'
+        AND created_at >= NOW() - INTERVAL '6 months'
+      GROUP BY TO_CHAR(created_at, 'Mon'), DATE_TRUNC('month', created_at)
+      ORDER BY DATE_TRUNC('month', created_at)
+    `);
+
+    // 2. Participants by campaign
+    const participantsResult = await query(`
+      SELECT 
+        c.title as campaign,
+        COUNT(DISTINCT t.user_id) as participants
+      FROM campaigns c
+      LEFT JOIN tickets t ON c.id = t.campaign_id
+      GROUP BY c.id, c.title
+      ORDER BY participants DESC
+      LIMIT 5
+    `);
+
+    // 3. Campaign status distribution
+    const campaignStatusResult = await query(`
+      SELECT 
+        CASE 
+          WHEN status = 'open' THEN 'Ouvertes'
+          WHEN status = 'closed' THEN 'Fermées'
+          WHEN status = 'completed' THEN 'Terminées'
+          ELSE 'Brouillons'
+        END as name,
+        COUNT(*) as value
+      FROM campaigns
+      GROUP BY status
+    `);
+
+    // 4. Sales trend (last 7 days)
+    const salesTrendResult = await query(`
+      SELECT 
+        TO_CHAR(p.created_at, 'DD/MM') as date,
+        COUNT(DISTINCT t.id) as tickets,
+        COALESCE(SUM(p.total_amount), 0)::numeric as revenue
+      FROM purchases p
+      LEFT JOIN tickets t ON p.id = t.purchase_id
+      WHERE p.payment_status = 'completed'
+        AND p.created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY TO_CHAR(p.created_at, 'DD/MM'), DATE(p.created_at)
+      ORDER BY DATE(p.created_at)
+    `);
+
+    // 5. Top campaigns by revenue
+    const topCampaignsResult = await query(`
+      SELECT 
+        c.title as name,
+        COALESCE(SUM(p.total_amount), 0)::numeric as revenue
+      FROM campaigns c
+      LEFT JOIN purchases p ON c.id = p.campaign_id AND p.payment_status = 'completed'
+      GROUP BY c.id, c.title
+      ORDER BY revenue DESC
+      LIMIT 5
+    `);
+
+    // 6. Payment methods distribution
+    const paymentMethodsResult = await query(`
+      SELECT 
+        COALESCE(payment_method, 'Non spécifié') as name,
+        COUNT(*) as value
+      FROM purchases
+      WHERE payment_status = 'completed'
+      GROUP BY payment_method
+      ORDER BY value DESC
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        revenue: revenueResult.rows.map(r => ({ month: r.month, revenue: parseFloat(r.revenue) })),
+        participants: participantsResult.rows.map(r => ({ campaign: r.campaign, participants: parseInt(r.participants) })),
+        campaignStatus: campaignStatusResult.rows.map(r => ({ name: r.name, value: parseInt(r.value) })),
+        salesTrend: salesTrendResult.rows.map(r => ({ date: r.date, tickets: parseInt(r.tickets), revenue: parseFloat(r.revenue) })),
+        topCampaigns: topCampaignsResult.rows.map(r => ({ name: r.name, revenue: parseFloat(r.revenue) })),
+        paymentMethods: paymentMethodsResult.rows.map(r => ({ name: r.name, value: parseInt(r.value) }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 // Get participants list with detailed stats
 router.get('/participants', async (req, res) => {
   try {
@@ -233,7 +332,7 @@ router.post('/draw', drawLimiter, [
       });
     }
 
-    await transaction(async (client) => {
+    const winnerData = await transaction(async (client) => {
       // Check campaign exists and hasn't been drawn yet
       const campaignResult = await client.query(
         'SELECT * FROM campaigns WHERE id = $1',
@@ -391,39 +490,45 @@ router.post('/draw', drawLimiter, [
 
     // Send notifications to winners (email + SMS)
     try {
-      // Get winner details with phone and email
-      const winnerDetailsResult = await query(
-        `SELECT t.ticket_number, u.name, u.email, u.phone, c.title as campaign_title, c.main_prize
-         FROM tickets t
-         JOIN users u ON t.user_id = u.id
-         JOIN campaigns c ON t.campaign_id = c.id
-         WHERE t.id = $1`,
-        [winnerData.mainWinner.id]
-      );
+      // Check if winnerData is valid
+      if (!winnerData || !winnerData.mainWinner || !winnerData.mainWinner.id) {
+        console.log('⚠️ Winner data not available for notifications');
+      } else {
+        // Get winner details with phone and email
+        const winnerDetailsResult = await query(
+          `SELECT t.ticket_number, u.name, u.email, u.phone, c.title as campaign_title, c.main_prize
+           FROM tickets t
+           JOIN users u ON t.user_id = u.id
+           JOIN campaigns c ON t.campaign_id = c.id
+           WHERE t.id = $1`,
+          [winnerData.mainWinner.id]
+        );
 
-      const winnerDetails = winnerDetailsResult.rows[0];
+        const winnerDetails = winnerDetailsResult.rows[0];
 
-      // Send email to main winner
-      console.log('📧 Sending winner notification email...');
-      await sendWinnerNotification({
-        to: winnerDetails.email,
-        userName: winnerDetails.name,
-        prize: winnerDetails.main_prize,
-        ticketNumber: winnerDetails.ticket_number,
-        campaignTitle: winnerDetails.campaign_title
-      });
-      console.log('✅ Winner email sent');
+        if (winnerDetails) {
+          // Send email to main winner
+          console.log('📧 Sending winner notification email...');
+          await sendWinnerNotification({
+            to: winnerDetails.email,
+            userName: winnerDetails.name,
+            prize: winnerDetails.main_prize,
+            ticketNumber: winnerDetails.ticket_number,
+            campaignTitle: winnerDetails.campaign_title
+          });
+          console.log('✅ Winner email sent');
 
-      // Send SMS to main winner
-      console.log('📱 Sending winner notification SMS...');
-      await sendWinnerNotificationSMS(
-        winnerDetails.phone,
-        winnerDetails.name,
-        winnerDetails.main_prize,
-        winnerDetails.ticket_number
-      );
-      console.log('✅ Winner SMS sent');
-
+          // Send SMS to main winner
+          console.log('📱 Sending winner notification SMS...');
+          await sendWinnerNotificationSMS(
+            winnerDetails.phone,
+            winnerDetails.name,
+            winnerDetails.main_prize,
+            winnerDetails.ticket_number
+          );
+          console.log('✅ Winner SMS sent');
+        }
+      }
     } catch (notificationError) {
       console.error('❌ Error sending winner notifications:', notificationError);
       // Don't fail the draw if notifications fail
@@ -1135,6 +1240,126 @@ router.post('/winners/bulk-update', [
     });
   } catch (error) {
     console.error('Bulk update delivery error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get all transactions with details
+router.get('/transactions', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const status = req.query.status; // 'completed', 'pending', 'failed', 'cancelled'
+
+    let whereClause = '';
+    const params = [limit, offset];
+    
+    if (status) {
+      whereClause = 'WHERE p.payment_status = $3';
+      params.push(status);
+    }
+
+    const result = await query(`
+      SELECT 
+        p.id as transaction_id,
+        p.transaction_id as external_transaction_id,
+        p.user_id,
+        u.name as user_name,
+        u.email as user_email,
+        u.phone as user_phone,
+        p.campaign_id,
+        c.title as campaign_title,
+        p.total_amount,
+        p.ticket_count,
+        p.payment_method,
+        p.payment_status,
+        p.created_at,
+        p.updated_at,
+        (SELECT COUNT(*) FROM purchases ${status ? 'WHERE payment_status = $3' : ''}) as total_count,
+        (SELECT array_agg(json_build_object('id', t.id, 'ticket_number', t.ticket_number, 'status', t.status))
+         FROM tickets t WHERE t.purchase_id = p.id) as tickets
+      FROM purchases p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN campaigns c ON p.campaign_id = c.id
+      ${whereClause}
+      ORDER BY p.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, params);
+
+    const totalCount = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        transactions: result.rows.map(t => ({
+          ...t,
+          total_amount: parseFloat(t.total_amount),
+          tickets: t.tickets || []
+        })),
+        pagination: {
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit),
+          total: totalCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Update transaction status
+router.patch('/transactions/:id', [
+  body('status').isIn(['completed', 'pending', 'failed', 'cancelled'])
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const result = await query(
+      `UPDATE purchases 
+       SET payment_status = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found'
+      });
+    }
+
+    // Log admin action
+    await logAdminAction(
+      req.user.id,
+      'UPDATE_TRANSACTION',
+      'purchase',
+      id,
+      { new_status: status },
+      req.ip,
+      req.get('user-agent')
+    );
+
+    res.json({
+      success: true,
+      message: 'Transaction updated successfully',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Update transaction error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

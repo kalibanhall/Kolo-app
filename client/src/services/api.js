@@ -298,6 +298,25 @@ export const adminAPI = {
     }).toString();
     return await request(`/admin/campaigns/${campaignId}/tickets?${queryString}`);
   },
+
+  // Obtenir les analytics (vraies données)
+  getAnalytics: async () => {
+    return await request('/admin/analytics');
+  },
+
+  // Obtenir toutes les transactions
+  getTransactions: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/admin/transactions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Mettre à jour le statut d'une transaction
+  updateTransaction: async (transactionId, data) => {
+    return await request(`/admin/transactions/${transactionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ======================

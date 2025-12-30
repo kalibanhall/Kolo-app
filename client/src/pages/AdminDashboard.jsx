@@ -28,6 +28,7 @@ export const AdminDashboard = () => {
 
   useEffect(() => {
     loadStats();
+    loadAnalytics();
   }, []);
 
   const loadStats = async () => {
@@ -35,9 +36,6 @@ export const AdminDashboard = () => {
       setLoading(true);
       const response = await adminAPI.getStats();
       setStats(response.data);
-      
-      // Prepare chart data
-      prepareChartData(response.data);
     } catch (err) {
       setError(err.message);
       console.error('Failed to load stats:', err);
@@ -46,50 +44,23 @@ export const AdminDashboard = () => {
     }
   };
 
-  const prepareChartData = (data) => {
-    // Mock data for now - TODO: Replace with real API data
-    setChartData({
-      revenue: [
-        { month: 'Jan', revenue: 25000 },
-        { month: 'Fév', revenue: 38000 },
-        { month: 'Mar', revenue: 42000 },
-        { month: 'Avr', revenue: 35000 },
-        { month: 'Mai', revenue: 48000 },
-        { month: 'Juin', revenue: 52000 },
-      ],
-      participants: [
-        { campaign: 'Grand Tirage', participants: 150 },
-        { campaign: 'Super Chance', participants: 120 },
-        { campaign: 'Mega Prix', participants: 180 },
-        { campaign: 'Jackpot', participants: 95 },
-      ],
-      campaignStatus: [
-        { name: 'Ouvertes', value: 5 },
-        { name: 'Fermées', value: 12 },
-        { name: 'Brouillons', value: 3 },
-      ],
-      salesTrend: [
-        { date: '01/06', tickets: 45, revenue: 22500 },
-        { date: '02/06', tickets: 52, revenue: 26000 },
-        { date: '03/06', tickets: 38, revenue: 19000 },
-        { date: '04/06', tickets: 65, revenue: 32500 },
-        { date: '05/06', tickets: 72, revenue: 36000 },
-        { date: '06/06', tickets: 58, revenue: 29000 },
-      ],
-      topCampaigns: [
-        { name: 'Grand Tirage 2024', revenue: 125000 },
-        { name: 'Super Chance Juin', revenue: 98000 },
-        { name: 'Mega Prix Mai', revenue: 87000 },
-        { name: 'Jackpot Spécial', revenue: 72000 },
-        { name: 'Tombola Express', revenue: 65000 },
-      ],
-      paymentMethods: [
-        { name: 'M-Pesa', value: 450 },
-        { name: 'Airtel Money', value: 320 },
-        { name: 'Orange Money', value: 280 },
-        { name: 'Vodacom', value: 190 },
-      ],
-    });
+  const loadAnalytics = async () => {
+    try {
+      const response = await adminAPI.getAnalytics();
+      if (response.success && response.data) {
+        setChartData({
+          revenue: response.data.revenue || [],
+          participants: response.data.participants || [],
+          campaignStatus: response.data.campaignStatus || [],
+          salesTrend: response.data.salesTrend || [],
+          topCampaigns: response.data.topCampaigns || [],
+          paymentMethods: response.data.paymentMethods || [],
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load analytics:', err);
+      // Keep default empty arrays if analytics fail
+    }
   };
 
   const handleDraw = async () => {

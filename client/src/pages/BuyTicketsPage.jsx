@@ -21,18 +21,21 @@ export const BuyTicketsPage = () => {
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
     ticketCount: 1,
     phoneNumber: '',
-    selectedNumbers: []
+    selectedNumbers: [],
+    selectionMode: 'manual'
   });
   
   // États dérivés de purchaseData
   const ticketCount = purchaseData.ticketCount;
   const phoneNumber = purchaseData.phoneNumber;
   const selectedNumbers = purchaseData.selectedNumbers;
+  const selectionMode = purchaseData.selectionMode || 'manual';
   
   // Fonctions pour mettre à jour les états
   const setTicketCount = (value) => setPurchaseData(prev => ({ ...prev, ticketCount: typeof value === 'function' ? value(prev.ticketCount) : value }));
   const setPhoneNumber = (value) => setPurchaseData(prev => ({ ...prev, phoneNumber: value }));
   const setSelectedNumbers = (value) => setPurchaseData(prev => ({ ...prev, selectedNumbers: typeof value === 'function' ? value(prev.selectedNumbers) : value }));
+  const setSelectionMode = (value) => setPurchaseData(prev => ({ ...prev, selectionMode: value, selectedNumbers: [] }));
   
   // Sélection manuelle des numéros uniquement
   const [availableNumbers, setAvailableNumbers] = useState([]);
@@ -141,7 +144,14 @@ export const BuyTicketsPage = () => {
     }
 
     if (ticketCount < 1 || ticketCount > 5) {
-      setError('Vous pouvez acheter entre 1 et 5 tickets à la fois');
+      setError('Vous pouvez sélectionner entre 1 et 5 tickets à la fois par campagne');
+      return;
+    }
+
+    // Vérifier qu'il y a assez de tickets disponibles
+    const availableCount = (campaign.total_tickets || 0) - (campaign.sold_tickets || 0);
+    if (ticketCount > availableCount) {
+      setError(`Il ne reste que ${availableCount.toLocaleString('fr-FR')} tickets disponibles`);
       return;
     }
 
@@ -150,7 +160,8 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (selectedNumbers.length !== ticketCount) {
+    // Validation selon le mode de sélection
+    if (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) {
       setError(`Veuillez sélectionner ${ticketCount} numéro(s) de ticket`);
       return;
     }
@@ -162,8 +173,8 @@ export const BuyTicketsPage = () => {
         campaign_id: campaign.id,
         ticket_count: ticketCount,
         phone_number: `+243${phoneNumber}`,
-        selection_mode: 'manual',
-        selected_numbers: selectedNumbers
+        selection_mode: selectionMode,
+        selected_numbers: selectionMode === 'manual' ? selectedNumbers : []
       };
 
       await ticketsAPI.purchase(purchasePayload);
@@ -267,10 +278,47 @@ export const BuyTicketsPage = () => {
           )}
 
           <form onSubmit={handlePurchase} className="space-y-6">
+            {/* Ticket Stats */}
+            {campaign && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Total</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {(campaign.total_tickets || 0).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Vendus</p>
+                    <p className="text-xl font-bold text-red-600">
+                      {(campaign.sold_tickets || 0).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Disponibles</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {((campaign.total_tickets || 0) - (campaign.sold_tickets || 0)).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 text-center">
+                    {Math.round(((campaign.sold_tickets || 0) / (campaign.total_tickets || 1)) * 100)}% vendus
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Ticket Count */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre de tickets (max 5)
+                Nombre de tickets (max 5 par sélection)
               </label>
               <div className="flex items-center space-x-4">
                 <button
@@ -298,9 +346,65 @@ export const BuyTicketsPage = () => {
                   +
                 </button>
               </div>
+              {/* Quick selection buttons */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {[1, 2, 3, 4, 5].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setTicketCount(num)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      ticketCount === num 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {num} ticket{num > 1 ? 's' : ''}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Ajoutez au panier puis sélectionnez à nouveau pour acheter plus de 5 tickets
+              </p>
+            </div>
+
+            {/* Mode de sélection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Mode de sélection des numéros
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('automatic')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectionMode === 'automatic'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">🎲</div>
+                  <div className="font-semibold">Automatique</div>
+                  <div className="text-xs text-gray-500 mt-1">Numéros attribués aléatoirement</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('manual')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectionMode === 'manual'
+                      ? 'border-green-500 bg-green-50 text-green-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">✋</div>
+                  <div className="font-semibold">Manuel</div>
+                  <div className="text-xs text-gray-500 mt-1">Choisissez vos numéros</div>
+                </button>
+              </div>
             </div>
 
             {/* Sélection manuelle des numéros */}
+            {selectionMode === 'manual' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Choisissez vos numéros de ticket
@@ -387,6 +491,23 @@ export const BuyTicketsPage = () => {
                 )}
               </div>
             </div>
+            )}
+
+            {/* Info pour mode automatique */}
+            {selectionMode === 'automatic' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-2xl">ℹ️</div>
+                  <div>
+                    <h4 className="font-semibold text-blue-800">Mode automatique sélectionné</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Vos {ticketCount.toLocaleString('fr-FR')} numéro(s) seront attribués automatiquement 
+                      parmi les tickets disponibles après validation du paiement.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Phone Number */}
             <div>

@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const db = require('../config/database');
+const { query } = require('../config/database');
 const { sendPasswordResetEmail, sendPasswordChangedEmail } = require('../services/sendgridService');
 const { storeResetToken, getResetToken, markTokenAsUsed } = require('../services/supabaseService');
 const logger = require('../utils/logger');
@@ -23,21 +23,21 @@ router.post('/request', async (req, res) => {
     }
 
     // Vérifier si l'utilisateur existe
-    const [users] = await db.query(
-      'SELECT id, name, email FROM users WHERE email = ?',
+    const usersResult = await query(
+      'SELECT id, name, email FROM users WHERE email = $1',
       [email]
     );
 
     // Pour des raisons de sécurité, on renvoie toujours le même message
     // même si l'utilisateur n'existe pas
-    if (users.length === 0) {
+    if (usersResult.rows.length === 0) {
       logger.info(`Tentative de réinitialisation pour un email inexistant: ${email}`);
       return res.status(200).json({
         message: 'Si cet email existe, un lien de réinitialisation a été envoyé'
       });
     }
 
-    const user = users[0];
+    const user = usersResult.rows[0];
 
     // Générer un token de réinitialisation sécurisé
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -52,8 +52,8 @@ router.post('/request', async (req, res) => {
         await storeResetToken(user.id, hashedToken, expiresAt);
       } else {
         // Fallback: stocker dans PostgreSQL local
-        await db.query(
-          'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+        await query(
+          'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
           [user.id, hashedToken, expiresAt]
         );
       }
@@ -68,7 +68,7 @@ router.post('/request', async (req, res) => {
         user.email,
         user.name,
         resetToken,
-        process.env.FRONTEND_URL || 'http://localhost:3000'
+        process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://kolo.cd'
       );
     } catch (emailError) {
       logger.error('Erreur lors de l\'envoi de l\'email:', emailError);
@@ -112,14 +112,14 @@ router.post('/verify', async (req, res) => {
         tokenData = await getResetToken(hashedToken);
       } else {
         // Fallback: PostgreSQL local
-        const [tokens] = await db.query(
+        const tokensResult = await query(
           `SELECT * FROM password_reset_tokens 
-           WHERE token = ? 
+           WHERE token = $1 
            AND used = FALSE 
            AND expires_at > NOW()`,
           [hashedToken]
         );
-        tokenData = tokens[0] || null;
+        tokenData = tokensResult.rows[0] || null;
       }
     } catch (dbError) {
       logger.error('Erreur lors de la vérification du token:', dbError);
@@ -171,14 +171,14 @@ router.post('/reset', async (req, res) => {
       if (process.env.SUPABASE_URL) {
         tokenData = await getResetToken(hashedToken);
       } else {
-        const [tokens] = await db.query(
+        const tokensResult = await query(
           `SELECT * FROM password_reset_tokens 
-           WHERE token = ? 
+           WHERE token = $1 
            AND used = FALSE 
            AND expires_at > NOW()`,
           [hashedToken]
         );
-        tokenData = tokens[0] || null;
+        tokenData = tokensResult.rows[0] || null;
       }
     } catch (dbError) {
       logger.error('Erreur lors de la récupération du token:', dbError);
@@ -192,23 +192,23 @@ router.post('/reset', async (req, res) => {
     }
 
     // Récupérer les informations de l'utilisateur
-    const [users] = await db.query(
-      'SELECT id, name, email FROM users WHERE id = ?',
+    const usersResult = await query(
+      'SELECT id, name, email FROM users WHERE id = $1',
       [tokenData.user_id]
     );
 
-    if (users.length === 0) {
+    if (usersResult.rows.length === 0) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    const user = users[0];
+    const user = usersResult.rows[0];
 
     // Hasher le nouveau mot de passe
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Mettre à jour le mot de passe
-    await db.query(
-      'UPDATE users SET password = ? WHERE id = ?',
+    await query(
+      'UPDATE users SET password = $1 WHERE id = $2',
       [hashedPassword, user.id]
     );
 
@@ -217,8 +217,8 @@ router.post('/reset', async (req, res) => {
       if (process.env.SUPABASE_URL) {
         await markTokenAsUsed(hashedToken);
       } else {
-        await db.query(
-          'UPDATE password_reset_tokens SET used = TRUE, used_at = NOW() WHERE token = ?',
+        await query(
+          'UPDATE password_reset_tokens SET used = TRUE, used_at = NOW() WHERE token = $1',
           [hashedToken]
         );
       }
@@ -261,10 +261,10 @@ router.post('/cleanup', async (req, res) => {
       const { cleanExpiredTokens } = require('../services/supabaseService');
       deletedCount = await cleanExpiredTokens();
     } else {
-      const [result] = await db.query(
+      const result = await query(
         'DELETE FROM password_reset_tokens WHERE expires_at < NOW()'
       );
-      deletedCount = result.affectedRows || 0;
+      deletedCount = result.rowCount || 0;
     }
 
     res.status(200).json({ 

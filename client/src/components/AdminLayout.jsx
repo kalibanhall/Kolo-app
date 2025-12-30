@@ -12,7 +12,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin', label: 'Tableau de bord', Icon: ChartIcon },
     { path: '/admin/campaigns', label: 'Gestion des campagnes', Icon: CampaignIcon },
     { path: '/admin/participants', label: 'Participants', Icon: UsersIcon },
-    { path: '/admin/payments', label: 'Paiements en attente', Icon: MoneyIcon },
+    { path: '/admin/transactions', label: 'Gestion des transactions', Icon: MoneyIcon },
     { path: '/admin/draw', label: 'Gestion des Tirages', Icon: TargetIcon },
     { path: '/admin/delivery', label: 'Livraison des prix', Icon: TrophyIcon },
     { path: '/admin/logs', label: 'Journal & Sécurité', Icon: SettingsIcon },
@@ -93,7 +93,7 @@ export const AdminLayout = ({ children }) => {
 
         {/* Footer */}
         <footer className="px-8 py-4 text-center text-sm text-gray-500 border-t">
-          © 2025 KOLO - Tableau de bord administrateur
+          © 2026 KOLO - Tableau de bord administrateur
         </footer>
       </div>
     </div>

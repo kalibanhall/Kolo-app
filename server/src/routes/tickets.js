@@ -48,8 +48,9 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
 // Initiate ticket purchase (creates purchase record, initiates payment)
 router.post('/purchase', verifyToken, paymentLimiter, [
   body('campaign_id').isInt({ min: 1 }),
-  body('ticket_count').isInt({ min: 1, max: 5 }),
-  body('phone_number').notEmpty().trim()
+  body('ticket_count').isInt({ min: 1, max: 1000 }),
+  body('phone_number').notEmpty().trim(),
+  body('selection_mode').optional().isIn(['manual', 'automatic'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
