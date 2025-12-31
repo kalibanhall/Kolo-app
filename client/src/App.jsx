@@ -37,6 +37,7 @@ const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
+const UserTransactionsPage = lazy(() => import('./pages/UserTransactionsPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 
 function App() {
@@ -127,6 +128,14 @@ function App() {
             element={
               <ProtectedRoute userOnly={true}>
                 <WalletPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute userOnly={true}>
+                <UserTransactionsPage />
               </ProtectedRoute>
             }
           />
