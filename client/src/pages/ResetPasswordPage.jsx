@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { LogoKoloFull } from '../components/LogoKolo';
+import { LogoKolo } from '../components/LogoKolo';
 
 export const ResetPasswordPage = () => {
   const { token } = useParams();
@@ -58,23 +58,41 @@ export const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <LogoKoloFull size="large" darkMode={false} animated />
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      {/* Header with Back Button */}
+      <header className="sticky top-0 z-10 backdrop-blur-lg bg-gray-900/80 border-b border-gray-700">
+        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-cyan-400 hover:bg-gray-800 transition-all hover:scale-105"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium">Retour</span>
+          </Link>
+          
+          <LogoKolo size="small" />
+          
+          <div className="w-24"></div>
+        </div>
+      </header>
+
+      <div className="max-w-md mx-auto px-4 py-8">
+        <div className="bg-gray-800/50 border border-gray-700 backdrop-blur-sm rounded-2xl p-8">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-white mb-2">
               Nouveau mot de passe
             </h2>
-            <p className="mt-2 text-sm text-gray-600 text-center">
+            <p className="text-gray-400 text-sm">
               Choisissez un nouveau mot de passe sécurisé pour votre compte.
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="mb-6 bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-xl">
               {error}
             </div>
           )}
@@ -83,7 +101,7 @@ export const ResetPasswordPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Nouveau mot de passe
               </label>
               <div className="relative">
@@ -92,7 +110,7 @@ export const ResetPasswordPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition placeholder-gray-400"
                   placeholder="••••••••"
                   required
                   disabled={loading}
@@ -101,7 +119,7 @@ export const ResetPasswordPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +140,7 @@ export const ResetPasswordPage = () => {
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
                 Confirmer le mot de passe
               </label>
               <input
@@ -130,7 +148,7 @@ export const ResetPasswordPage = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition placeholder-gray-400"
                 placeholder="••••••••"
                 required
                 disabled={loading}
@@ -142,7 +160,7 @@ export const ResetPasswordPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -157,16 +175,6 @@ export const ResetPasswordPage = () => {
               )}
             </button>
           </form>
-
-          {/* Links */}
-          <div className="mt-6 text-center">
-            <Link
-              to="/login"
-              className="text-blue-600 hover:text-blue-700 font-medium transition"
-            >
-              ← Retour à la connexion
-            </Link>
-          </div>
         </div>
       </div>
     </div>

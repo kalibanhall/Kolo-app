@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { authAPI, getToken } from '../services/api';
 import { signInWithGoogle, signOutGoogle } from '../config/firebase';
 
 const AuthContext = createContext(null);
@@ -16,13 +16,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const checkAuthRef = useRef(false);
+  const lastCheckRef = useRef(0);
 
   // Vérifier le token au chargement
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async (force = false) => {
+    // Éviter les appels multiples simultanés
+    if (checkAuthRef.current && !force) return;
+    
+    // Éviter de vérifier trop souvent (max une fois toutes les 30 secondes sauf si forcé)
+    const now = Date.now();
+    if (!force && now - lastCheckRef.current < 30000) return;
+    
+    // Ne pas vérifier si pas de token
+    const token = getToken();
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    
+    checkAuthRef.current = true;
+    lastCheckRef.current = now;
+    
     try {
       setLoading(true);
       const response = await authAPI.verify();
@@ -33,12 +49,43 @@ export const AuthProvider = ({ children }) => {
       if (err.message !== 'No token provided') {
         console.error('Auth verification failed:', err);
       }
-      setUser(null);
-      authAPI.logout();
+      // Ne pas déconnecter immédiatement en cas d'erreur réseau temporaire
+      if (err.message.includes('fetch') || err.message.includes('network')) {
+        console.warn('Network error during auth check, keeping current session');
+      } else {
+        setUser(null);
+        authAPI.logout();
+      }
     } finally {
       setLoading(false);
+      checkAuthRef.current = false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkAuth(true);
+    
+    // Vérifier la session périodiquement (toutes les 5 minutes)
+    const interval = setInterval(() => {
+      if (getToken()) {
+        checkAuth();
+      }
+    }, 5 * 60 * 1000);
+    
+    // Vérifier la session quand la fenêtre reprend le focus
+    const handleFocus = () => {
+      if (getToken()) {
+        checkAuth();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [checkAuth]);
 
   const login = async (email, password) => {
     try {

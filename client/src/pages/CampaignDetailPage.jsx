@@ -1,28 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { campaignsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import { useTheme } from '../context/ThemeContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { TicketIcon, TrophyIcon, MoneyIcon, UsersIcon } from '../components/Icons';
+import { LogoKolo } from '../components/LogoKolo';
+import { TicketIcon, TrophyIcon } from '../components/Icons';
 
 export const CampaignDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { isDarkMode } = useTheme();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadCampaign();
-  }, [id]);
-
-  const loadCampaign = async () => {
+  const loadCampaign = useCallback(async () => {
     try {
       setLoading(true);
-      // Note: Vous devrez créer cet endpoint dans le backend
       const response = await campaignsAPI.getById(id);
       setCampaign(response.data);
     } catch (err) {
@@ -30,170 +26,316 @@ export const CampaignDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadCampaign();
+    
+    // Auto-refresh every 30 seconds to keep data updated
+    const interval = setInterval(loadCampaign, 30000);
+    return () => clearInterval(interval);
+  }, [loadCampaign]);
 
   const handleBuyTickets = () => {
-    if (!user) {
-      navigate('/login');
+    if (!isAuthenticated()) {
+      navigate('/login', { state: { from: `/campaigns/${id}` } });
     } else {
       navigate('/buy');
     }
   };
 
+  const formatCurrency = (amount) => {
+    return '$' + new Intl.NumberFormat('en-US').format(amount);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
+      <div className={`min-h-screen flex items-center justify-center ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+      }`}>
+        <div className="text-center">
+          <div className={`inline-block animate-spin rounded-full h-12 w-12 border-b-2 ${
+            isDarkMode ? 'border-cyan-500' : 'border-blue-600'
+          }`} />
+          <p className={`mt-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Chargement...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !campaign) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-4xl mx-auto px-4 py-20">
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Campagne introuvable</h2>
-            <p className="text-gray-600 mb-6">{error || 'Cette campagne n\'existe pas ou a été supprimée.'}</p>
+      <div className={`min-h-screen ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+          : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'
+      }`}>
+        {/* Header */}
+        <header className={`sticky top-0 z-10 backdrop-blur-lg border-b transition-colors ${
+          isDarkMode 
+            ? 'bg-gray-900/80 border-gray-700' 
+            : 'bg-white/80 border-gray-200'
+        }`}>
+          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               to="/"
-              className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
+                isDarkMode 
+                  ? 'text-cyan-400 hover:bg-gray-800' 
+                  : 'text-blue-600 hover:bg-blue-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="font-medium">Retour</span>
+            </Link>
+            
+            <LogoKolo size="small" />
+            
+            <div className="w-24"></div>
+          </div>
+        </header>
+
+        <div className="max-w-md mx-auto px-4 py-20">
+          <div className={`rounded-2xl p-8 text-center ${
+            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white shadow-xl'
+          }`}>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+              isDarkMode ? 'bg-red-900/30' : 'bg-red-100'
+            }`}>
+              <svg className={`w-8 h-8 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Campagne introuvable
+            </h2>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              {error || 'Cette campagne n\'existe pas ou a été supprimée.'}
+            </p>
+            <Link
+              to="/"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
             >
               Retour à l'accueil
             </Link>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
 
-  const occupationRate = (campaign.sold_tickets / campaign.total_tickets) * 100;
   const availableTickets = campaign.total_tickets - campaign.sold_tickets;
+  const isOpen = campaign.status === 'open' || campaign.status === 'active';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <Navbar />
-      <div className="h-14 sm:h-16" /> {/* Spacer for fixed navbar */}
-
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <Link to="/" className="text-indigo-600 hover:text-indigo-700 font-medium mb-4 inline-block">
-            ← Retour à l'accueil
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+        : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50'
+    }`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-10 backdrop-blur-lg border-b transition-colors ${
+        isDarkMode 
+          ? 'bg-gray-900/80 border-gray-700' 
+          : 'bg-white/80 border-gray-200'
+      }`}>
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            to="/"
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
+              isDarkMode 
+                ? 'text-cyan-400 hover:bg-gray-800' 
+                : 'text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium">Retour</span>
           </Link>
-          <div className={`inline-block px-4 py-1 rounded-full text-sm font-semibold mb-4 ml-4 ${
-            campaign.status === 'open' ? 'bg-green-100 text-green-800' :
-            campaign.status === 'active' ? 'bg-green-100 text-green-800' :
-            campaign.status === 'closed' ? 'bg-gray-100 text-gray-800' :
-            'bg-blue-100 text-blue-800'
+          
+          <div className="flex items-center gap-3">
+            <LogoKolo size="small" />
+            <span className={`hidden sm:block text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Détails Campagne
+            </span>
+          </div>
+          
+          <div className="w-24"></div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Status Badge */}
+        <div className="mb-6">
+          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold ${
+            isOpen
+              ? isDarkMode ? 'bg-green-900/50 text-green-400 border border-green-700' : 'bg-green-100 text-green-800'
+              : campaign.status === 'closed'
+                ? isDarkMode ? 'bg-gray-700 text-gray-400 border border-gray-600' : 'bg-gray-100 text-gray-800'
+                : isDarkMode ? 'bg-blue-900/50 text-blue-400 border border-blue-700' : 'bg-blue-100 text-blue-800'
           }`}>
-            {campaign.status === 'open' || campaign.status === 'active' ? 'OUVERT' : 
-             campaign.status === 'closed' ? 'FERMÉ' : 
-             'TIRAGE EFFECTUÉ'}
+            <span className={`w-2 h-2 rounded-full mr-2 ${
+              isOpen ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
+            }`}></span>
+            {isOpen ? 'CAMPAGNE OUVERTE' : campaign.status === 'closed' ? 'CAMPAGNE FERMÉE' : 'TIRAGE EFFECTUÉ'}
+          </span>
+        </div>
+
+        {/* Main Prize Card */}
+        <div className={`relative rounded-3xl overflow-hidden mb-8 ${
+          isDarkMode 
+            ? 'bg-gradient-to-r from-cyan-900/50 via-blue-900/50 to-indigo-900/50 border border-gray-700' 
+            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600'
+        }`}>
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100" height="100" fill="url(#grid)" />
+            </svg>
+          </div>
+          
+          <div className="relative p-8 text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <TrophyIcon className="w-10 h-10 text-yellow-400" />
+              <p className="text-white/80 text-lg">Prix Principal</p>
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-2">
+              {campaign.main_prize}
+            </h1>
+            <p className="text-white/70">{campaign.title}</p>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12">
-          {/* Image Section */}
-          <div>
-            {campaign.image_url ? (
-              <img
-                src={campaign.image_url}
-                alt={campaign.title}
-                className="w-full h-96 object-cover rounded-2xl shadow-xl"
-              />
-            ) : (
-              <div className="w-full h-96 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl shadow-xl flex items-center justify-center">
-                <TrophyIcon className="w-32 h-32 text-indigo-300" />
-              </div>
-            )}
+        {/* Image Section */}
+        {campaign.image_url && (
+          <div className={`rounded-2xl overflow-hidden mb-8 ${
+            isDarkMode ? 'border border-gray-700' : 'shadow-xl'
+          }`}>
+            <img
+              src={campaign.image_url}
+              alt={campaign.title}
+              className="w-full h-64 sm:h-80 md:h-96 object-cover object-center"
+            />
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          {/* Available Tickets - Main Stat */}
+          <div className={`col-span-2 rounded-2xl p-6 text-center ${
+            isDarkMode 
+              ? 'bg-gradient-to-br from-green-900/30 to-emerald-900/30 border border-green-800' 
+              : 'bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200'
+          }`}>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <TicketIcon className={`w-8 h-8 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+              <p className={`text-base font-semibold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                Tickets Disponibles
+              </p>
+            </div>
+            <p className={`text-4xl sm:text-5xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>
+              {availableTickets.toLocaleString('fr-FR')}
+            </p>
           </div>
 
-          {/* Info Section */}
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">{campaign.title}</h1>
-            
-            <div className="flex items-center space-x-6 mb-6">
-              <div className="flex items-center space-x-2">
-                <TrophyIcon className="w-6 h-6 text-yellow-500" />
-                <span className="text-lg font-semibold text-gray-900">{campaign.main_prize}</span>
-              </div>
-            </div>
+          {/* Ticket Price */}
+          <div className={`rounded-2xl p-5 ${
+            isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
+          }`}>
+            <p className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Prix du ticket</p>
+            <p className={`text-2xl font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+              {formatCurrency(campaign.ticket_price)}
+            </p>
+          </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center space-x-3">
-                  <TicketIcon className="w-8 h-8 text-indigo-600" />
-                  <div>
-                    <p className="text-sm text-gray-600">Prix du ticket</p>
-                    <p className="text-xl font-bold text-gray-900">{campaign.ticket_price} $</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <UsersIcon className="w-8 h-8 text-green-600" />
-                  <div>
-                    <p className="text-sm text-gray-600">Tickets achetés</p>
-                    <p className="text-xl font-bold text-gray-900">{campaign.sold_tickets} / {campaign.total_tickets}</p>
-                  </div>
-                </div>
-              </div>
+          {/* Draw Date */}
+          <div className={`rounded-2xl p-5 ${
+            isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
+          }`}>
+            <p className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Date du tirage</p>
+            <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {campaign.draw_date 
+                ? new Date(campaign.draw_date).toLocaleDateString('fr-FR', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })
+                : 'À annoncer'
+              }
+            </p>
+          </div>
+        </div>
 
-              {/* Progress Bar */}
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Progression de la Campagne</span>
-                  <span>{campaign.sold_tickets} / {campaign.total_tickets} tickets</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${occupationRate}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  {availableTickets} tickets disponibles
+        {/* Description */}
+        <div className={`rounded-2xl overflow-hidden mb-8 ${
+          isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-xl'
+        }`}>
+          <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Description
+            </h3>
+          </div>
+          <div className="p-6">
+            <p className={`leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              {campaign.description || 'Aucune description disponible.'}
+            </p>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className={`rounded-2xl overflow-hidden ${
+          isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-xl'
+        }`}>
+          <div className="p-6">
+            {isOpen && availableTickets > 0 ? (
+              <>
+                <button
+                  onClick={handleBuyTickets}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-xl text-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center gap-2"
+                >
+                  <TicketIcon className="w-6 h-6" />
+                  Acheter mes Tickets
+                </button>
+                <p className={`text-center text-xs mt-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Paiement sécurisé via Mobile Money ou Portefeuille KOLO
                 </p>
+              </>
+            ) : availableTickets === 0 ? (
+              <div className={`text-center py-4 px-6 rounded-xl ${
+                isDarkMode ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                <p className="font-semibold">Tous les tickets ont été vendus !</p>
               </div>
-            </div>
-
-            {/* CTA Button */}
-            {(campaign.status === 'open' || campaign.status === 'active') && availableTickets > 0 && (
-              <button
-                onClick={handleBuyTickets}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 px-8 rounded-xl font-bold text-lg hover:from-indigo-700 hover:to-purple-700 transition shadow-lg hover:shadow-xl"
-              >
-                <TicketIcon className="inline-block w-6 h-6 mr-2" />
-                Obtenir mes tickets
-              </button>
-            )}
-
-            {campaign.status === 'closed' && (
-              <div className="bg-gray-100 text-gray-700 py-4 px-6 rounded-xl text-center font-semibold">
-                Cette campagne est fermée
-              </div>
-            )}
-
-            {availableTickets === 0 && (
-              <div className="bg-yellow-100 text-yellow-800 py-4 px-6 rounded-xl text-center font-semibold">
-                Tous les tickets ont été achetés
+            ) : (
+              <div className={`text-center py-4 px-6 rounded-xl ${
+                isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-700'
+              }`}>
+                <p className="font-semibold">Cette campagne est fermée</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Description Section */}
-        <div className="mt-12 bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Description</h2>
-          <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {campaign.description || 'Aucune description disponible.'}
-          </div>
+        {/* Terms Link */}
+        <div className="text-center mt-6">
+          <Link 
+            to="/terms" 
+            className={`text-sm ${isDarkMode ? 'text-gray-500 hover:text-cyan-400' : 'text-gray-500 hover:text-blue-600'} transition-colors`}
+          >
+            Voir les conditions générales de vente →
+          </Link>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };

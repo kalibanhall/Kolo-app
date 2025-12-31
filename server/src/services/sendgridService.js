@@ -155,7 +155,14 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken, frontendUrl
     logger.info(`✅ Email de réinitialisation envoyé à ${toEmail}`);
   } catch (error) {
     logger.error('❌ Erreur lors de l\'envoi de l\'email:', error);
-    throw new Error('Impossible d\'envoyer l\'email de réinitialisation');
+    if (error.response) {
+      logger.error('SendGrid response error:', error.response.body);
+    }
+    // Vérifier si la clé API est configurée
+    if (!process.env.SENDGRID_API_KEY) {
+      throw new Error('Configuration SendGrid manquante. Veuillez contacter le support.');
+    }
+    throw new Error('Impossible d\'envoyer l\'email de réinitialisation. Veuillez réessayer plus tard.');
   }
 }
 

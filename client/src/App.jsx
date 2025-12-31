@@ -37,6 +37,7 @@ const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -93,6 +94,7 @@ function App() {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/vision" element={<VisionPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/terms" element={<TermsPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
 
           {/* User Routes (Protected - Users Only) */}

@@ -929,7 +929,10 @@ export const BuyTicketsPage = () => {
               isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50'
             }`}>
               <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                En cliquant sur Payer, vous acceptez nos conditions générales de vente.
+                En cliquant sur Payer, vous acceptez nos{' '}
+                <Link to="/terms" className={`underline ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-blue-600 hover:text-blue-700'}`}>
+                  conditions générales de vente
+                </Link>.
                 <br />
                 Paiement 100% sécurisé.
               </p>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LogoKoloFull } from '../components/LogoKolo';
+import { LogoKolo } from '../components/LogoKolo';
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -48,23 +48,41 @@ export const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <LogoKoloFull size="large" darkMode={false} animated />
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      {/* Header with Back Button */}
+      <header className="sticky top-0 z-10 backdrop-blur-lg bg-gray-900/80 border-b border-gray-700">
+        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-cyan-400 hover:bg-gray-800 transition-all hover:scale-105"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium">Retour</span>
+          </Link>
+          
+          <LogoKolo size="small" />
+          
+          <div className="w-24"></div>
+        </div>
+      </header>
+
+      <div className="max-w-md mx-auto px-4 py-8">
+        <div className="bg-gray-800/50 border border-gray-700 backdrop-blur-sm rounded-2xl p-8">
+          {/* Logo and Title */}
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-white mb-2">
               Mot de passe oublié
             </h2>
-            <p className="mt-2 text-sm text-gray-600 text-center">
+            <p className="text-gray-400 text-sm">
               Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
             </p>
           </div>
 
           {/* Success Message */}
           {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-start">
+            <div className="mb-6 bg-green-900/30 border border-green-700 text-green-400 px-4 py-3 rounded-xl flex items-start">
               <svg
                 className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5"
                 fill="currentColor"
@@ -78,7 +96,7 @@ export const ForgotPasswordPage = () => {
               </svg>
               <div>
                 <p className="font-medium">Email envoyé !</p>
-                <p className="text-sm mt-1">
+                <p className="text-sm mt-1 text-green-400/80">
                   Si un compte existe avec cette adresse, vous recevrez un email avec les instructions pour réinitialiser votre mot de passe.
                 </p>
               </div>
@@ -87,7 +105,7 @@ export const ForgotPasswordPage = () => {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="mb-6 bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-xl">
               {error}
             </div>
           )}
@@ -95,7 +113,7 @@ export const ForgotPasswordPage = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Adresse Email
               </label>
               <input
@@ -103,7 +121,7 @@ export const ForgotPasswordPage = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition placeholder-gray-400"
                 placeholder="votre@email.com"
                 required
                 disabled={loading}
@@ -113,7 +131,7 @@ export const ForgotPasswordPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -130,18 +148,12 @@ export const ForgotPasswordPage = () => {
           </form>
 
           {/* Links */}
-          <div className="mt-6 text-center space-y-2">
-            <Link
-              to="/login"
-              className="block text-blue-600 hover:text-blue-700 font-medium transition"
-            >
-              ← Retour à la connexion
-            </Link>
+          <div className="mt-6 text-center">
             <Link
               to="/register"
-              className="block text-gray-600 hover:text-gray-700 transition"
+              className="text-gray-400 hover:text-cyan-400 transition text-sm"
             >
-              Pas encore de compte ? S'inscrire
+              Pas encore de compte ? <span className="font-medium">S'inscrire</span>
             </Link>
           </div>
         </div>

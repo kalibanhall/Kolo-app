@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { LogoKoloFull } from '../components/LogoKolo';
+import { LogoKolo } from '../components/LogoKolo';
 
 export const VerifyEmailPage = () => {
   const { token } = useParams();
@@ -41,13 +41,31 @@ export const VerifyEmailPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <LogoKoloFull size="large" darkMode={false} animated />
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      {/* Header with Back Button */}
+      <header className="sticky top-0 z-10 backdrop-blur-lg bg-gray-900/80 border-b border-gray-700">
+        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            to="/login"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-cyan-400 hover:bg-gray-800 transition-all hover:scale-105"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium">Connexion</span>
+          </Link>
+          
+          <LogoKolo size="small" />
+          
+          <div className="w-24"></div>
+        </div>
+      </header>
+
+      <div className="max-w-md mx-auto px-4 py-8">
+        <div className="bg-gray-800/50 border border-gray-700 backdrop-blur-sm rounded-2xl p-8">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-white">
               Vérification Email
             </h2>
           </div>
@@ -55,16 +73,16 @@ export const VerifyEmailPage = () => {
           {/* Status */}
           {status === 'verifying' && (
             <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
-              <p className="text-gray-600">Vérification de votre email en cours...</p>
+              <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-cyan-500 mb-4"></div>
+              <p className="text-gray-400">Vérification de votre email en cours...</p>
             </div>
           )}
 
           {status === 'success' && (
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-900/30 border border-green-700 mb-4">
                 <svg
-                  className="h-10 w-10 text-green-600"
+                  className="h-10 w-10 text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -77,12 +95,12 @@ export const VerifyEmailPage = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-green-600 mb-2">Email Vérifié !</h3>
-              <p className="text-gray-600 mb-4">{message}</p>
+              <h3 className="text-xl font-semibold text-green-400 mb-2">Email Vérifié !</h3>
+              <p className="text-gray-400 mb-4">{message}</p>
               <p className="text-sm text-gray-500">Redirection vers la connexion dans 3 secondes...</p>
               <Link
                 to="/login"
-                className="mt-4 inline-block text-blue-600 hover:text-blue-700 font-medium"
+                className="mt-4 inline-block text-cyan-400 hover:text-cyan-300 font-medium transition"
               >
                 Aller à la connexion maintenant →
               </Link>
@@ -91,9 +109,9 @@ export const VerifyEmailPage = () => {
 
           {status === 'error' && (
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-900/30 border border-red-700 mb-4">
                 <svg
-                  className="h-10 w-10 text-red-600"
+                  className="h-10 w-10 text-red-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -106,18 +124,18 @@ export const VerifyEmailPage = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-red-600 mb-2">Erreur</h3>
-              <p className="text-gray-600 mb-6">{message}</p>
+              <h3 className="text-xl font-semibold text-red-400 mb-2">Erreur</h3>
+              <p className="text-gray-400 mb-6">{message}</p>
               <div className="space-y-3">
                 <Link
                   to="/login"
-                  className="block w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition font-medium"
+                  className="block w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-3 px-4 rounded-xl transition font-medium"
                 >
                   Retour à la connexion
                 </Link>
                 <Link
                   to="/resend-verification"
-                  className="block w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition font-medium"
+                  className="block w-full bg-gray-700 text-gray-300 py-3 px-4 rounded-xl hover:bg-gray-600 transition font-medium"
                 >
                   Renvoyer l'email de vérification
                 </Link>

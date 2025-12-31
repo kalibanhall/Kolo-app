@@ -77,7 +77,7 @@ export const HomePage = () => {
                   <img
                     src={campaign.image_url}
                     alt={campaign.title}
-                    className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover object-center opacity-90 group-hover:scale-105 transition-transform duration-500"
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -137,9 +137,6 @@ export const HomePage = () => {
                     </div>
                     <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-green-700 dark:text-green-300">
                       {(campaign.total_tickets - campaign.sold_tickets).toLocaleString('fr-FR')}
-                    </p>
-                    <p className="text-xs sm:text-sm text-green-600/70 dark:text-green-400/70 mt-1">
-                      sur {campaign.total_tickets.toLocaleString('fr-FR')} au total
                     </p>
                   </div>
                 </div>
