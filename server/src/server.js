@@ -26,6 +26,9 @@ const {
 
 const app = express();
 
+// Trust proxy for Render/Vercel (required for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
+
 // Initialize Sentry
 initSentry(app);
 

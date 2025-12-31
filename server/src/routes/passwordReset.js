@@ -206,9 +206,9 @@ router.post('/reset', async (req, res) => {
     // Hasher le nouveau mot de passe
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Mettre à jour le mot de passe
+    // Mettre à jour le mot de passe (colonne password_hash dans Supabase)
     await query(
-      'UPDATE users SET password = $1 WHERE id = $2',
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
       [hashedPassword, user.id]
     );
 

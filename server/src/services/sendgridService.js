@@ -36,7 +36,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken, frontendUrl
         email: FROM_EMAIL,
         name: FROM_NAME
       },
-      subject: '🔐 Réinitialisation de votre mot de passe KOLO',
+      subject: 'Réinitialisation de votre mot de passe - KOLO',
       text: `Bonjour ${userName},\n\nVous avez demandé à réinitialiser votre mot de passe.\n\nCliquez sur ce lien pour créer un nouveau mot de passe:\n${resetUrl}\n\nCe lien expire dans 1 heure.\n\nSi vous n'avez pas demandé cette réinitialisation, ignorez cet email.\n\nCordialement,\nL'équipe KOLO`,
       html: `
         <!DOCTYPE html>
@@ -46,64 +46,63 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken, frontendUrl
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Réinitialisation de mot de passe</title>
         </head>
-        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a;">
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0f172a;">
           <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
             <tr>
               <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: #1e293b; border-radius: 16px; overflow: hidden; border: 1px solid #334155;">
                   
-                  <!-- Header avec logo -->
+                  <!-- Header avec logo KOLO -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%); padding: 40px 30px; text-align: center;">
-                      <div style="font-size: 48px; margin-bottom: 10px;">🎰</div>
-                      <h1 style="margin: 0; color: white; font-size: 32px; font-weight: 800; letter-spacing: -1px;">KOLO</h1>
-                      <p style="margin: 5px 0 0; color: rgba(255,255,255,0.9); font-size: 14px; letter-spacing: 2px;">TOMBOLA EN LIGNE</p>
-                    </td>
-                  </tr>
-                  
-                  <!-- Icône de sécurité -->
-                  <tr>
-                    <td align="center" style="padding: 30px 30px 0;">
-                      <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); border-radius: 50%; display: inline-block; line-height: 80px; font-size: 36px;">
-                        🔐
-                      </div>
+                    <td style="background: linear-gradient(135deg, #0891b2 0%, #3b82f6 100%); padding: 32px 30px; text-align: center;">
+                      <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                        <tr>
+                          <td style="width: 48px; height: 48px; background: linear-gradient(135deg, #06b6d4, #3b82f6); border-radius: 12px; text-align: center; vertical-align: middle;">
+                            <span style="color: white; font-size: 24px; font-weight: bold;">K</span>
+                          </td>
+                          <td style="padding-left: 12px;">
+                            <span style="color: white; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">KOLO</span>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="margin: 12px 0 0; color: rgba(255,255,255,0.8); font-size: 13px; letter-spacing: 1px;">TOMBOLA EN LIGNE</p>
                     </td>
                   </tr>
                   
                   <!-- Contenu principal -->
                   <tr>
-                    <td style="padding: 30px 40px;">
-                      <h2 style="color: #f1f5f9; font-size: 24px; font-weight: 700; margin: 0 0 20px; text-align: center;">
+                    <td style="padding: 40px 32px;">
+                      <h2 style="color: #f1f5f9; font-size: 22px; font-weight: 700; margin: 0 0 24px; text-align: center;">
                         Réinitialisation du mot de passe
                       </h2>
                       
-                      <p style="color: #94a3b8; font-size: 16px; line-height: 1.6; margin: 0 0 15px;">
+                      <p style="color: #94a3b8; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
                         Bonjour <strong style="color: #06b6d4;">${userName}</strong>,
                       </p>
                       
-                      <p style="color: #94a3b8; font-size: 16px; line-height: 1.6; margin: 0 0 30px;">
-                        Vous avez demandé à réinitialiser votre mot de passe pour votre compte KOLO. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe sécurisé.
+                      <p style="color: #94a3b8; font-size: 15px; line-height: 1.6; margin: 0 0 32px;">
+                        Vous avez demandé à réinitialiser votre mot de passe pour votre compte KOLO. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe.
                       </p>
                       
                       <!-- Bouton CTA -->
                       <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
-                          <td align="center" style="padding: 10px 0 30px;">
-                            <a href="${resetUrl}" style="display: inline-block; padding: 18px 50px; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.4);">
-                              🔑 Créer mon nouveau mot de passe
+                          <td align="center" style="padding: 8px 0 32px;">
+                            <a href="${resetUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: white; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px;">
+                              Créer un nouveau mot de passe
                             </a>
                           </td>
                         </tr>
                       </table>
                       
                       <!-- Warning Box -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%); border-radius: 12px; border-left: 4px solid #f59e0b;">
+                      <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(251, 191, 36, 0.1); border-radius: 12px; border-left: 3px solid #f59e0b;">
                         <tr>
-                          <td style="padding: 20px;">
+                          <td style="padding: 16px 20px;">
                             <p style="margin: 0; color: #fbbf24; font-size: 14px; font-weight: 600;">
-                              ⏰ Ce lien expire dans <strong>1 heure</strong>
+                              Ce lien expire dans 1 heure
                             </p>
-                            <p style="margin: 8px 0 0; color: #94a3b8; font-size: 13px;">
+                            <p style="margin: 6px 0 0; color: #94a3b8; font-size: 13px;">
                               Pour des raisons de sécurité, ce lien n'est valable qu'une seule fois.
                             </p>
                           </td>
@@ -111,44 +110,30 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken, frontendUrl
                       </table>
                       
                       <!-- Lien alternatif -->
-                      <div style="margin-top: 30px; padding: 20px; background: rgba(30, 41, 59, 0.5); border-radius: 12px;">
-                        <p style="color: #64748b; font-size: 13px; margin: 0 0 10px;">
+                      <div style="margin-top: 28px; padding: 16px; background: #0f172a; border-radius: 12px; border: 1px solid #334155;">
+                        <p style="color: #64748b; font-size: 12px; margin: 0 0 8px;">
                           Si le bouton ne fonctionne pas, copiez ce lien :
                         </p>
-                        <p style="color: #06b6d4; font-size: 12px; word-break: break-all; margin: 0; background: #0f172a; padding: 12px; border-radius: 8px; font-family: monospace;">
+                        <p style="color: #06b6d4; font-size: 11px; word-break: break-all; margin: 0; font-family: monospace;">
                           ${resetUrl}
                         </p>
                       </div>
-                    </td>
-                  </tr>
-                  
-                  <!-- Sécurité note -->
-                  <tr>
-                    <td style="padding: 0 40px 30px;">
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(239, 68, 68, 0.1); border-radius: 12px; border-left: 4px solid #ef4444;">
-                        <tr>
-                          <td style="padding: 15px 20px;">
-                            <p style="margin: 0; color: #94a3b8; font-size: 13px;">
-                              🛡️ <strong style="color: #f87171;">Vous n'avez pas fait cette demande ?</strong><br>
-                              Ignorez simplement cet email. Votre mot de passe reste inchangé.
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
+                      
+                      <!-- Note sécurité -->
+                      <p style="margin: 28px 0 0; color: #64748b; font-size: 13px; line-height: 1.5;">
+                        Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet email. Votre mot de passe reste inchangé.
+                      </p>
                     </td>
                   </tr>
                   
                   <!-- Footer -->
                   <tr>
-                    <td style="background: #0f172a; padding: 30px; text-align: center; border-top: 1px solid #1e293b;">
-                      <p style="margin: 0 0 10px; color: #64748b; font-size: 13px;">
-                        Cet email a été envoyé par <strong style="color: #94a3b8;">KOLO Tombola</strong>
-                      </p>
-                      <p style="margin: 0 0 15px; color: #475569; font-size: 12px;">
-                        La plateforme de tombola en ligne en RDC 🇨🇩
+                    <td style="background: #0f172a; padding: 24px 32px; text-align: center; border-top: 1px solid #334155;">
+                      <p style="margin: 0 0 8px; color: #64748b; font-size: 13px;">
+                        Cet email a été envoyé par <strong style="color: #94a3b8;">KOLO</strong>
                       </p>
                       <p style="margin: 0; color: #475569; font-size: 12px;">
-                        Des questions ? <a href="mailto:support@kolo.cd" style="color: #06b6d4; text-decoration: none;">support@kolo.cd</a>
+                        La plateforme de tombola en ligne
                       </p>
                     </td>
                   </tr>

@@ -12,7 +12,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
 
     // Find campaigns that should be closed
     // Close if: 1) end_date has passed OR 2) all tickets sold (sold_tickets >= total_tickets)
-    const campaignsToClose = await query(
+    const result = await query(
       `SELECT id, title, end_date, sold_tickets, total_tickets,
               CASE 
                 WHEN end_date < NOW() THEN 'date_expired'
@@ -23,6 +23,8 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
        WHERE status = 'open' 
        AND (end_date < NOW() OR sold_tickets >= total_tickets)`
     );
+
+    const campaignsToClose = result.rows || [];
 
     if (campaignsToClose.length === 0) {
       console.log('✅ No campaigns to close.');
@@ -35,7 +37,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
 
     // Update campaigns to 'closed' status
     const campaignIds = campaignsToClose.map(c => c.id);
-    const placeholders = campaignIds.map(() => '?').join(',');
+    const placeholders = campaignIds.map((_, i) => `$${i + 1}`).join(',');
     
     await query(
       `UPDATE campaigns 
