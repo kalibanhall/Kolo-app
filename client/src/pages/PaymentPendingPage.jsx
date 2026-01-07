@@ -163,19 +163,31 @@ export const PaymentPendingPage = () => {
         )}
 
         <div className="flex gap-3">
+          {status === 'pending' && (
+            <button
+              onClick={() => window.history.back()}
+              className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              Retour
+            </button>
+          )}
           {status === 'failed' && (
-            <Link
-              to="/buy"
+            <button
+              onClick={() => window.history.back()}
               className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
             >
               Réessayer
-            </Link>
+            </button>
           )}
           
           <Link
             to="/dashboard"
             className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-              status === 'failed'
+              status === 'failed' || status === 'pending'
                 ? isDarkMode 
                   ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'

@@ -123,8 +123,8 @@ const UserProfilePage = () => {
           : 'bg-white/80 border-gray-200'
       }`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => window.history.back()}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -135,7 +135,7 @@ const UserProfilePage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span className="font-medium">Retour</span>
-          </Link>
+          </button>
           
           <div className="flex items-center gap-3">
             <LogoKolo size="small" />

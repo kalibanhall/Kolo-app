@@ -329,8 +329,8 @@ export const BuyTicketsPage = () => {
           : 'bg-white/80 border-gray-200'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link
-            to="/"
+          <button
+            onClick={() => window.history.back()}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -341,7 +341,7 @@ export const BuyTicketsPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span className="font-medium hidden sm:inline">Retour</span>
-          </Link>
+          </button>
           
           <div className="flex items-center gap-2">
             <LogoKolo size="small" />

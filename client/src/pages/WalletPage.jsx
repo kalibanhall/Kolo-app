@@ -223,8 +223,8 @@ const WalletPage = () => {
           : 'bg-white/80 border-gray-200'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => window.history.back()}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -235,7 +235,7 @@ const WalletPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span className="font-medium">Retour</span>
-          </Link>
+          </button>
           
           <div className="flex items-center gap-3">
             <LogoKolo size="small" />
@@ -541,21 +541,33 @@ const WalletPage = () => {
                 </div>
               </div>
 
-              {/* Submit button */}
-              <button
-                onClick={handleDeposit}
-                disabled={processing || !depositAmount || parseFloat(depositAmount) < 100 || !phoneNumber || phoneNumber.length < 9}
-                className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {processing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    Traitement...
-                  </span>
-                ) : (
-                  `Recharger ${depositAmount ? formatCurrency(parseFloat(depositAmount)) : ''}`
-                )}
-              </button>
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDepositModal(false)}
+                  className={`flex-1 py-4 rounded-xl font-bold transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeposit}
+                  disabled={processing || !depositAmount || parseFloat(depositAmount) < 100 || !phoneNumber || phoneNumber.length < 9}
+                  className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Traitement...
+                    </span>
+                  ) : (
+                    `Recharger`
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

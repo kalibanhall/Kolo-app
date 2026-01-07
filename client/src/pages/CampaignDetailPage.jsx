@@ -116,12 +116,12 @@ export const CampaignDetailPage = () => {
             <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               {error || 'Cette campagne n\'existe pas ou a été supprimée.'}
             </p>
-            <Link
-              to="/"
+            <button
+              onClick={() => window.history.back()}
               className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
             >
-              Retour à l'accueil
-            </Link>
+              Retour
+            </button>
           </div>
         </div>
       </div>
