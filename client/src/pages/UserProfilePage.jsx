@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ticketsAPI, usersAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
+import { ImageUpload } from '../components/ImageUpload';
 
 const UserProfilePage = () => {
   const { user, checkAuth } = useAuth();
@@ -13,6 +14,7 @@ const UserProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [activeTab, setActiveTab] = useState('tickets');
   const [formData, setFormData] = useState({
     name: '',
@@ -169,15 +171,33 @@ const UserProfilePage = () => {
           
           <div className="relative p-8">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              {/* Avatar */}
-              <div className="relative">
-                <div className={`w-28 h-28 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-2xl transform rotate-3 transition-transform hover:rotate-0 ${
-                  isDarkMode 
-                    ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white' 
-                    : 'bg-white text-blue-600'
-                }`}>
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
+              {/* Avatar avec bouton de changement */}
+              <div className="relative group">
+                {user?.photo_url ? (
+                  <img 
+                    src={user.photo_url} 
+                    alt={user?.name}
+                    className="w-28 h-28 rounded-2xl object-cover shadow-2xl transform rotate-3 transition-transform hover:rotate-0"
+                  />
+                ) : (
+                  <div className={`w-28 h-28 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-2xl transform rotate-3 transition-transform hover:rotate-0 ${
+                    isDarkMode 
+                      ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white' 
+                      : 'bg-white text-blue-600'
+                  }`}>
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {/* Bouton de changement de photo */}
+                <button
+                  onClick={() => setShowPhotoUpload(true)}
+                  className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                >
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
                 <div className={`absolute -bottom-2 -right-2 w-8 h-8 rounded-lg flex items-center justify-center ${
                   isDarkMode ? 'bg-green-500' : 'bg-green-400'
                 }`}>
@@ -504,6 +524,62 @@ const UserProfilePage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal Upload Photo */}
+      {showPhotoUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl overflow-hidden shadow-2xl ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Changer ma photo de profil
+              </h3>
+              <button
+                onClick={() => setShowPhotoUpload(false)}
+                className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <ImageUpload
+                folder="profiles"
+                currentImage={user?.photo_url}
+                buttonText="Sélectionner une photo"
+                onUploadComplete={async (data) => {
+                  try {
+                    await usersAPI.updateProfile(user.id, { photo_url: data.url });
+                    if (checkAuth) await checkAuth();
+                    setShowPhotoUpload(false);
+                    alert('Photo de profil mise à jour !');
+                  } catch (error) {
+                    alert('Erreur lors de la mise à jour: ' + error.message);
+                  }
+                }}
+              />
+              
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => setShowPhotoUpload(false)}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

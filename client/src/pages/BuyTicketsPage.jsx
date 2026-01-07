@@ -22,6 +22,7 @@ export const BuyTicketsPage = () => {
   const [showCartDropdown, setShowCartDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
   const [paymentCurrency, setPaymentCurrency] = useState('CDF'); // 'CDF' or 'USD' for mobile money
+  const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal de confirmation
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -174,6 +175,18 @@ export const BuyTicketsPage = () => {
       return;
     }
 
+    if (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9)) {
+      setError('Veuillez entrer un numéro de téléphone valide');
+      return;
+    }
+
+    // Afficher modal de confirmation
+    setShowConfirmModal(true);
+  };
+
+  const confirmPurchase = async () => {
+    setShowConfirmModal(false);
+    
     try {
       setPurchasing(true);
       
@@ -213,12 +226,6 @@ export const BuyTicketsPage = () => {
         }
       } else {
         // Payment via PayDRC (MOKO Afrika) Mobile Money
-        if (!phoneNumber || phoneNumber.length < 9) {
-          setError('Veuillez entrer un numéro de téléphone valide');
-          setPurchasing(false);
-          return;
-        }
-
         const response = await paymentsAPI.initiatePayDRC({
           campaign_id: campaign.id,
           ticket_count: ticketCount,
@@ -868,6 +875,34 @@ export const BuyTicketsPage = () => {
                   {/* Currency Selection for Mobile Money */}
                   {paymentMethod === 'mobile_money' && (
                     <div className="mt-4 pt-4 border-t border-gray-600/30" onClick={(e) => e.stopPropagation()}>
+                      {/* Phone Number Input */}
+                      <div className="mb-4">
+                        <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Numéro Mobile Money <span className="text-xs text-gray-500">(Votre portefeuille)</span>
+                        </label>
+                        <div className="flex">
+                          <span className={`px-3 py-2 rounded-l-lg font-medium ${
+                            isDarkMode ? 'bg-gray-700 text-gray-400 border border-gray-600' : 'bg-gray-100 text-gray-500 border border-gray-300'
+                          }`}>
+                            +243
+                          </span>
+                          <input
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                            placeholder="972148867"
+                            className={`flex-1 px-3 py-2 rounded-r-lg border-t border-r border-b ${
+                              isDarkMode
+                                ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500'
+                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                            }`}
+                          />
+                        </div>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange)
+                        </p>
+                      </div>
+                      
                       <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         Choisir la devise de paiement:
                       </p>
@@ -957,6 +992,105 @@ export const BuyTicketsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Confirmation */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl overflow-hidden shadow-2xl ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Confirmer votre achat
+              </h3>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Récapitulatif */}
+              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Campagne</span>
+                    <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{campaign?.title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Tickets</span>
+                    <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ticketCount}</span>
+                  </div>
+                  {selectionMode === 'manual' && selectedNumbers.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Numéros</span>
+                      <span className={`font-mono text-sm ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+                        {selectedNumbers.map(n => n.display || `#${n}`).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Mode de paiement</span>
+                    <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {paymentMethod === 'wallet' ? 'Portefeuille KOLO' : 'Mobile Money'}
+                    </span>
+                  </div>
+                  {paymentMethod === 'mobile_money' && (
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Numéro</span>
+                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>+243{phoneNumber}</span>
+                    </div>
+                  )}
+                  <div className={`pt-3 border-t flex justify-between text-lg ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total</span>
+                    <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+                      {paymentMethod === 'wallet' 
+                        ? formatCurrencyCDF(totalPrice * 2500)
+                        : formatPaymentAmount(totalPrice)
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Avertissement */}
+              <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-yellow-900/20 border border-yellow-800' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm ${isDarkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                  ⚠️ Veuillez vérifier ces informations avant de confirmer. Cette action est irréversible.
+                </p>
+              </div>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmPurchase}
+                  disabled={purchasing}
+                  className={`flex-1 py-3 rounded-xl font-semibold transition-all text-white ${
+                    paymentMethod === 'wallet'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
+                  } disabled:opacity-50`}
+                >
+                  {purchasing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Traitement...
+                    </span>
+                  ) : (
+                    'Confirmer le paiement'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

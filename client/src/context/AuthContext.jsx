@@ -62,6 +62,26 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Session timeout - déconnexion après 30 minutes d'inactivité
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  const lastActivityRef = useRef(Date.now());
+
+  const updateActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
+
+  const checkSessionTimeout = useCallback(() => {
+    if (!getToken()) return;
+    
+    const inactiveTime = Date.now() - lastActivityRef.current;
+    if (inactiveTime >= SESSION_TIMEOUT) {
+      console.log('Session expirée par inactivité');
+      authAPI.logout();
+      setUser(null);
+      setError('Votre session a expiré par inactivité. Veuillez vous reconnecter.');
+    }
+  }, [SESSION_TIMEOUT]);
+
   useEffect(() => {
     checkAuth(true);
     
@@ -69,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     const interval = setInterval(() => {
       if (getToken()) {
         checkAuth();
+        checkSessionTimeout();
       }
     }, 5 * 60 * 1000);
     
@@ -76,16 +97,26 @@ export const AuthProvider = ({ children }) => {
     const handleFocus = () => {
       if (getToken()) {
         checkAuth();
+        checkSessionTimeout();
       }
     };
+
+    // Tracker l'activité utilisateur
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => {
+      window.addEventListener(event, updateActivity, { passive: true });
+    });
     
     window.addEventListener('focus', handleFocus);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, updateActivity);
+      });
     };
-  }, [checkAuth]);
+  }, [checkAuth, checkSessionTimeout, updateActivity]);
 
   const login = async (email, password) => {
     try {
