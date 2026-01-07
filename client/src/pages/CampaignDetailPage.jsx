@@ -258,20 +258,13 @@ export const CampaignDetailPage = () => {
             </p>
           </div>
 
-          {/* Draw Date */}
+          {/* Total Tickets */}
           <div className={`rounded-2xl p-5 ${
             isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
           }`}>
-            <p className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Date du tirage</p>
+            <p className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total tickets</p>
             <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {campaign.draw_date 
-                ? new Date(campaign.draw_date).toLocaleDateString('fr-FR', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })
-                : 'À annoncer'
-              }
+              {campaign.total_tickets?.toLocaleString('fr-FR')}
             </p>
           </div>
         </div>
@@ -332,7 +325,7 @@ export const CampaignDetailPage = () => {
             to="/terms" 
             className={`text-sm ${isDarkMode ? 'text-gray-500 hover:text-cyan-400' : 'text-gray-500 hover:text-blue-600'} transition-colors`}
           >
-            Voir les conditions générales de vente →
+            Voir les conditions générales d'utilisation →
           </Link>
         </div>
       </div>

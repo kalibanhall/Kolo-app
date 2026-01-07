@@ -116,7 +116,7 @@ export const BuyTicketsPage = () => {
       // Generate sample numbers if API not available
       const sampleNumbers = [];
       const soldCount = campaign.sold_tickets || 0;
-      for (let i = soldCount + 1; i <= Math.min(soldCount + 100, campaign.total_tickets); i++) {
+      for (let i = soldCount + 1; i <= Math.min(soldCount + 500, campaign.total_tickets); i++) {
         sampleNumbers.push({
           number: i,
           display: `KOLO-${String(i).padStart(6, '0')}`
@@ -948,7 +948,7 @@ export const BuyTicketsPage = () => {
               <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 En cliquant sur Payer, vous acceptez nos{' '}
                 <Link to="/terms" className={`underline ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-blue-600 hover:text-blue-700'}`}>
-                  conditions générales de vente
+                  conditions générales d'utilisation
                 </Link>.
                 <br />
                 Paiement 100% sécurisé.

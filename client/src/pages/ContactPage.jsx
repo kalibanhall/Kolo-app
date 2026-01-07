@@ -244,9 +244,9 @@ const ContactPage = () => {
                 Suivez-nous pour rester informé des nouvelles campagnes et des gagnants !
               </p>
               <div className="space-y-2">
-                <p className="text-gray-700">Facebook: @KoloCongo</p>
-                <p className="text-gray-700">Instagram: @kolo_cd</p>
-                <p className="text-gray-700">Twitter: @KoloCongo</p>
+                <p className="text-gray-700">Facebook: @Kolo_Koma_Proprietaire</p>
+                <p className="text-gray-700">Instagram: @Kolo_cd</p>
+                <p className="text-gray-700">Twitter: @Kolo_cd</p>
               </div>
             </div>
           </div>

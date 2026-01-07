@@ -54,7 +54,7 @@ export const TermsPage = () => {
         }`}>
           <div className="p-6 sm:p-8">
             <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Conditions Générales de Vente
+              Conditions Générales d'Utilisation
             </h2>
             
             <div className={`space-y-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -64,9 +64,9 @@ export const TermsPage = () => {
                   Article 1 - Objet
                 </h3>
                 <p className="leading-relaxed">
-                  Les présentes conditions générales de vente régissent l'achat de tickets de tombola 
+                  Les présentes conditions générales d'utilisation régissent l'achat de tickets de tombola 
                   sur la plateforme KOLO. En achetant un ticket, vous acceptez sans réserve les présentes 
-                  conditions générales de vente.
+                  conditions générales d'utilisation.
                 </p>
               </section>
 

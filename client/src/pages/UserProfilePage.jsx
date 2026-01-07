@@ -417,7 +417,7 @@ const UserProfilePage = () => {
                 Aucun ticket acheté
               </h4>
               <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Participez à une campagne pour commencer à gagner !
+                Participez à une campagne et devenez propriétaire !
               </p>
               <Link
                 to="/buy"

@@ -60,8 +60,8 @@ const WalletPage = () => {
 
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount);
-    if (!amount || amount < 100) {
-      setMessage({ type: 'error', text: 'Montant minimum: 100 FC' });
+    if (!amount || amount < 1000) {
+      setMessage({ type: 'error', text: 'Montant minimum: 1 000 FC' });
       return;
     }
 
@@ -476,7 +476,7 @@ const WalletPage = () => {
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
                     placeholder="1000"
-                    min="100"
+                    min="1000"
                     className={`w-full px-4 py-3 pr-16 rounded-xl border text-lg font-bold ${
                       isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-white'
@@ -490,7 +490,7 @@ const WalletPage = () => {
                   </span>
                 </div>
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Minimum: 100 FC
+                  Minimum: 1 000 FC
                 </p>
               </div>
 
@@ -555,7 +555,7 @@ const WalletPage = () => {
                 </button>
                 <button
                   onClick={handleDeposit}
-                  disabled={processing || !depositAmount || parseFloat(depositAmount) < 100 || !phoneNumber || phoneNumber.length < 9}
+                  disabled={processing || !depositAmount || parseFloat(depositAmount) < 1000 || !phoneNumber || phoneNumber.length < 9}
                   className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processing ? (
