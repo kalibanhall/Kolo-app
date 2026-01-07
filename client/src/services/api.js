@@ -463,6 +463,61 @@ export const usersAPI = {
   },
 };
 
+// ======================
+// 🎁 CODES PROMO
+// ======================
+
+export const promosAPI = {
+  // Valider un code promo
+  validate: async (code) => {
+    return await request('/promos/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  // Calculer la remise
+  calculate: async (code, amount) => {
+    return await request('/promos/calculate', {
+      method: 'POST',
+      body: JSON.stringify({ code, amount }),
+    });
+  },
+
+  // Admin: Liste des codes promo
+  getAll: async () => {
+    return await request('/promos/admin');
+  },
+
+  // Admin: Créer un code promo
+  create: async (promoData) => {
+    return await request('/promos/admin', {
+      method: 'POST',
+      body: JSON.stringify(promoData),
+    });
+  },
+
+  // Admin: Mettre à jour un code promo
+  update: async (id, promoData) => {
+    return await request(`/promos/admin/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(promoData),
+    });
+  },
+
+  // Admin: Supprimer un code promo
+  delete: async (id) => {
+    return await request(`/promos/admin/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Admin: Statistiques d'utilisation
+  getUsage: async (id) => {
+    return await request(`/promos/admin/${id}/usage`);
+  },
+};
+
 // Export par défaut
 export default {
   auth: authAPI,
@@ -472,4 +527,5 @@ export default {
   admin: adminAPI,
   notifications: notificationsAPI,
   users: usersAPI,
+  promos: promosAPI,
 };

@@ -20,7 +20,17 @@ const UserProfilePage = () => {
     name: '',
     email: '',
     phone: '',
+    city: '',
   });
+
+  // Liste des villes de la RDC
+  const drcCities = [
+    'Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kananga', 'Kisangani',
+    'Bukavu', 'Goma', 'Likasi', 'Kolwezi', 'Tshikapa',
+    'Kikwit', 'Matadi', 'Uvira', 'Butembo', 'Beni',
+    'Mbandaka', 'Kalemie', 'Bandundu', 'Boma', 'Kindu',
+    'Autre'
+  ];
 
   useEffect(() => {
     if (user) {
@@ -28,6 +38,7 @@ const UserProfilePage = () => {
         name: user.name || '',
         email: user.email || '',
         phone: user.phone?.replace('+243', '') || '',
+        city: user.city || '',
       });
       fetchUserTickets();
     }
@@ -70,6 +81,7 @@ const UserProfilePage = () => {
       await usersAPI.updateProfile(user.id, {
         name: formData.name,
         phone: `+243${formData.phone}`,
+        city: formData.city,
       });
       
       if (checkAuth) {
@@ -223,6 +235,15 @@ const UserProfilePage = () => {
                     </svg>
                     {user?.phone}
                   </span>
+                  {user?.city && (
+                    <span className="flex items-center justify-center md:justify-start gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {user?.city}
+                    </span>
+                  )}
                 </div>
               </div>
               
@@ -353,6 +374,27 @@ const UserProfilePage = () => {
                     }`}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Ville de résidence
+                </label>
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 rounded-xl border transition-all focus:ring-2 focus:ring-blue-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-900/50 border-gray-600 text-white' 
+                      : 'bg-gray-50 border-gray-200 text-gray-900'
+                  }`}
+                >
+                  <option value="">Sélectionnez votre ville</option>
+                  {drcCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-4 pt-4">

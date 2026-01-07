@@ -11,6 +11,15 @@ export const RegisterPage = () => {
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
   
+  // Liste des villes de la RDC
+  const drcCities = [
+    'Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kananga', 'Kisangani',
+    'Bukavu', 'Goma', 'Likasi', 'Kolwezi', 'Tshikapa',
+    'Kikwit', 'Matadi', 'Uvira', 'Butembo', 'Beni',
+    'Mbandaka', 'Kalemie', 'Bandundu', 'Boma', 'Kindu',
+    'Autre'
+  ];
+
   // Utiliser la persistance de formulaire
   const [formData, setFormData, clearFormData] = useFormPersistence('register', {
     name: '',
@@ -18,6 +27,7 @@ export const RegisterPage = () => {
     password: '',
     confirmPassword: '',
     phone: '', // Will store only the number part without +243
+    city: '', // Ville de résidence
   });
   
   const [localError, setLocalError] = useState('');
@@ -93,7 +103,8 @@ export const RegisterPage = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        phone: `+243${formData.phone}`
+        phone: `+243${formData.phone}`,
+        city: formData.city
       });
       // Effacer les données persistées après inscription réussie
       clearFormData();
@@ -190,6 +201,27 @@ export const RegisterPage = () => {
                   <span className="text-red-500">{phoneValidation.message}</span>
                 </p>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ville de résidence *
+              </label>
+              <select
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option value="">Sélectionnez votre ville</option>
+                {drcCities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Principales villes de la RDC
+              </p>
             </div>
 
             <div>

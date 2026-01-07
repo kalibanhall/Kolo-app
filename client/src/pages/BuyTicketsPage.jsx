@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI } from '../services/api';
+import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon, MoneyIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
@@ -23,6 +23,12 @@ export const BuyTicketsPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
   const [paymentCurrency, setPaymentCurrency] = useState('CDF'); // 'CDF' or 'USD' for mobile money
   const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal de confirmation
+  
+  // Code promo
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState('');
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -149,6 +155,42 @@ export const BuyTicketsPage = () => {
     ).slice(0, 100);
   }, [availableNumbers, numberSearchTerm]);
 
+  // Valider le code promo
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) return;
+    
+    setPromoLoading(true);
+    setPromoError('');
+    
+    try {
+      const response = await promosAPI.validate(promoCode);
+      if (response.success) {
+        const promo = response.data;
+        // Calculate the discount
+        const calcResponse = await promosAPI.calculate(promoCode, totalPrice);
+        if (calcResponse.success) {
+          setPromoDiscount({
+            ...promo,
+            discount_amount: calcResponse.data.discount,
+            final_amount: calcResponse.data.final_amount
+          });
+        }
+      }
+    } catch (err) {
+      setPromoError(err.message || 'Code promo invalide');
+      setPromoDiscount(null);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  // Annuler le code promo
+  const cancelPromoCode = () => {
+    setPromoCode('');
+    setPromoDiscount(null);
+    setPromoError('');
+  };
+
   const handlePurchase = async (e) => {
     e.preventDefault();
     setError('');
@@ -196,13 +238,13 @@ export const BuyTicketsPage = () => {
         selection_mode: selectionMode,
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
         amount: totalPrice,
-        amount_cdf: totalPrice * 2500,
+        amount_cdf: finalPrice * 2500,
         currency: paymentMethod === 'wallet' ? 'CDF' : paymentCurrency
       };
 
       // Payment with wallet balance (always in CDF)
       if (paymentMethod === 'wallet') {
-        if (!wallet || wallet.balance < totalPrice * 2500) {
+        if (!wallet || wallet.balance < finalPrice * 2500) {
           setError('Solde insuffisant. Veuillez recharger votre portefeuille.');
           setPurchasing(false);
           return;
@@ -210,7 +252,9 @@ export const BuyTicketsPage = () => {
 
         const response = await walletAPI.purchase({
           ...purchasePayload,
-          amount: totalPrice * 2500 // Send CDF amount for wallet
+          amount: finalPrice * 2500, // Send CDF amount for wallet
+          promo_code_id: promoDiscount?.id || null,
+          discount_amount: promoDiscount?.discount_amount || 0
         });
         
         if (response.success) {
@@ -321,6 +365,7 @@ export const BuyTicketsPage = () => {
   }
 
   const totalPrice = ticketCount * campaign.ticket_price;
+  const finalPrice = promoDiscount ? promoDiscount.final_amount : totalPrice;
   const availableTickets = campaign.total_tickets - campaign.sold_tickets;
 
   return (
@@ -771,12 +816,86 @@ export const BuyTicketsPage = () => {
                     </span>
                   </div>
                 )}
+                
+                {/* Code Promo */}
+                <div className={`border-t pt-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Code promo (optionnel)
+                  </label>
+                  {!promoDiscount ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        placeholder="Entrez votre code"
+                        className={`flex-1 px-3 py-2 rounded-lg border ${
+                          isDarkMode 
+                            ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' 
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={validatePromoCode}
+                        disabled={promoLoading || !promoCode.trim()}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                          isDarkMode
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
+                            : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-200 disabled:text-gray-400'
+                        }`}
+                      >
+                        {promoLoading ? '...' : 'Appliquer'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-50 border border-green-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={`font-bold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
+                            {promoDiscount.code}
+                          </span>
+                          <span className={`text-sm ml-2 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
+                            ({promoDiscount.discount_type === 'percentage' 
+                              ? `-${promoDiscount.discount_value}%` 
+                              : `-$${promoDiscount.discount_value}`})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={cancelPromoCode}
+                          className="text-red-500 hover:text-red-600 text-sm font-medium"
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {promoError && (
+                    <p className="text-red-500 text-sm mt-1">{promoError}</p>
+                  )}
+                </div>
+
+                {/* Sous-total et remise */}
+                {promoDiscount && (
+                  <>
+                    <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <span>Sous-total</span>
+                      <span className="font-semibold">{formatCurrency(totalPrice)}</span>
+                    </div>
+                    <div className={`flex justify-between text-green-500`}>
+                      <span>Remise ({promoDiscount.code})</span>
+                      <span className="font-semibold">-{formatCurrency(promoDiscount.discount_amount)}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className={`border-t pt-3 flex justify-between text-lg font-bold ${
                   isDarkMode ? 'border-gray-700 text-white' : 'border-gray-300 text-gray-900'
                 }`}>
                   <span>Montant total :</span>
                   <span className={isDarkMode ? 'text-cyan-400' : 'text-blue-600'}>
-                    {formatCurrency(totalPrice)}
+                    {formatCurrency(promoDiscount ? promoDiscount.final_amount : totalPrice)}
                   </span>
                 </div>
               </div>
@@ -818,13 +937,13 @@ export const BuyTicketsPage = () => {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold ${
-                        wallet && wallet.balance >= totalPrice * 2500
+                        wallet && wallet.balance >= finalPrice * 2500
                           ? 'text-green-500'
                           : 'text-red-500'
                       }`}>
                         {wallet ? formatCurrencyCDF(wallet.balance) : '0 FC'}
                       </p>
-                      {wallet && wallet.balance < totalPrice * 2500 && (
+                      {wallet && wallet.balance < finalPrice * 2500 && (
                         <Link 
                           to="/wallet"
                           className="text-xs text-blue-500 hover:underline"
@@ -834,9 +953,9 @@ export const BuyTicketsPage = () => {
                       )}
                     </div>
                   </div>
-                  {wallet && wallet.balance < totalPrice * 2500 && (
+                  {wallet && wallet.balance < finalPrice * 2500 && (
                     <p className="mt-2 text-sm text-red-500">
-                      Solde insuffisant (manque {formatCurrencyCDF(totalPrice * 2500 - wallet.balance)})
+                      Solde insuffisant (manque {formatCurrencyCDF(finalPrice * 2500 - wallet.balance)})
                     </p>
                   )}
                 </div>
@@ -952,11 +1071,11 @@ export const BuyTicketsPage = () => {
                   purchasing || 
                   availableTickets === 0 || 
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice * 2500))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * 2500))
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < totalPrice * 2500))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * 2500))
                     ? 'bg-gray-500 cursor-not-allowed' 
                     : paymentMethod === 'wallet'
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
@@ -969,7 +1088,7 @@ export const BuyTicketsPage = () => {
                     {paymentMethod === 'wallet' ? 'Achat en cours...' : 'Redirection...'}
                   </span>
                 ) : paymentMethod === 'wallet' ? (
-                  `Payer avec mon solde (${formatCurrencyCDF(totalPrice * 2500)})`
+                  `Payer avec mon solde (${formatCurrencyCDF(finalPrice * 2500)})`
                 ) : (
                   `Payer via Mobile Money (${formatPaymentAmount(totalPrice)})`
                 )}
@@ -1037,12 +1156,18 @@ export const BuyTicketsPage = () => {
                       <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>+243{phoneNumber}</span>
                     </div>
                   )}
+                  {promoDiscount && (
+                    <div className="flex justify-between text-green-500">
+                      <span>Remise ({promoDiscount.code})</span>
+                      <span className="font-medium">-{formatCurrency(promoDiscount.discount_amount)}</span>
+                    </div>
+                  )}
                   <div className={`pt-3 border-t flex justify-between text-lg ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total</span>
                     <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
                       {paymentMethod === 'wallet' 
-                        ? formatCurrencyCDF(totalPrice * 2500)
-                        : formatPaymentAmount(totalPrice)
+                        ? formatCurrencyCDF(finalPrice * 2500)
+                        : formatPaymentAmount(finalPrice)
                       }
                     </span>
                   </div>

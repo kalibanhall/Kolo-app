@@ -14,7 +14,8 @@ router.post('/register', registrationLimiter, [
   body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
-  body('phone').notEmpty().trim()
+  body('phone').notEmpty().trim(),
+  body('city').optional().trim().isLength({ max: 100 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -26,7 +27,7 @@ router.post('/register', registrationLimiter, [
       });
     }
 
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, city } = req.body;
 
     // Validate phone number
     if (!validatePhoneNumber(phone)) {
@@ -57,10 +58,10 @@ router.post('/register', registrationLimiter, [
 
     // Insert new user
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, phone, is_admin, is_active, email_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, name, email, phone, is_admin, is_active, created_at`,
-      [name, email, passwordHash, normalizedPhone, false, true, false]
+      `INSERT INTO users (name, email, password_hash, phone, city, is_admin, is_active, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, name, email, phone, city, is_admin, is_active, created_at`,
+      [name, email, passwordHash, normalizedPhone, city || null, false, true, false]
     );
 
     const user = result.rows[0];

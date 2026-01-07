@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOLO - Abonnements et Services</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #1a1a1a;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .summary {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #2563eb;
+        }
+        .summary h3 {
+            margin-bottom: 15px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .summary-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .summary-item .label {
+            font-size: 12px;
+            color: #666;
+        }
+        .summary-item .value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        table {
+            width: 100%;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th {
+            background: #1a1a1a;
+            color: #fff;
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 500;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .service-name {
+            font-weight: 600;
+        }
+        .amount {
+            font-weight: 600;
+            color: #059669;
+        }
+        .amount.annual {
+            color: #7c3aed;
+        }
+        .date {
+            color: #666;
+        }
+        .next-date {
+            font-weight: 500;
+            color: #dc2626;
+        }
+        .overdue {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        .overdue-days {
+            display: block;
+            font-size: 11px;
+            color: #991b1b;
+            margin-top: 3px;
+        }
+        .free {
+            color: #059669;
+            font-style: italic;
+        }
+        .importance {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.4;
+        }
+        .level {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .level.critical {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .level.high {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .level.medium {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>KOLO - Abonnements</h1>
+        <p class="subtitle">Liste des services et prochaines dates de paiement</p>
+
+        <div class="summary">
+            <h3>Resume des couts</h3>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="label">Total mensuel</div>
+                    <div class="value">$135/mois</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Total annuel</div>
+                    <div class="value">$1,670/an</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Prochain paiement</div>
+                    <div class="value">7 Janvier 2026</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Nombre de services</div>
+                    <div class="value">9 services</div>
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Montant</th>
+                    <th>Premier paiement</th>
+                    <th>Prochain paiement</th>
+                    <th>Role dans la plateforme</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="service-name">GitHub</td>
+                    <td class="amount">$10/mois</td>
+                    <td class="date">7 Decembre 2025</td>
+                    <td class="next-date">7 Janvier 2026</td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Hebergement du code source, gestion des versions, collaboration et CI/CD. Sans GitHub, impossible de deployer les mises a jour.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">SendGrid</td>
+                    <td class="amount">$15/mois</td>
+                    <td class="date">7 Decembre 2025</td>
+                    <td class="next-date">7 Janvier 2026</td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Envoi des emails transactionnels : confirmation d'inscription, reinitialisation de mot de passe, notifications de gains. Indispensable pour la communication avec les utilisateurs.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Firebase</td>
+                    <td class="amount">$25/mois</td>
+                    <td class="date">7 Decembre 2025</td>
+                    <td class="next-date">7 Janvier 2026</td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Notifications push en temps reel, authentification supplementaire et analytics. Permet d'alerter les utilisateurs des tirages et resultats instantanement.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Cloudinary</td>
+                    <td class="amount">$15/mois</td>
+                    <td class="date">7 Decembre 2025</td>
+                    <td class="next-date">7 Janvier 2026</td>
+                    <td class="importance">
+                        <span class="level high">Important</span><br>
+                        Stockage et optimisation des images des campagnes, logos et medias. Ameliore la performance du site avec des images optimisees automatiquement.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Vercel</td>
+                    <td class="amount">$20/mois</td>
+                    <td class="date">23 Novembre 2025</td>
+                    <td class="overdue">23 Decembre 2025<span class="overdue-days">Retard: 10 jours</span></td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Hebergement du frontend React. C'est le serveur qui affiche l'interface utilisateur. Sans Vercel, le site web n'est plus accessible.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Render</td>
+                    <td class="amount">$15/mois</td>
+                    <td class="date">23 Novembre 2025</td>
+                    <td class="overdue">23 Decembre 2025<span class="overdue-days">Retard: 10 jours</span></td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Hebergement du backend Node.js et de l'API. Gere toute la logique metier : authentification, achats de tickets, tirages. Sans Render, aucune fonctionnalite ne marche.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Twilio</td>
+                    <td class="amount">$20/mois</td>
+                    <td class="date">23 Novembre 2025</td>
+                    <td class="overdue">23 Decembre 2025<span class="overdue-days">Retard: 10 jours</span></td>
+                    <td class="importance">
+                        <span class="level high">Important</span><br>
+                        Envoi des SMS pour la verification de numero et les notifications importantes. Essentiel pour les utilisateurs sans acces email fiable.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Supabase</td>
+                    <td class="amount">$20/mois</td>
+                    <td class="date">-</td>
+                    <td class="free">Version gratuite active</td>
+                    <td class="importance">
+                        <span class="level critical">Critique</span><br>
+                        Base de donnees PostgreSQL principale. Stocke tous les utilisateurs, campagnes, tickets, transactions. Version gratuite suffisante actuellement, passage au plan payant necessaire si le trafic augmente.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="service-name">Amazon S3</td>
+                    <td class="amount annual">$50/an</td>
+                    <td class="date">7 Decembre 2025</td>
+                    <td class="next-date">7 Decembre 2026</td>
+                    <td class="importance">
+                        <span class="level medium">Moyen</span><br>
+                        Stockage des sauvegardes de la base de donnees et fichiers volumineux. Assure la securite des donnees en cas de probleme.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Document mis en place par CHRIS NGOZULU KASONGO le 2 Janvier 2026 | KOLO Tombola</p>
+            <p style="margin-top: 10px;">Total mensuel: $120 (hors Supabase gratuit) + $50 annuel S3</p>
+        </div>
+    </div>
+</body>
+</html>
