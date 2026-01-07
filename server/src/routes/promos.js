@@ -1,11 +1,11 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
-const { authenticateToken, isAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 // Validate a promo code (public - for users)
-router.post('/validate', authenticateToken, [
+router.post('/validate', verifyToken, [
   body('code').notEmpty().trim().toUpperCase()
 ], async (req, res) => {
   try {
@@ -15,7 +15,7 @@ router.post('/validate', authenticateToken, [
     }
 
     const { code } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     // Find the promo code
     const promoResult = await query(
@@ -77,7 +77,7 @@ router.post('/validate', authenticateToken, [
 });
 
 // Calculate discount
-router.post('/calculate', authenticateToken, [
+router.post('/calculate', verifyToken, [
   body('code').notEmpty().trim().toUpperCase(),
   body('amount').isFloat({ min: 0 })
 ], async (req, res) => {
@@ -138,7 +138,7 @@ router.post('/calculate', authenticateToken, [
 // ============= ADMIN ROUTES =============
 
 // List all promo codes (admin)
-router.get('/admin', authenticateToken, isAdmin, async (req, res) => {
+router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await query(
       `SELECT pc.*, u.name as created_by_name
@@ -163,7 +163,7 @@ router.get('/admin', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Create promo code (admin)
-router.post('/admin', authenticateToken, isAdmin, [
+router.post('/admin', verifyToken, verifyAdmin, [
   body('code').notEmpty().trim().toUpperCase().isLength({ min: 3, max: 50 }),
   body('description').optional().trim(),
   body('discount_type').isIn(['percentage', 'fixed']),
@@ -211,7 +211,7 @@ router.post('/admin', authenticateToken, isAdmin, [
         max_discount || null, 
         max_uses || null, 
         expires_at || null,
-        req.user.userId
+        req.user.id
       ]
     );
 
@@ -227,7 +227,7 @@ router.post('/admin', authenticateToken, isAdmin, [
 });
 
 // Update promo code (admin)
-router.put('/admin/:id', authenticateToken, isAdmin, [
+router.put('/admin/:id', verifyToken, verifyAdmin, [
   body('description').optional().trim(),
   body('discount_type').optional().isIn(['percentage', 'fixed']),
   body('discount_value').optional().isFloat({ min: 0 }),
@@ -282,7 +282,7 @@ router.put('/admin/:id', authenticateToken, isAdmin, [
 });
 
 // Delete promo code (admin)
-router.delete('/admin/:id', authenticateToken, isAdmin, async (req, res) => {
+router.delete('/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -300,7 +300,7 @@ router.delete('/admin/:id', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Get promo code usage stats (admin)
-router.get('/admin/:id/usage', authenticateToken, isAdmin, async (req, res) => {
+router.get('/admin/:id/usage', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
