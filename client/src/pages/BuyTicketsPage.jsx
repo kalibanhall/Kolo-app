@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { ticketsAPI, campaignsAPI, walletAPI } from '../services/api';
+import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon, MoneyIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
@@ -212,17 +212,34 @@ export const BuyTicketsPage = () => {
           setTimeout(() => navigate('/dashboard'), 2000);
         }
       } else {
-        // Payment via Mobile Money aggregator
-        const response = await ticketsAPI.initiatePurchase(purchasePayload);
+        // Payment via PayDRC (MOKO Afrika) Mobile Money
+        if (!phoneNumber || phoneNumber.length < 9) {
+          setError('Veuillez entrer un numéro de téléphone valide');
+          setPurchasing(false);
+          return;
+        }
+
+        const response = await paymentsAPI.initiatePayDRC({
+          campaign_id: campaign.id,
+          ticket_count: ticketCount,
+          phone_number: phoneNumber
+        });
         
-        if (response.data?.payment_url) {
-          window.location.href = response.data.payment_url;
-        } else {
-          await ticketsAPI.purchase(purchasePayload);
+        if (response.success) {
           setSuccess(true);
           clearPurchaseData();
-          alert('Achat initié ! Vous serez redirigé vers le paiement.');
-          setTimeout(() => navigate('/dashboard'), 2000);
+          
+          // Navigate to payment status page to track the payment
+          navigate('/payment/pending', { 
+            state: { 
+              reference: response.data.reference,
+              amount: response.data.amount,
+              provider: response.data.provider,
+              ticket_count: ticketCount
+            } 
+          });
+        } else {
+          setError(response.message || 'Échec de l\'initiation du paiement');
         }
       }
     } catch (err) {

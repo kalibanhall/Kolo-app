@@ -39,6 +39,7 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
 const UserTransactionsPage = lazy(() => import('./pages/UserTransactionsPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PaymentPendingPage = lazy(() => import('./pages/PaymentPendingPage'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -136,6 +137,14 @@ function App() {
             element={
               <ProtectedRoute userOnly={true}>
                 <UserTransactionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment/pending"
+            element={
+              <ProtectedRoute userOnly={true}>
+                <PaymentPendingPage />
               </ProtectedRoute>
             }
           />

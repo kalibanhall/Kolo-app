@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const { query, transaction } = require('../config/database');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { paymentLimiter } = require('../middleware/rateLimiter');
+const paydrc = require('../services/paydrc');
 const router = express.Router();
 
 // Generate unique wallet transaction reference
@@ -218,6 +219,306 @@ router.post('/deposit', verifyToken, paymentLimiter, [
       success: false,
       message: 'Erreur lors de l\'initiation du rechargement'
     });
+  }
+});
+
+// ============================================
+// Deposit via PayDRC (MOKO Afrika) Mobile Money
+// ============================================
+router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
+  body('amount').isFloat({ min: 100, max: 10000000 }).withMessage('Montant invalide (min: 100 FC)'),
+  body('phone_number').notEmpty().withMessage('Numéro de téléphone requis')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: errors.array()[0].msg
+      });
+    }
+
+    const userId = req.user.id;
+    const { amount, phone_number } = req.body;
+
+    // Get or create wallet
+    let walletResult = await query(
+      'SELECT * FROM wallets WHERE user_id = $1',
+      [userId]
+    );
+
+    if (walletResult.rows.length === 0) {
+      walletResult = await query(
+        `INSERT INTO wallets (user_id, balance, currency) 
+         VALUES ($1, 0, 'CDF') 
+         RETURNING *`,
+        [userId]
+      );
+    }
+
+    const wallet = walletResult.rows[0];
+    const reference = `WDEP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    // Create pending transaction
+    await query(
+      `INSERT INTO wallet_transactions 
+       (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
+       VALUES ($1, 'deposit', $2, $3, $3, $4, 'pending', 'Rechargement PayDRC en attente')`,
+      [wallet.id, amount, wallet.balance, reference]
+    );
+
+    // Normalize phone and detect provider
+    const normalizedPhone = paydrc.normalizePhoneNumber(phone_number);
+    const provider = paydrc.detectMobileProvider(normalizedPhone);
+
+    // Split user name
+    const nameParts = (req.user.name || 'Client KOLO').split(' ');
+    const firstName = nameParts[0] || 'Client';
+    const lastName = nameParts.slice(1).join(' ') || 'KOLO';
+
+    // Build callback URL
+    const callbackUrl = `${process.env.API_URL || 'https://kolo-api.onrender.com'}/api/wallet/paydrc/callback`;
+
+    // Initiate PayDRC transaction
+    const paymentResponse = await paydrc.initiatePayIn({
+      amount,
+      currency: 'CDF',
+      customerNumber: normalizedPhone,
+      firstName,
+      lastName,
+      email: req.user.email,
+      reference,
+      method: provider,
+      callbackUrl
+    });
+
+    if (paymentResponse.success) {
+      // Update transaction with PayDRC ID
+      await query(
+        `UPDATE wallet_transactions 
+         SET external_reference = $1
+         WHERE reference = $2`,
+        [paymentResponse.transactionId, reference]
+      );
+
+      res.json({
+        success: true,
+        message: 'Rechargement initié. Validez sur votre téléphone.',
+        data: {
+          reference,
+          paydrc_transaction_id: paymentResponse.transactionId,
+          amount,
+          provider,
+          status: 'pending'
+        }
+      });
+    } else {
+      // Mark transaction as failed
+      await query(
+        `UPDATE wallet_transactions 
+         SET status = 'failed', description = $1
+         WHERE reference = $2`,
+        [paymentResponse.error || 'Échec initiation', reference]
+      );
+
+      res.status(400).json({
+        success: false,
+        message: 'Échec de l\'initiation du rechargement',
+        error: paymentResponse.error
+      });
+    }
+
+  } catch (error) {
+    console.error('PayDRC deposit error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'initiation du rechargement'
+    });
+  }
+});
+
+// Check PayDRC deposit status
+router.get('/deposit/status/:reference', verifyToken, async (req, res) => {
+  try {
+    const { reference } = req.params;
+    const userId = req.user.id;
+
+    // Find transaction
+    const txResult = await query(
+      `SELECT wt.*, w.user_id 
+       FROM wallet_transactions wt
+       JOIN wallets w ON wt.wallet_id = w.id
+       WHERE wt.reference = $1 AND w.user_id = $2`,
+      [reference, userId]
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction non trouvée'
+      });
+    }
+
+    const tx = txResult.rows[0];
+
+    // If already completed or failed, return cached status
+    if (tx.status === 'completed' || tx.status === 'failed') {
+      return res.json({
+        success: true,
+        data: {
+          reference,
+          status: tx.status,
+          amount: parseFloat(tx.amount),
+          balance_after: parseFloat(tx.balance_after)
+        }
+      });
+    }
+
+    // Query PayDRC for latest status
+    const statusResponse = await paydrc.checkTransactionStatus(reference);
+
+    if (statusResponse.success && statusResponse.found) {
+      let newStatus = tx.status;
+      if (statusResponse.transStatus === 'Successful') {
+        newStatus = 'completed';
+      } else if (statusResponse.transStatus === 'Failed') {
+        newStatus = 'failed';
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          reference,
+          status: newStatus,
+          paydrc_status: statusResponse.transStatus,
+          amount: parseFloat(tx.amount)
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        reference,
+        status: tx.status,
+        amount: parseFloat(tx.amount)
+      }
+    });
+
+  } catch (error) {
+    console.error('Check deposit status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification du statut'
+    });
+  }
+});
+
+// PayDRC Wallet callback
+router.post('/paydrc/callback', async (req, res) => {
+  try {
+    console.log('📥 PayDRC Wallet callback received');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+
+    const encryptedData = req.body.data;
+    const signature = req.headers['x-signature'];
+
+    // Verify signature if configured
+    if (process.env.PAYDRC_HMAC_KEY && signature) {
+      const isValid = paydrc.verifyCallbackSignature(encryptedData, signature);
+      if (!isValid) {
+        console.error('❌ Invalid wallet callback signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+
+    // Decrypt callback data
+    let callbackData;
+    if (encryptedData && process.env.PAYDRC_AES_KEY) {
+      try {
+        callbackData = paydrc.decryptCallbackData(encryptedData);
+      } catch (decryptError) {
+        callbackData = req.body;
+      }
+    } else {
+      callbackData = req.body;
+    }
+
+    const reference = callbackData.Reference || callbackData.reference;
+    const transStatus = callbackData.Trans_Status || callbackData.trans_status || callbackData.Status;
+
+    if (!reference) {
+      return res.status(400).json({ error: 'Missing reference' });
+    }
+
+    // Find pending transaction
+    const txResult = await query(
+      `SELECT wt.*, w.user_id, w.balance as wallet_balance
+       FROM wallet_transactions wt
+       JOIN wallets w ON wt.wallet_id = w.id
+       WHERE wt.reference = $1 AND wt.status = 'pending'`,
+      [reference]
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    const tx = txResult.rows[0];
+    const isSuccess = transStatus === 'Successful' || transStatus === 'Success';
+    const isFailed = transStatus === 'Failed';
+
+    if (isSuccess) {
+      // Credit wallet
+      const walletResult = await query(
+        `UPDATE wallets 
+         SET balance = balance + $1, updated_at = NOW()
+         WHERE id = $2
+         RETURNING balance`,
+        [tx.amount, tx.wallet_id]
+      );
+
+      const newBalance = walletResult.rows[0].balance;
+
+      // Update transaction
+      await query(
+        `UPDATE wallet_transactions 
+         SET status = 'completed', 
+             balance_after = $1,
+             description = 'Rechargement PayDRC réussi'
+         WHERE id = $2`,
+        [newBalance, tx.id]
+      );
+
+      // Create notification
+      await query(
+        `INSERT INTO notifications (user_id, type, title, message, data)
+         VALUES ($1, 'wallet_deposit', 'Rechargement réussi !', $2, $3)`,
+        [
+          tx.user_id,
+          `Votre portefeuille a été crédité de ${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`,
+          JSON.stringify({ reference, amount: tx.amount, new_balance: newBalance })
+        ]
+      );
+
+      console.log(`✅ Wallet deposit completed: ${reference}, amount: ${tx.amount}`);
+    } else if (isFailed) {
+      await query(
+        `UPDATE wallet_transactions 
+         SET status = 'failed', 
+             description = $1
+         WHERE id = $2`,
+        [callbackData.Trans_Status_Description || 'Paiement échoué', tx.id]
+      );
+
+      console.log(`❌ Wallet deposit failed: ${reference}`);
+    }
+
+    res.json({ success: true, status: 'Callback processed' });
+
+  } catch (error) {
+    console.error('PayDRC wallet callback error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

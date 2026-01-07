@@ -14,9 +14,11 @@ const WalletPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [depositAmount, setDepositAmount] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState(null);
+  const [pendingDeposit, setPendingDeposit] = useState(null);
 
   // Check URL params for status messages
   useEffect(() => {
@@ -35,6 +37,11 @@ const WalletPage = () => {
   useEffect(() => {
     if (user) {
       loadWallet();
+      // Pre-fill phone number from user profile
+      if (user.phone) {
+        const cleanPhone = user.phone.replace('+243', '').replace(/\D/g, '');
+        setPhoneNumber(cleanPhone);
+      }
     }
   }, [user]);
 
@@ -58,18 +65,68 @@ const WalletPage = () => {
       return;
     }
 
+    if (!phoneNumber || phoneNumber.length < 9) {
+      setMessage({ type: 'error', text: 'Veuillez entrer un numéro de téléphone valide' });
+      return;
+    }
+
     try {
       setProcessing(true);
-      const response = await walletAPI.initiateDeposit(amount);
+      const response = await walletAPI.initiateDeposit({
+        amount,
+        phone_number: phoneNumber
+      });
       
-      if (response.data.payment_url) {
-        // Redirect to payment aggregator
-        window.location.href = response.data.payment_url;
+      if (response.success) {
+        setPendingDeposit(response.data);
+        setMessage({ 
+          type: 'success', 
+          text: `Rechargement initié ! Validez le paiement sur votre téléphone (${response.data.provider}).` 
+        });
+        setShowDepositModal(false);
+        
+        // Start polling for status
+        pollDepositStatus(response.data.reference);
       }
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Erreur lors du rechargement' });
+    } finally {
       setProcessing(false);
     }
+  };
+
+  // Poll for deposit status
+  const pollDepositStatus = async (reference) => {
+    let attempts = 0;
+    const maxAttempts = 24; // 2 minutes
+
+    const checkStatus = async () => {
+      if (attempts >= maxAttempts) {
+        setPendingDeposit(null);
+        return;
+      }
+
+      try {
+        const response = await walletAPI.checkDepositStatus(reference);
+        if (response.data.status === 'completed') {
+          setMessage({ type: 'success', text: 'Rechargement réussi ! Votre solde a été mis à jour.' });
+          setPendingDeposit(null);
+          loadWallet();
+          return;
+        } else if (response.data.status === 'failed') {
+          setMessage({ type: 'error', text: 'Le rechargement a échoué. Veuillez réessayer.' });
+          setPendingDeposit(null);
+          return;
+        }
+      } catch (error) {
+        console.error('Status check error:', error);
+      }
+
+      attempts++;
+      setTimeout(checkStatus, 5000);
+    };
+
+    setTimeout(checkStatus, 5000);
   };
 
   // DEV: Simulate deposit
@@ -437,13 +494,41 @@ const WalletPage = () => {
                 </p>
               </div>
 
+              {/* Phone number for Mobile Money */}
+              <div className="mb-6">
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Numéro Mobile Money
+                </label>
+                <div className="relative">
+                  <span className={`absolute left-4 top-1/2 -translate-y-1/2 font-medium ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    +243
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    placeholder="972148867"
+                    className={`w-full pl-16 pr-4 py-3 rounded-xl border text-lg ${
+                      isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-gray-50 border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Ex: 097xxxxxxx (Airtel), 081xxxxxxx (Vodacom), 084xxxxxxx (Orange)
+                </p>
+              </div>
+
               {/* Payment methods */}
               <div className="mb-6">
                 <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
-                  Méthodes de paiement:
+                  Opérateurs supportés:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {['Orange Money', 'M-Pesa', 'Airtel Money', 'Afrimoney'].map(method => (
+                  {['M-Pesa (Vodacom)', 'Airtel Money', 'Orange Money', 'Africell'].map(method => (
                     <span
                       key={method}
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -459,13 +544,13 @@ const WalletPage = () => {
               {/* Submit button */}
               <button
                 onClick={handleDeposit}
-                disabled={processing || !depositAmount || parseFloat(depositAmount) < 100}
+                disabled={processing || !depositAmount || parseFloat(depositAmount) < 100 || !phoneNumber || phoneNumber.length < 9}
                 className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processing ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    Redirection...
+                    Traitement...
                   </span>
                 ) : (
                   `Recharger ${depositAmount ? formatCurrency(parseFloat(depositAmount)) : ''}`

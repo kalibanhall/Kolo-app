@@ -237,10 +237,27 @@ export const paymentsAPI = {
   getInvoice: async (invoiceId) => {
     return await request(`/payments/invoices/${invoiceId}`);
   },
+
+  // ========================================
+  // 💰 PayDRC (MOKO Afrika) - Mobile Money
+  // ========================================
+
+  // Initier un paiement PayDRC pour achat de tickets
+  initiatePayDRC: async (purchaseData) => {
+    return await request('/payments/paydrc/initiate', {
+      method: 'POST',
+      body: JSON.stringify(purchaseData),
+    });
+  },
+
+  // Vérifier le statut d'un paiement PayDRC
+  checkPayDRCStatus: async (reference) => {
+    return await request(`/payments/paydrc/status/${reference}`);
+  },
 };
 
 // ======================
-// � WALLET (PORTEFEUILLE)
+// 💰 WALLET (PORTEFEUILLE)
 // ======================
 
 export const walletAPI = {
@@ -255,12 +272,25 @@ export const walletAPI = {
     return await request(`/wallet/transactions${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Initier un dépôt (rechargement)
-  initiateDeposit: async (amount) => {
+  // Initier un dépôt via PayDRC (MOKO Afrika)
+  initiateDeposit: async (depositData) => {
+    return await request('/wallet/deposit/paydrc', {
+      method: 'POST',
+      body: JSON.stringify(depositData),
+    });
+  },
+
+  // Ancienne méthode de dépôt (placeholder)
+  initiateDepositLegacy: async (amount) => {
     return await request('/wallet/deposit', {
       method: 'POST',
       body: JSON.stringify({ amount }),
     });
+  },
+
+  // Vérifier le statut d'un dépôt PayDRC
+  checkDepositStatus: async (reference) => {
+    return await request(`/wallet/deposit/status/${reference}`);
   },
 
   // Acheter avec le solde du portefeuille
