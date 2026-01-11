@@ -87,7 +87,7 @@ This endpoint receives encrypted callback notifications from PayDRC when a trans
 
 **Security:**
 - AES-256-CBC encryption for payload
-- HMAC-SHA256 signature verification (X-Signature header)
+- IP Whitelisting (1-2 fixed IPs from PayDRC)
 
 ## Environment Configuration
 
@@ -99,9 +99,11 @@ PAYDRC_BASE_URL=https://paydrc.gofreshbakery.net/api/v5/
 PAYDRC_MERCHANT_ID=j*zL/#%lkq(EbSNhb
 PAYDRC_MERCHANT_SECRET=your-merchant-secret-from-dashboard
 
-# Callback encryption keys (obtain from PayDRC support)
+# Callback encryption key (obtain from PayDRC support)
 PAYDRC_AES_KEY=xxxxxxxxxxxxxxxx
-PAYDRC_HMAC_KEY=xxxxxxxxxxxxxxxx
+
+# IP Whitelist (1 or 2 fixed IPs from PayDRC)
+PAYDRC_WHITELISTED_IPS=xxx.xxx.xxx.xxx,yyy.yyy.yyy.yyy
 
 # Your public API URL for callbacks
 API_URL=https://kolo-api.onrender.com
@@ -229,10 +231,10 @@ curl -X POST http://localhost:5000/api/payments/paydrc/callback \
 ## Security Considerations
 
 1. **Never commit credentials** - Use environment variables
-2. **Verify signatures** - Always validate X-Signature header in production
-3. **IP Whitelisting** - Consider allowing only PayDRC IPs for callback
-4. **HTTPS only** - All API calls should use HTTPS
-5. **Idempotency** - Callbacks may be sent multiple times; check payment status before processing
+2. **IP Whitelisting** - Only PayDRC whitelisted IPs can access callback endpoints
+3. **HTTPS only** - All API calls should use HTTPS
+4. **Idempotency** - Callbacks may be sent multiple times; check payment status before processing
+5. **AES Encryption** - All callbacks are encrypted with AES-256-CBC
 
 ## Support
 

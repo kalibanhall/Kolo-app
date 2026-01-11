@@ -1,0 +1,30 @@
+# Dockerfile for KOLO Backend with Cloudflare Tunnel
+FROM node:18-slim
+
+WORKDIR /app
+
+# Install cloudflared
+RUN apt-get update && apt-get install -y curl && \
+    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && \
+    chmod +x /usr/local/bin/cloudflared && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY . .
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then\n\
+    cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" &\n\
+fi\n\
+node src/server.js' > /app/start.sh && chmod +x /app/start.sh
+
+EXPOSE 5000
+
+CMD ["/app/start.sh"]

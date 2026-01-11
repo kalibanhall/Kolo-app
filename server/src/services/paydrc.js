@@ -6,7 +6,8 @@
  *  - PayIn (C2B): Debit customer wallet
  *  - PayOut (B2C): Credit customer wallet
  *  - Check Status: Verify transaction
- *  - Callback decryption (AES-256-CBC) and signature verification (HMAC-SHA256)
+ *  - Callback decryption (AES-256-CBC)
+ *  - Static IP proxy support for IP whitelisting
  */
 
 const https = require('https');
@@ -19,41 +20,74 @@ const PAYDRC_BASE_URL = process.env.PAYDRC_BASE_URL || 'https://paydrc.gofreshba
 const MERCHANT_ID = process.env.PAYDRC_MERCHANT_ID || '';
 const MERCHANT_SECRET = process.env.PAYDRC_MERCHANT_SECRET || '';
 const AES_KEY = process.env.PAYDRC_AES_KEY || '';
-const AES_IV = process.env.PAYDRC_AES_IV || null; // If not set, key is used as IV (doc example)
-const HMAC_KEY = process.env.PAYDRC_HMAC_KEY || '';
+const AES_IV = process.env.PAYDRC_AES_IV || null;
+
+// Static IP Proxy configuration (QuotaGuard, Fixie, etc.)
+const PROXY_URL = process.env.QUOTAGUARD_URL || process.env.FIXIE_URL || process.env.PROXY_URL || null;
+
+// Log configuration at startup
+console.log('🔧 PayDRC Configuration:');
+console.log('  - Base URL:', PAYDRC_BASE_URL);
+console.log('  - Merchant ID:', MERCHANT_ID ? `${MERCHANT_ID.substring(0, 5)}...` : '❌ NOT SET');
+console.log('  - Merchant Secret:', MERCHANT_SECRET ? '✅ Set' : '❌ NOT SET');
+console.log('  - AES Key:', AES_KEY ? '✅ Set' : '⚠️ Not set (callbacks won\'t decrypt)');
+console.log('  - Proxy URL:', PROXY_URL ? `✅ ${new URL(PROXY_URL).hostname}` : '❌ Not set (direct connection)');
+
+// Validation: Ensure required configuration is present
+if (!MERCHANT_ID || !MERCHANT_SECRET) {
+  console.error('❌ CRITICAL: PayDRC configuration incomplete!');
+  console.error('   Please set PAYDRC_MERCHANT_ID and PAYDRC_MERCHANT_SECRET in your .env file');
+}
 
 /**
- * Generic HTTPS/HTTP POST JSON helper
+ * Simple HTTPS POST helper - works without proxy
  */
-function postJson(urlString, payload, timeoutMs = 30000) {
+function postJsonDirect(urlString, payload, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     try {
       const url = new URL(urlString);
       const data = JSON.stringify(payload);
-      const isHttps = url.protocol === 'https:';
 
       const options = {
         hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 80),
+        port: url.port || 443,
         path: url.pathname + (url.search || ''),
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(data),
-          Accept: 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'KOLO-Tombola/1.0',
         },
         timeout: timeoutMs,
       };
 
-      const lib = isHttps ? https : http;
+      console.log('🌐 Direct HTTPS request to:', url.hostname + url.pathname);
+      console.log('📤 Request payload:', JSON.stringify({ ...payload, merchant_secrete: '***' }));
 
-      const req = lib.request(options, (res) => {
+      const req = https.request(options, (res) => {
         let body = '';
         res.setEncoding('utf8');
         res.on('data', (chunk) => {
           body += chunk;
         });
         res.on('end', () => {
+          console.log('📥 Response status:', res.statusCode);
+          console.log('📥 Response headers:', JSON.stringify(res.headers));
+          console.log('📥 Response body:', body.substring(0, 1000));
+          
+          // Handle 403 specifically
+          if (res.statusCode === 403) {
+            console.error('❌ PayDRC returned 403 Forbidden - Check IP whitelist with PayDRC support');
+            resolve({ 
+              success: false, 
+              statusCode: 403, 
+              error: 'IP not whitelisted or access denied by PayDRC',
+              raw: body 
+            });
+            return;
+          }
+          
           try {
             const parsed = JSON.parse(body);
             resolve({ success: true, statusCode: res.statusCode, data: parsed });
@@ -63,7 +97,11 @@ function postJson(urlString, payload, timeoutMs = 30000) {
         });
       });
 
-      req.on('error', (err) => reject(err));
+      req.on('error', (err) => {
+        console.error('❌ HTTPS request error:', err.message);
+        reject(err);
+      });
+      
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('Request timeout'));
@@ -75,6 +113,295 @@ function postJson(urlString, payload, timeoutMs = 30000) {
       reject(err);
     }
   });
+}
+
+/**
+ * HTTPS POST through HTTP proxy using CONNECT tunnel
+ */
+function postJsonViaProxy(urlString, payload, proxyUrl, timeoutMs = 30000) {
+  return new Promise((resolve, reject) => {
+    try {
+      const targetUrl = new URL(urlString);
+      const proxy = new URL(proxyUrl);
+      const data = JSON.stringify(payload);
+
+      console.log(`🔌 Using proxy: ${proxy.hostname}:${proxy.port}`);
+      console.log(`🎯 Target: ${targetUrl.hostname}`);
+
+      const connectOptions = {
+        host: proxy.hostname,
+        port: parseInt(proxy.port) || 80,
+        method: 'CONNECT',
+        path: `${targetUrl.hostname}:443`,
+        headers: {
+          'Host': `${targetUrl.hostname}:443`,
+        },
+        timeout: timeoutMs,
+      };
+
+      // Add proxy authentication if provided
+      if (proxy.username && proxy.password) {
+        const auth = Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString('base64');
+        connectOptions.headers['Proxy-Authorization'] = `Basic ${auth}`;
+      }
+
+      const proxyReq = http.request(connectOptions);
+
+      proxyReq.on('connect', (res, socket, head) => {
+        console.log('🔗 Proxy CONNECT response:', res.statusCode);
+        
+        if (res.statusCode !== 200) {
+          reject(new Error(`Proxy CONNECT failed with status ${res.statusCode}`));
+          return;
+        }
+
+        // Create TLS connection over the tunnel
+        const tlsOptions = {
+          socket: socket,
+          servername: targetUrl.hostname,
+        };
+
+        const tlsSocket = require('tls').connect(tlsOptions, () => {
+          console.log('🔒 TLS connection established');
+          
+          // Build HTTP request
+          const requestLines = [
+            `POST ${targetUrl.pathname}${targetUrl.search || ''} HTTP/1.1`,
+            `Host: ${targetUrl.hostname}`,
+            'Content-Type: application/json',
+            `Content-Length: ${Buffer.byteLength(data)}`,
+            'Accept: application/json',
+            'Connection: close',
+            '',
+            data
+          ];
+          
+          tlsSocket.write(requestLines.join('\r\n'));
+        });
+
+        let responseData = '';
+        
+        tlsSocket.on('data', (chunk) => {
+          responseData += chunk.toString();
+        });
+
+        tlsSocket.on('end', () => {
+          // Parse HTTP response
+          const headerEndIndex = responseData.indexOf('\r\n\r\n');
+          if (headerEndIndex === -1) {
+            resolve({ success: false, raw: responseData });
+            return;
+          }
+
+          const headers = responseData.substring(0, headerEndIndex);
+          let body = responseData.substring(headerEndIndex + 4);
+
+          // Extract status code
+          const statusMatch = headers.match(/HTTP\/[\d.]+ (\d+)/);
+          const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+
+          // Handle chunked encoding
+          if (headers.toLowerCase().includes('transfer-encoding: chunked')) {
+            body = parseChunkedBody(body);
+          }
+
+          console.log('📥 Proxy response status:', statusCode);
+          console.log('📥 Proxy response body:', body.substring(0, 500));
+
+          try {
+            const parsed = JSON.parse(body);
+            resolve({ success: true, statusCode, data: parsed });
+          } catch (e) {
+            resolve({ success: false, statusCode, raw: body });
+          }
+        });
+
+        tlsSocket.on('error', (err) => {
+          console.error('❌ TLS socket error:', err.message);
+          reject(err);
+        });
+      });
+
+      proxyReq.on('error', (err) => {
+        console.error('❌ Proxy request error:', err.message);
+        reject(err);
+      });
+
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        reject(new Error('Proxy connection timeout'));
+      });
+
+      proxyReq.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Main POST function - uses proxy if configured, otherwise direct
+ */
+async function postJson(urlString, payload, timeoutMs = 30000) {
+  if (PROXY_URL) {
+    return postJsonViaProxy(urlString, payload, PROXY_URL, timeoutMs);
+  }
+  return postJsonDirect(urlString, payload, timeoutMs);
+}
+
+/**
+ * Parse chunked transfer encoding body
+ */
+function parseChunkedBody(body) {
+  let result = '';
+  let remaining = body;
+  
+  while (remaining.length > 0) {
+    const lineEnd = remaining.indexOf('\r\n');
+    if (lineEnd === -1) break;
+    
+    const chunkSize = parseInt(remaining.substring(0, lineEnd), 16);
+    if (isNaN(chunkSize) || chunkSize === 0) break;
+    
+    const chunkStart = lineEnd + 2;
+    const chunkEnd = chunkStart + chunkSize;
+    if (chunkEnd > remaining.length) break;
+    
+    result += remaining.substring(chunkStart, chunkEnd);
+    remaining = remaining.substring(chunkEnd + 2);
+  }
+  
+  return result || body;
+}
+                'Host': url.hostname,
+              },
+            };
+
+            // Write HTTP request manually over TLS socket
+            let requestStr = `POST ${requestOptions.path} HTTP/1.1\r\n`;
+            for (const [key, value] of Object.entries(requestOptions.headers)) {
+              requestStr += `${key}: ${value}\r\n`;
+            }
+            requestStr += '\r\n';
+            requestStr += data;
+
+            tlsSocket.write(requestStr);
+
+            let responseData = '';
+            tlsSocket.on('data', (chunk) => {
+              responseData += chunk.toString();
+            });
+
+            tlsSocket.on('end', () => {
+              // Parse HTTP response
+              const headerEnd = responseData.indexOf('\r\n\r\n');
+              if (headerEnd === -1) {
+                resolve({ success: false, raw: responseData });
+                return;
+              }
+
+              const headerPart = responseData.substring(0, headerEnd);
+              let body = responseData.substring(headerEnd + 4);
+
+              // Handle chunked encoding
+              if (headerPart.toLowerCase().includes('transfer-encoding: chunked')) {
+                body = parseChunkedBody(body);
+              }
+
+              // Extract status code
+              const statusMatch = headerPart.match(/HTTP\/\d\.\d (\d+)/);
+              const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+
+              try {
+                const parsed = JSON.parse(body);
+                resolve({ success: true, statusCode, data: parsed });
+              } catch (e) {
+                resolve({ success: false, statusCode, raw: body });
+              }
+            });
+
+            tlsSocket.on('error', (err) => reject(err));
+          });
+
+          tlsSocket.on('error', (err) => reject(err));
+        });
+
+        proxyReq.on('error', (err) => reject(err));
+        proxyReq.on('timeout', () => {
+          proxyReq.destroy();
+          reject(new Error('Proxy connection timeout'));
+        });
+
+        proxyReq.end();
+      } else {
+        // Direct connection (no proxy or HTTP target)
+        const options = {
+          hostname: url.hostname,
+          port: url.port || (isHttps ? 443 : 80),
+          path: url.pathname + (url.search || ''),
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data),
+            Accept: 'application/json',
+          },
+          timeout: timeoutMs,
+        };
+
+        const lib = isHttps ? https : http;
+
+        const req = lib.request(options, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            body += chunk;
+          });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(body);
+              resolve({ success: true, statusCode: res.statusCode, data: parsed });
+            } catch (e) {
+              resolve({ success: false, statusCode: res.statusCode, raw: body });
+            }
+          });
+        });
+
+        req.on('error', (err) => reject(err));
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+
+        req.write(data);
+        req.end();
+      }
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Parse chunked transfer encoding body
+ */
+function parseChunkedBody(body) {
+  let result = '';
+  let remaining = body;
+  
+  while (remaining.length > 0) {
+    const lineEnd = remaining.indexOf('\r\n');
+    if (lineEnd === -1) break;
+    
+    const chunkSize = parseInt(remaining.substring(0, lineEnd), 16);
+    if (chunkSize === 0) break;
+    
+    const chunkStart = lineEnd + 2;
+    const chunkEnd = chunkStart + chunkSize;
+    result += remaining.substring(chunkStart, chunkEnd);
+    remaining = remaining.substring(chunkEnd + 2);
+  }
+  
+  return result;
 }
 
 /**
@@ -120,30 +447,6 @@ function decryptCallbackData(encryptedBase64) {
 }
 
 /**
- * Verify HMAC-SHA256 signature of callback
- * @param {string} encryptedMessage - The encrypted data string
- * @param {string} receivedSignature - Signature from X-Signature header
- * @returns {boolean}
- */
-function verifyCallbackSignature(encryptedMessage, receivedSignature) {
-  if (!HMAC_KEY || !receivedSignature) return false;
-
-  const hmac = crypto.createHmac('sha256', Buffer.from(HMAC_KEY, 'utf8'));
-  hmac.update(encryptedMessage);
-  const calculated = hmac.digest('hex');
-
-  // Timing-safe comparison
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(calculated, 'utf8'),
-      Buffer.from(receivedSignature, 'utf8')
-    );
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
  * Initiate a PayIn (C2B) transaction - debit customer wallet
  * @param {object} options
  * @param {number|string} options.amount
@@ -158,6 +461,16 @@ function verifyCallbackSignature(encryptedMessage, receivedSignature) {
  * @returns {Promise<object>}
  */
 async function initiatePayIn(options) {
+  // Validate configuration
+  if (!MERCHANT_ID || !MERCHANT_SECRET) {
+    console.error('❌ PayDRC configuration missing!');
+    return { 
+      success: false, 
+      error: 'PayDRC not configured. Missing MERCHANT_ID or MERCHANT_SECRET',
+      comment: 'Configuration error - contact administrator'
+    };
+  }
+
   const {
     amount,
     currency = 'CDF',
@@ -206,7 +519,23 @@ async function initiatePayIn(options) {
       };
     }
 
-    return { success: false, error: 'Invalid response', raw: result };
+    // Handle specific error cases
+    if (result.statusCode === 403) {
+      return { 
+        success: false, 
+        error: 'Accès refusé par PayDRC (403) - IP non autorisée',
+        comment: 'Contactez le support PayDRC pour vérifier le whitelist IP',
+        statusCode: 403,
+        raw: result 
+      };
+    }
+
+    return { 
+      success: false, 
+      error: result.error || 'Réponse invalide de PayDRC', 
+      statusCode: result.statusCode,
+      raw: result 
+    };
   } catch (error) {
     console.error('❌ PayDRC PayIn error:', error);
     return { success: false, error: error.message };
@@ -371,7 +700,6 @@ module.exports = {
 
   // Callback handlers
   decryptCallbackData,
-  verifyCallbackSignature,
 
   // Utilities
   detectMobileProvider,

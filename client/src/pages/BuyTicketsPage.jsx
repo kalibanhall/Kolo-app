@@ -148,11 +148,12 @@ export const BuyTicketsPage = () => {
   };
 
   const filteredNumbers = useMemo(() => {
-    if (!numberSearchTerm) return availableNumbers.slice(0, 100);
+    // Afficher tous les numéros disponibles (pas de limite arbitraire)
+    if (!numberSearchTerm) return availableNumbers;
     return availableNumbers.filter(n => 
       n.display?.toLowerCase().includes(numberSearchTerm.toLowerCase()) ||
       String(n.number).includes(numberSearchTerm)
-    ).slice(0, 100);
+    );
   }, [availableNumbers, numberSearchTerm]);
 
   // Valider le code promo
@@ -270,11 +271,19 @@ export const BuyTicketsPage = () => {
         }
       } else {
         // Payment via PayDRC (MOKO Afrika) Mobile Money
+        console.log('Initiating PayDRC payment...', {
+          campaign_id: campaign.id,
+          ticket_count: ticketCount,
+          phone_number: phoneNumber
+        });
+        
         const response = await paymentsAPI.initiatePayDRC({
           campaign_id: campaign.id,
           ticket_count: ticketCount,
           phone_number: phoneNumber
         });
+        
+        console.log('PayDRC response:', response);
         
         if (response.success) {
           setSuccess(true);
@@ -290,11 +299,20 @@ export const BuyTicketsPage = () => {
             } 
           });
         } else {
-          setError(response.message || 'Échec de l\'initiation du paiement');
+          const errorMessage = response.message || response.error || 'Échec de l\'initiation du paiement';
+          console.error('PayDRC error:', errorMessage, response);
+          setError(errorMessage);
         }
       }
     } catch (err) {
-      setError(err.message || 'Erreur lors de l\'initiation du paiement');
+      console.error('Purchase error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de l\'initiation du paiement';
+      setError(errorMessage);
+      
+      // Si c'est une erreur de configuration PayDRC, afficher un message plus détaillé
+      if (errorMessage.includes('MERCHANT_ID') || errorMessage.includes('MERCHANT_SECRET')) {
+        setError('Erreur de configuration du système de paiement. Veuillez contacter le support.');
+      }
     } finally {
       setPurchasing(false);
     }

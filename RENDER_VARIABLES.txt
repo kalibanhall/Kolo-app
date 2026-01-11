@@ -16,6 +16,14 @@ ADMIN_EMAIL=admin@kolo.cd
 AT_USERNAME=QualisApp
 AT_API_KEY=atsk_272f4a6816724bac22f86ff5dccbbe71463e6949b7a96101916df138f67257282a37d125
 AT_SENDER_ID=KOLO
+
+# PayDRC (MOKO Afrika) - Mobile Money Payment Gateway
+PAYDRC_BASE_URL=https://paydrc.gofreshbakery.net/api/v5/
+PAYDRC_MERCHANT_ID="j*zL/#%lkq(EbSNhb"
+PAYDRC_MERCHANT_SECRET="mn2E8SD6QEiEY"
+PAYDRC_CALLBACK_URL=https://kolo-api.onrender.com/api/payments/paydrc/callback
+API_URL=https://kolo-api.onrender.com
+
 CLOUDINARY_CLOUD_NAME=dn3vvxjum
 CLOUDINARY_API_KEY=776916755183851
 CLOUDINARY_API_SECRET=da7l2UsgBc2lBUNarv_TprdDzDE
