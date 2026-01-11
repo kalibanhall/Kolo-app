@@ -1,13 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
-import { FilterPanel } from '../components/FilterPanel';
-import { DocumentIcon, PlusIcon, EditIcon, TrashIcon, LockIcon, UnlockIcon, DiceIcon, RefreshIcon, ExportIcon } from '../components/Icons';
-import api from '../services/api';
 
-export const AdminLogsPage = () => {
+// Configuration API
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getToken = () => localStorage.getItem('kolo_token');
+
+// Helper pour les requêtes API
+const apiRequest = async (endpoint, options = {}) => {
+  const url = new URL(`${API_URL}${endpoint}`);
+  
+  // Ajouter les paramètres de query si présents
+  if (options.params) {
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        url.searchParams.append(key, value);
+      }
+    });
+  }
+
+  const response = await fetch(url.toString(), {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Erreur serveur');
+  }
+  return data;
+};
+
+// Labels pour les actions
+const ACTION_CONFIG = {
+  'CREATE_CAMPAIGN': { label: 'Création campagne', color: 'green', icon: '➕' },
+  'UPDATE_CAMPAIGN': { label: 'Modification campagne', color: 'blue', icon: '✏️' },
+  'UPDATE_CAMPAIGN_STATUS': { label: 'Changement statut', color: 'yellow', icon: '🔄' },
+  'DELETE_CAMPAIGN': { label: 'Suppression campagne', color: 'red', icon: '🗑️' },
+  'PERFORM_DRAW': { label: 'Tirage au sort', color: 'purple', icon: '🎲' },
+  'UPDATE_TRANSACTION': { label: 'Modification transaction', color: 'blue', icon: '💳' },
+  'SYNC_TRANSACTION': { label: 'Sync PayDRC', color: 'cyan', icon: '🔄' },
+  'BULK_SYNC_TRANSACTIONS': { label: 'Sync globale', color: 'cyan', icon: '🔄' },
+  'UPDATE_DELIVERY': { label: 'Mise à jour livraison', color: 'orange', icon: '📦' },
+  'CREATE_PROMO': { label: 'Création code promo', color: 'green', icon: '🎁' },
+  'UPDATE_USER': { label: 'Modification utilisateur', color: 'blue', icon: '👤' },
+  'LOGIN': { label: 'Connexion admin', color: 'gray', icon: '🔐' },
+  'LOGOUT': { label: 'Déconnexion admin', color: 'gray', icon: '🚪' },
+};
+
+const ENTITY_LABELS = {
+  'campaign': 'Campagne',
+  'user': 'Utilisateur',
+  'ticket': 'Ticket',
+  'purchase': 'Transaction',
+  'draw': 'Tirage',
+  'promo': 'Code promo',
+};
+
+const AdminLogsPage = () => {
   const [logs, setLogs] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -17,351 +73,351 @@ export const AdminLogsPage = () => {
   const [filters, setFilters] = useState({
     action: '',
     entity_type: '',
-    admin_id: '',
     date_start: '',
     date_end: '',
   });
+  const [expandedLog, setExpandedLog] = useState(null);
 
-  useEffect(() => {
-    loadLogs();
-  }, [pagination.page, filters]);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadLogs = async () => {
+  // Charger les logs
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters,
-      };
+      setError(null);
 
-      // Remove empty filters
-      Object.keys(params).forEach((key) => {
-        if (!params[key]) delete params[key];
+      const response = await apiRequest('/admin/logs', {
+        params: {
+          page: pagination.page,
+          limit: pagination.limit,
+          action: filters.action,
+          entity_type: filters.entity_type,
+          date_start: filters.date_start,
+          date_end: filters.date_end,
+        },
       });
 
-      const response = await api.get('/admin/logs', { params });
-
-      setLogs(response.data.data.logs);
-      setPagination({
-        ...pagination,
-        total: response.data.data.pagination.total,
-        totalPages: response.data.data.pagination.totalPages,
-      });
-    } catch (error) {
-      console.error('Error loading logs:', error);
+      if (response.success) {
+        setLogs(response.data?.logs || []);
+        setPagination(prev => ({
+          ...prev,
+          total: response.data?.pagination?.total || 0,
+          totalPages: response.data?.pagination?.totalPages || 0,
+        }));
+      }
+    } catch (err) {
+      console.error('Erreur chargement logs:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filters]);
 
-  const loadStats = async () => {
-    try {
-      const response = await api.get('/admin/logs/stats');
-      setStats(response.data.data);
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  };
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
-    setPagination({ ...pagination, page: 1 });
-  };
-
+  // Réinitialiser les filtres
   const handleResetFilters = () => {
     setFilters({
       action: '',
       entity_type: '',
-      admin_id: '',
       date_start: '',
       date_end: '',
     });
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handlePageChange = (newPage) => {
-    setPagination({ ...pagination, page: newPage });
+  // Changer un filtre
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const getActionBadgeColor = (action) => {
+  // Obtenir les infos d'une action
+  const getActionInfo = (action) => {
+    return ACTION_CONFIG[action] || { label: action, color: 'gray', icon: '📋' };
+  };
+
+  // Classes de couleur
+  const getColorClasses = (color) => {
     const colors = {
-      LOGIN: 'bg-blue-100 text-blue-800',
-      LOGOUT: 'bg-gray-100 text-gray-800',
-      CREATE: 'bg-green-100 text-green-800',
-      UPDATE: 'bg-yellow-100 text-yellow-800',
-      DELETE: 'bg-red-100 text-red-800',
-      DRAW: 'bg-purple-100 text-purple-800',
-      CAMPAIGN_CREATED: 'bg-green-100 text-green-800',
-      CAMPAIGN_UPDATED: 'bg-yellow-100 text-yellow-800',
-      CAMPAIGN_CLOSED: 'bg-orange-100 text-orange-800',
-      CAMPAIGN_DELETED: 'bg-red-100 text-red-800',
-      USER_UPDATED: 'bg-blue-100 text-blue-800',
-      LOTTERY_DRAW: 'bg-purple-100 text-purple-800',
+      green: 'bg-green-100 text-green-800',
+      blue: 'bg-blue-100 text-blue-800',
+      yellow: 'bg-yellow-100 text-yellow-800',
+      red: 'bg-red-100 text-red-800',
+      purple: 'bg-purple-100 text-purple-800',
+      orange: 'bg-orange-100 text-orange-800',
+      cyan: 'bg-cyan-100 text-cyan-800',
+      gray: 'bg-gray-100 text-gray-800',
     };
-    return colors[action] || 'bg-gray-100 text-gray-800';
+    return colors[color] || colors.gray;
   };
 
-  const getActionIcon = (action) => {
-    const icons = {
-      LOGIN: <LockIcon className="w-4 h-4 inline mr-1" />,
-      LOGOUT: <UnlockIcon className="w-4 h-4 inline mr-1" />,
-      CAMPAIGN_CREATED: <PlusIcon className="w-4 h-4 inline mr-1" />,
-      CAMPAIGN_UPDATED: <EditIcon className="w-4 h-4 inline mr-1" />,
-      CAMPAIGN_DELETED: <TrashIcon className="w-4 h-4 inline mr-1" />,
-      USER_UPDATED: <EditIcon className="w-4 h-4 inline mr-1" />,
-      LOTTERY_DRAW: <DiceIcon className="w-4 h-4 inline mr-1" />,
-    };
-    return icons[action] || <DocumentIcon className="w-4 h-4 inline mr-1" />;
-  };
-
+  // Formater la date
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('fr-FR', {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('fr-FR', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
     });
+  };
+
+  // Formater les détails JSON
+  const formatDetails = (details) => {
+    if (!details) return null;
+    try {
+      const parsed = typeof details === 'string' ? JSON.parse(details) : details;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return String(details);
+    }
+  };
+
+  // Stats rapides
+  const stats = {
+    total: pagination.total,
+    creates: logs.filter(l => l.action?.includes('CREATE')).length,
+    updates: logs.filter(l => l.action?.includes('UPDATE') || l.action?.includes('SYNC')).length,
+    draws: logs.filter(l => l.action?.includes('DRAW')).length,
   };
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Logs Administrateur</h1>
-          <p className="text-gray-600 mt-1">
-            Historique complet des actions administratives
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Journal d'activité</h1>
+            <p className="text-gray-600 mt-1">Historique des actions administratives</p>
+          </div>
+          <button
+            onClick={loadLogs}
+            disabled={loading}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+              loading 
+                ? 'bg-gray-300 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {loading ? 'Chargement...' : 'Actualiser'}
+          </button>
         </div>
 
-        {/* Statistics Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total des logs</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.stats.total_logs}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-blue-600">LOG</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Dernières 24h</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.stats.logs_last_24h}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-green-600">24H</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Admins actifs</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats.stats.unique_admins}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-purple-600">ADM</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Action courante</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {stats.stats.most_common_action || 'N/A'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-bold text-yellow-600">TOP</span>
-                </div>
-              </div>
-            </div>
+        {/* Message d'erreur */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
           </div>
         )}
 
-        {/* Filters */}
-        <FilterPanel
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={handleResetFilters}
-          filterConfig={{
-            dateRange: true,
-            custom: [
-              {
-                key: 'action',
-                label: 'Action',
-                type: 'select',
-                options: [
-                  { value: 'LOGIN', label: 'Connexion' },
-                  { value: 'LOGOUT', label: 'Déconnexion' },
-                  { value: 'CAMPAIGN_CREATED', label: 'Campagne créée' },
-                  { value: 'CAMPAIGN_UPDATED', label: 'Campagne modifiée' },
-                  { value: 'CAMPAIGN_CLOSED', label: 'Campagne fermée' },
-                  { value: 'LOTTERY_DRAW', label: 'Tirage effectué' },
-                  { value: 'USER_UPDATED', label: 'Utilisateur modifié' },
-                ],
-              },
-              {
-                key: 'entity_type',
-                label: 'Type d\'entité',
-                type: 'select',
-                options: [
-                  { value: 'campaign', label: 'Campagne' },
-                  { value: 'user', label: 'Utilisateur' },
-                  { value: 'ticket', label: 'Ticket' },
-                  { value: 'draw', label: 'Tirage' },
-                ],
-              },
-            ],
-          }}
-        />
-
-        {/* Logs Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date/Heure
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Admin
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Action
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Détails
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IP
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                      <p className="mt-2 text-gray-600">Chargement des logs...</p>
-                    </td>
-                  </tr>
-                ) : logs.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                      Aucun log trouvé
-                    </td>
-                  </tr>
-                ) : (
-                  logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(log.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {log.admin_name || 'N/A'}
-                            </div>
-                            <div className="text-sm text-gray-500">{log.admin_email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getActionBadgeColor(
-                            log.action
-                          )}`}
-                        >
-                          {getActionIcon(log.action)} {log.action}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {log.entity_type && (
-                          <div>
-                            <span className="font-medium">{log.entity_type}</span>
-                            {log.entity_id && ` #${log.entity_id}`}
-                          </div>
-                        )}
-                        {log.details && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {typeof log.details === 'string'
-                              ? log.details
-                              : JSON.stringify(log.details).substring(0, 100)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {log.ip_address || 'N/A'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-500">Total des logs</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
           </div>
+          <div className="bg-green-50 rounded-lg shadow p-4">
+            <p className="text-sm text-green-600">Créations</p>
+            <p className="text-2xl font-bold text-green-700">{stats.creates}</p>
+          </div>
+          <div className="bg-blue-50 rounded-lg shadow p-4">
+            <p className="text-sm text-blue-600">Modifications</p>
+            <p className="text-2xl font-bold text-blue-700">{stats.updates}</p>
+          </div>
+          <div className="bg-purple-50 rounded-lg shadow p-4">
+            <p className="text-sm text-purple-600">Tirages</p>
+            <p className="text-2xl font-bold text-purple-700">{stats.draws}</p>
+          </div>
+        </div>
 
-          {/* Pagination */}
-          {!loading && logs.length > 0 && (
-            <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-              <div className="flex items-center justify-between">
+        {/* Filtres */}
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+              <select
+                value={filters.action}
+                onChange={(e) => handleFilterChange('action', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Toutes les actions</option>
+                {Object.entries(ACTION_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.icon} {config.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type d'entité</label>
+              <select
+                value={filters.entity_type}
+                onChange={(e) => handleFilterChange('entity_type', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Tous les types</option>
+                {Object.entries(ENTITY_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+              <input
+                type="datetime-local"
+                value={filters.date_start}
+                onChange={(e) => handleFilterChange('date_start', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+              <input
+                type="datetime-local"
+                value={filters.date_end}
+                onChange={(e) => handleFilterChange('date_end', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={handleResetFilters}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Table des logs */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {loading ? (
+            <div className="p-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">Chargement des logs...</p>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="p-12 text-center">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-xl text-gray-600">Aucun log trouvé</p>
+              <p className="text-gray-400 mt-2">Les logs apparaîtront ici lorsque des actions seront effectuées</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admin</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entité</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Détails</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {logs.map((log) => {
+                      const actionInfo = getActionInfo(log.action);
+                      const isExpanded = expandedLog === log.id;
+
+                      return (
+                        <React.Fragment key={log.id}>
+                          <tr className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(log.created_at)}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{log.admin_name || 'Système'}</div>
+                              <div className="text-xs text-gray-500">{log.admin_email}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center ${getColorClasses(actionInfo.color)}`}>
+                                <span className="mr-1">{actionInfo.icon}</span>
+                                {actionInfo.label}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-700">
+                                {ENTITY_LABELS[log.entity_type] || log.entity_type || '-'}
+                              </span>
+                              {log.entity_id && (
+                                <span className="ml-2 text-xs text-gray-400">#{log.entity_id}</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 font-mono">
+                              {log.ip_address || '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                              {log.details && (
+                                <button
+                                  onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                >
+                                  {isExpanded ? '▼ Masquer' : '▶ Voir détails'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && log.details && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="px-6 py-4">
+                                <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                                  <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">
+                                    {formatDetails(log.details)}
+                                  </pre>
+                                </div>
+                                {log.user_agent && (
+                                  <div className="mt-2 text-xs text-gray-500">
+                                    <span className="font-medium">User Agent:</span> {log.user_agent}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
                 <div className="text-sm text-gray-700">
-                  Affichage de{' '}
-                  <span className="font-medium">
-                    {(pagination.page - 1) * pagination.limit + 1}
-                  </span>{' '}
-                  à{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.page * pagination.limit, pagination.total)}
-                  </span>{' '}
-                  sur <span className="font-medium">{pagination.total}</span> résultats
+                  Affichage {(pagination.page - 1) * pagination.limit + 1} à{' '}
+                  {Math.min(pagination.page * pagination.limit, pagination.total)} sur {pagination.total} logs
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                     disabled={pagination.page === 1}
-                    className={`px-4 py-2 border rounded-lg text-sm font-medium ${
-                      pagination.page === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                   >
                     Précédent
                   </button>
+                  <span className="px-4 py-2 text-gray-700">
+                    Page {pagination.page} / {pagination.totalPages || 1}
+                  </span>
                   <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                     disabled={pagination.page >= pagination.totalPages}
-                    className={`px-4 py-2 border rounded-lg text-sm font-medium ${
-                      pagination.page >= pagination.totalPages
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                   >
                     Suivant
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

@@ -568,44 +568,7 @@ router.post('/draw', drawLimiter, [
   }
 });
 
-// Get security/audit logs
-router.get('/logs', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
-
-    const result = await query(
-      `SELECT l.*, u.name as admin_name, u.email as admin_email,
-              (SELECT COUNT(*) FROM admin_logs) as total_count
-       FROM admin_logs l
-       JOIN users u ON l.admin_id = u.id
-       ORDER BY l.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-
-    const totalCount = result.rows.length > 0 ? result.rows[0].total_count : 0;
-
-    res.json({
-      success: true,
-      data: result.rows,
-      pagination: {
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-        totalCount
-      }
-    });
-
-  } catch (error) {
-    console.error('Get admin logs error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
+// Note: See full /logs route with filters below (around line 715)
 
 // Get draw results
 router.get('/draws', async (req, res) => {
