@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
-import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, CartIcon, TrashIcon, MoneyIcon } from '../components/Icons';
+import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, MoneyIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
+// Storage key for composer
+const COMPOSER_KEY = 'kolo_composer';
+
 export const BuyTicketsPage = () => {
   const { user } = useAuth();
-  const { cart, addToCart, removeFromCart, clearCart, isInCart } = useCart();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
@@ -19,9 +20,11 @@ export const BuyTicketsPage = () => {
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [showCartDropdown, setShowCartDropdown] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
+  const [composerItems, setComposerItems] = useState([]);
+  const [verifyingComposer, setVerifyingComposer] = useState(false);
+  const [unavailableTickets, setUnavailableTickets] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
-  const [paymentCurrency, setPaymentCurrency] = useState('CDF'); // 'CDF' or 'USD' for mobile money
   const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal de confirmation
   
   // Code promo
@@ -54,6 +57,84 @@ export const BuyTicketsPage = () => {
   const [availableNumbers, setAvailableNumbers] = useState([]);
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [loadingNumbers, setLoadingNumbers] = useState(false);
+
+  // Charger le compositeur depuis localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COMPOSER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setComposerItems(parsed);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading composer:', e);
+    }
+  }, []);
+
+  // Sauvegarder le compositeur dans localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(COMPOSER_KEY, JSON.stringify(composerItems));
+    } catch (e) {
+      console.error('Error saving composer:', e);
+    }
+  }, [composerItems]);
+
+  // Ajouter au compositeur
+  const addToComposer = useCallback((ticketNumber) => {
+    setComposerItems(prev => {
+      if (prev.some(item => item.number === ticketNumber.number)) return prev;
+      return [...prev, { ...ticketNumber, addedAt: Date.now() }];
+    });
+  }, []);
+
+  // Retirer du compositeur
+  const removeFromComposer = useCallback((ticketNumber) => {
+    setComposerItems(prev => prev.filter(item => item.number !== ticketNumber));
+    setUnavailableTickets(prev => prev.filter(n => n !== ticketNumber));
+  }, []);
+
+  // Vider le compositeur
+  const clearComposer = useCallback(() => {
+    setComposerItems([]);
+    setUnavailableTickets([]);
+    localStorage.removeItem(COMPOSER_KEY);
+  }, []);
+
+  // Vérifier la disponibilité des tickets du compositeur
+  const verifyComposerTickets = useCallback(async () => {
+    if (composerItems.length === 0 || !campaign) return;
+    
+    setVerifyingComposer(true);
+    setUnavailableTickets([]);
+    
+    try {
+      const response = await campaignsAPI.getAvailableNumbers(campaign.id);
+      const availableSet = new Set((response.numbers || []).map(n => n.number));
+      
+      const unavailable = composerItems.filter(item => !availableSet.has(item.number)).map(item => item.number);
+      
+      if (unavailable.length > 0) {
+        setUnavailableTickets(unavailable);
+        // Auto-remove unavailable tickets after showing message
+        setTimeout(() => {
+          setComposerItems(prev => prev.filter(item => !unavailable.includes(item.number)));
+          setUnavailableTickets([]);
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Error verifying tickets:', err);
+    } finally {
+      setVerifyingComposer(false);
+    }
+  }, [composerItems, campaign]);
+
+  // Check if ticket is in composer
+  const isInComposer = useCallback((ticketNumber) => {
+    return composerItems.some(item => item.number === ticketNumber);
+  }, [composerItems]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -240,7 +321,7 @@ export const BuyTicketsPage = () => {
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
         amount: totalPrice,
         amount_cdf: finalPrice * 2500,
-        currency: paymentMethod === 'wallet' ? 'CDF' : paymentCurrency
+        currency: paymentMethod === 'wallet' ? 'CDF' : 'USD'
       };
 
       // Payment with wallet balance (always in CDF)
@@ -328,16 +409,6 @@ export const BuyTicketsPage = () => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
   };
 
-  // Format selon la devise choisie pour mobile money
-  const formatPaymentAmount = (amount, currency = paymentCurrency) => {
-    if (currency === 'USD') {
-      return '$' + new Intl.NumberFormat('en-US').format(amount);
-    }
-    // Conversion approximative USD -> CDF (taux: 1 USD = 2500 CDF)
-    const cdfAmount = amount * 2500;
-    return new Intl.NumberFormat('fr-FR').format(cdfAmount) + ' FC';
-  };
-
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${
@@ -420,39 +491,50 @@ export const BuyTicketsPage = () => {
             </h1>
           </div>
           
-          {/* Cart Dropdown */}
-          <div 
-            className="relative"
-            onMouseEnter={() => setShowCartDropdown(true)}
-            onMouseLeave={() => setShowCartDropdown(false)}
-          >
-            <button className={`relative p-2 rounded-xl transition-all ${
-              isDarkMode 
-                ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' 
-                : 'bg-blue-50 hover:bg-blue-100 text-blue-600'
-            }`}>
-              <CartIcon className="w-6 h-6" />
-              {cart.items.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {cart.items.length}
+          {/* Compositeur Button */}
+          <div className="relative">
+            <button 
+              onClick={() => {
+                setShowComposer(!showComposer);
+                if (!showComposer && composerItems.length > 0) {
+                  verifyComposerTickets();
+                }
+              }}
+              className={`relative p-2 rounded-xl transition-all ${
+                isDarkMode 
+                  ? 'bg-gray-800 hover:bg-gray-700 text-purple-400' 
+                  : 'bg-purple-50 hover:bg-purple-100 text-purple-600'
+              }`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              {composerItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                  {composerItems.length}
                 </span>
               )}
             </button>
             
-            {/* Cart Dropdown Menu */}
-            {showCartDropdown && (
-              <div className={`absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-2xl overflow-hidden z-50 ${
+            {/* Composer Dropdown */}
+            {showComposer && (
+              <div className={`absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl overflow-hidden z-50 ${
                 isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
               }`}>
                 <div className={`p-3 border-b flex items-center justify-between ${
                   isDarkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
-                  <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    Mon Panier
-                  </h4>
-                  {cart.items.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Mon Compositeur
+                    </h4>
+                    {verifyingComposer && (
+                      <span className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {composerItems.length > 0 && (
                     <button
-                      onClick={clearCart}
+                      onClick={clearComposer}
                       className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -461,30 +543,46 @@ export const BuyTicketsPage = () => {
                   )}
                 </div>
                 
-                {cart.items.length === 0 ? (
+                {/* Message tickets non disponibles */}
+                {unavailableTickets.length > 0 && (
+                  <div className={`p-3 ${isDarkMode ? 'bg-red-900/30' : 'bg-red-50'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                      ⚠️ {unavailableTickets.length} ticket(s) non disponible(s) - suppression automatique...
+                    </p>
+                  </div>
+                )}
+                
+                {composerItems.length === 0 ? (
                   <div className="p-6 text-center">
-                    <CartIcon className={`w-12 h-12 mx-auto mb-2 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+                    <svg className={`w-12 h-12 mx-auto mb-2 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Votre panier est vide
+                      Votre compositeur est vide
+                    </p>
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Sélectionnez des numéros pour les garder ici
                     </p>
                   </div>
                 ) : (
                   <>
                     <div className="max-h-48 overflow-y-auto p-3">
                       <div className="flex flex-wrap gap-2">
-                        {cart.items.map(num => (
+                        {composerItems.map(item => (
                           <span
-                            key={num}
+                            key={item.number}
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
-                              isDarkMode 
-                                ? 'bg-cyan-900/30 text-cyan-400' 
-                                : 'bg-blue-100 text-blue-700'
+                              unavailableTickets.includes(item.number)
+                                ? 'bg-red-100 text-red-700 line-through'
+                                : isDarkMode 
+                                  ? 'bg-purple-900/30 text-purple-400' 
+                                  : 'bg-purple-100 text-purple-700'
                             }`}
                           >
-                            #{String(num).padStart(4, '0')}
+                            {item.display || `#${String(item.number).padStart(4, '0')}`}
                             <button
-                              onClick={() => removeFromCart(num)}
-                              className={`hover:text-red-500 ${isDarkMode ? 'text-cyan-300' : 'text-blue-600'}`}
+                              onClick={() => removeFromComposer(item.number)}
+                              className={`hover:text-red-500 ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}
                             >
                               ×
                             </button>
@@ -493,14 +591,31 @@ export const BuyTicketsPage = () => {
                       </div>
                     </div>
                     <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center mb-2">
                         <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Total ({cart.items.length} tickets)
+                          Total ({composerItems.length} tickets)
                         </span>
-                        <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
-                          {formatCurrency(cart.items.length * (campaign?.ticket_price || 0))}
+                        <span className={`font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                          {formatCurrency(composerItems.length * (campaign?.ticket_price || 0))}
                         </span>
                       </div>
+                      <button
+                        onClick={() => {
+                          // Charger les tickets du compositeur dans la sélection
+                          setTicketCount(Math.min(5, composerItems.length));
+                          setSelectionMode('manual');
+                          setSelectedNumbers(composerItems.slice(0, 5));
+                          setShowComposer(false);
+                        }}
+                        disabled={composerItems.length === 0 || unavailableTickets.length > 0}
+                        className={`w-full py-2 rounded-lg font-medium text-sm transition-all ${
+                          isDarkMode
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
+                            : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-200 disabled:text-gray-400'
+                        }`}
+                      >
+                        Passer à l'achat
+                      </button>
                     </div>
                   </>
                 )}
@@ -554,14 +669,6 @@ export const BuyTicketsPage = () => {
             : 'bg-white shadow-xl'
         }`}>
           <div className="p-6">
-            {error && (
-              <div className={`mb-6 rounded-xl p-4 ${
-                isDarkMode ? 'bg-red-900/30 border border-red-800' : 'bg-red-50 border border-red-200'
-              }`}>
-                <p className={isDarkMode ? 'text-red-400' : 'text-red-700'}>{error}</p>
-              </div>
-            )}
-
             {success && (
               <div className={`mb-6 rounded-xl p-4 ${
                 isDarkMode ? 'bg-green-900/30 border border-green-800' : 'bg-green-50 border border-green-200'
@@ -1009,77 +1116,60 @@ export const BuyTicketsPage = () => {
                     </div>
                   </div>
                   
-                  {/* Currency Selection for Mobile Money */}
+                  {/* Phone Number Input for Mobile Money */}
                   {paymentMethod === 'mobile_money' && (
                     <div className="mt-4 pt-4 border-t border-gray-600/30" onClick={(e) => e.stopPropagation()}>
-                      {/* Phone Number Input */}
-                      <div className="mb-4">
-                        <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Numéro Mobile Money <span className="text-xs text-gray-500">(Votre portefeuille)</span>
-                        </label>
-                        <div className="flex items-stretch">
-                          <span className={`flex items-center px-3 py-2.5 rounded-l-lg font-medium border ${
-                            isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-100 text-gray-500 border-gray-300'
-                          }`}>
-                            +243
-                          </span>
-                          <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                            placeholder="822156182"
-                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-r-lg border-t border-r border-b focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              isDarkMode
-                                ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500'
-                                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                            }`}
-                          />
-                        </div>
-                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange)
-                        </p>
-                      </div>
-                      
-                      <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Choisir la devise de paiement:
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentCurrency('CDF')}
-                          className={`px-4 py-3 rounded-lg font-semibold transition-all ${
-                            paymentCurrency === 'CDF'
-                              ? 'bg-orange-500 text-white'
-                              : isDarkMode
-                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Numéro Mobile Money
+                      </label>
+                      <div className="flex items-stretch">
+                        <span className={`flex items-center px-3 py-2.5 rounded-l-lg font-medium border ${
+                          isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-100 text-gray-500 border-gray-300'
+                        }`}>
+                          +243
+                        </span>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                          placeholder="822156182"
+                          className={`flex-1 min-w-0 px-3 py-2.5 rounded-r-lg border-t border-r border-b focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            isDarkMode
+                              ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                           }`}
-                        >
-                          <span className="block text-lg">FC</span>
-                          <span className="block text-xs opacity-75">(Franc Congolais)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentCurrency('USD')}
-                          className={`px-4 py-3 rounded-lg font-semibold transition-all ${
-                            paymentCurrency === 'USD'
-                              ? 'bg-green-500 text-white'
-                              : isDarkMode
-                                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          <span className="block text-lg">$</span>
-                          <span className="block text-xs opacity-75">(Dollar USD)</span>
-                        </button>
+                        />
                       </div>
-                      <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Montant: {formatPaymentAmount(finalPrice)}
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange)
                       </p>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Bouton Ajouter au compositeur (seulement en mode manuel) */}
+              {selectionMode === 'manual' && selectedNumbers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    selectedNumbers.forEach(num => addToComposer(num));
+                    setSelectedNumbers([]);
+                  }}
+                  className={`w-full py-3 px-4 rounded-xl font-medium transition-all border-2 border-dashed ${
+                    isDarkMode
+                      ? 'border-purple-600 text-purple-400 hover:bg-purple-900/30'
+                      : 'border-purple-400 text-purple-600 hover:bg-purple-50'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Garder dans le compositeur ({selectedNumbers.length} ticket{selectedNumbers.length > 1 ? 's' : ''})
+                  </span>
+                </button>
+              )}
 
               {/* Action Button */}
               <button
@@ -1107,9 +1197,18 @@ export const BuyTicketsPage = () => {
                 ) : paymentMethod === 'wallet' ? (
                   `Payer avec mon solde (${formatCurrencyCDF(finalPrice * 2500)})`
                 ) : (
-                  `Payer via Mobile Money (${formatPaymentAmount(totalPrice)})`
+                  `Payer ${formatCurrency(finalPrice)} via Mobile Money`
                 )}
               </button>
+
+              {/* Message d'erreur - sous le bouton pour plus de visibilité */}
+              {error && (
+                <div className={`mt-4 rounded-xl p-4 ${
+                  isDarkMode ? 'bg-red-900/30 border border-red-800' : 'bg-red-50 border border-red-200'
+                }`}>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}>{error}</p>
+                </div>
+              )}
             </form>
 
             {/* Info Footer */}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon, HomeIcon } from './Icons';
+import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon } from './Icons';
 import { LogoKolo } from './LogoKolo';
 
 export const AdminLayout = ({ children }) => {
@@ -70,16 +70,6 @@ export const AdminLayout = ({ children }) => {
               </Link>
             );
           })}
-          
-          {/* Back to home link */}
-          <Link
-            to="/"
-            onClick={handleNavClick}
-            className="flex items-center space-x-2 px-3 py-2 lg:py-2.5 rounded-lg transition-all text-sm text-slate-300 hover:bg-slate-700 hover:text-white mt-4 border-t border-slate-700 pt-4"
-          >
-            <HomeIcon className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
-            <span className="font-medium">Retour au site</span>
-          </Link>
         </nav>
       </aside>
 

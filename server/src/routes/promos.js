@@ -160,7 +160,6 @@ router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
         used_count: parseInt(row.used_count) || 0
       }))
     });
-    });
   } catch (error) {
     console.error('List promo codes error:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
