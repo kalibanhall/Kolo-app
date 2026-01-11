@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 16px;
+  }
+  
+  /* Smaller base font on mobile */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+  }
+  
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -17,7 +28,7 @@
 
 @layer components {
   .btn {
-    @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-offset-2 transform hover:scale-105 shadow-lg;
+    @apply px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-offset-2 transform hover:scale-105 shadow-lg text-sm sm:text-base;
   }
   
   .btn-primary {

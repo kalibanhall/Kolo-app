@@ -8,71 +8,56 @@ const Footer = () => {
 
   return (
     <footer className="bg-gray-900 text-gray-300">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
           {/* Logo et Description */}
-          <div>
-            <div className="mb-4">
-              <LogoKoloFull size="medium" darkMode={true} />
+          <div className="col-span-2 md:col-span-1">
+            <div className="mb-2 sm:mb-4">
+              <LogoKoloFull size="small" darkMode={true} />
             </div>
-            <p className="text-sm text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-400">
               Plateforme sécurisée de tombola en ligne
             </p>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation - Compact */}
           <div>
-            <ul className="space-y-2">
+            <ul className="space-y-1 sm:space-y-2">
               <li>
-                <Link to="/" className="text-sm hover:text-white transition">
+                <Link to="/" className="text-xs sm:text-sm hover:text-white transition">
                   Accueil
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="text-sm hover:text-white transition">
+                <Link to="/about" className="text-xs sm:text-sm hover:text-white transition">
                   À propos
                 </Link>
               </li>
               <li>
-                <Link to="/vision" className="text-sm hover:text-white transition">
-                  Notre Vision
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-sm hover:text-white transition">
+                <Link to="/contact" className="text-xs sm:text-sm hover:text-white transition">
                   Contact
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" className="text-sm hover:text-white transition">
-                  S'inscrire
-                </Link>
-              </li>
-              <li>
-                <Link to="/login" className="text-sm hover:text-white transition">
-                  Se connecter
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact - Compact */}
           <div>
-            <div className="space-y-2">
-              <p className="text-sm flex items-center">
-                <EmailIcon className="w-4 h-4 mr-2" />
-                <a href="mailto:contact@kolo.cd" className="hover:text-white transition">
+            <div className="space-y-1 sm:space-y-2">
+              <p className="text-xs sm:text-sm flex items-center">
+                <EmailIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <a href="mailto:contact@kolo.cd" className="hover:text-white transition truncate">
                   contact@kolo.cd
                 </a>
               </p>
-              <p className="text-sm flex items-center">
-                <PhoneIcon className="w-4 h-4 mr-2" />
+              <p className="text-xs sm:text-sm flex items-center">
+                <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                 <a href="tel:+243841209627" className="hover:text-white transition">
                   +243 841 209 627
                 </a>
               </p>
-              <p className="text-sm flex items-center">
-                <LocationIcon className="w-4 h-4 mr-2" />
+              <p className="text-xs sm:text-sm flex items-center">
+                <LocationIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                 Kinshasa, RDC
               </p>
             </div>
@@ -80,12 +65,9 @@ const Footer = () => {
         </div>
 
         {/* Bottom */}
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-          <p className="text-sm text-gray-400">
-            © {currentYear} KOLO - Plateforme sécurisée de tombola en ligne
-          </p>
-          <p className="text-xs text-gray-500 mt-2">
-            Tous droits réservés
+        <div className="border-t border-gray-800 mt-4 sm:mt-8 pt-4 sm:pt-8 text-center">
+          <p className="text-xs sm:text-sm text-gray-400">
+            © {currentYear} KOLO - Tombola en ligne
           </p>
         </div>
       </div>

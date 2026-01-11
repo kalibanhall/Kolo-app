@@ -62,8 +62,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Session timeout - déconnexion après 30 minutes d'inactivité
-  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+  // Session timeout - déconnexion après 7 minutes d'inactivité
+  const SESSION_TIMEOUT = 7 * 60 * 1000; // 7 minutes
   const lastActivityRef = useRef(Date.now());
 
   const updateActivity = useCallback(() => {
@@ -85,18 +85,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuth(true);
     
-    // Vérifier la session périodiquement (toutes les 5 minutes)
+    // Vérifier le timeout de session toutes les 30 secondes (sans actualisation auto des données)
     const interval = setInterval(() => {
       if (getToken()) {
-        checkAuth();
         checkSessionTimeout();
       }
-    }, 5 * 60 * 1000);
+    }, 30 * 1000);
     
     // Vérifier la session quand la fenêtre reprend le focus
     const handleFocus = () => {
       if (getToken()) {
-        checkAuth();
         checkSessionTimeout();
       }
     };
