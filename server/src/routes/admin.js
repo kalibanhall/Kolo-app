@@ -949,6 +949,7 @@ router.get('/winners', async (req, res) => {
         t.created_at as win_date,
         u.id as user_id,
         u.name,
+        u.name as full_name,
         u.email,
         u.phone,
         u.address_line1 as address,
@@ -1334,6 +1335,232 @@ router.get('/transactions', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// Sync transaction with PayDRC - check real status from payment gateway
+router.post('/transactions/:id/sync', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get purchase info first
+    const purchaseResult = await query(
+      'SELECT * FROM purchases WHERE id = $1',
+      [id]
+    );
+
+    if (purchaseResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found'
+      });
+    }
+
+    const purchase = purchaseResult.rows[0];
+
+    // Check if we have a PayDRC transaction ID
+    if (!purchase.transaction_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'No PayDRC transaction ID found for this purchase'
+      });
+    }
+
+    // Import PayDRC service
+    const { checkTransactionStatus } = require('../services/paydrc');
+    
+    // Check status with PayDRC
+    const paydrcStatus = await checkTransactionStatus(purchase.transaction_id);
+    
+    console.log('PayDRC sync result for transaction', id, ':', paydrcStatus);
+
+    if (!paydrcStatus.success && !paydrcStatus.found) {
+      return res.json({
+        success: true,
+        synced: false,
+        message: 'Could not verify transaction with PayDRC',
+        paydrc_response: paydrcStatus
+      });
+    }
+
+    // Map PayDRC status to our status
+    let newStatus = purchase.payment_status;
+    if (paydrcStatus.transStatus) {
+      const statusMap = {
+        'P': 'pending',    // Pending
+        'S': 'completed',  // Success
+        'F': 'failed',     // Failed
+        'C': 'failed',     // Cancelled
+        'R': 'failed',     // Rejected
+      };
+      newStatus = statusMap[paydrcStatus.transStatus] || purchase.payment_status;
+    }
+
+    // Update if status changed
+    if (newStatus !== purchase.payment_status) {
+      await query(
+        `UPDATE purchases 
+         SET payment_status = $1, 
+             updated_at = NOW(),
+             payment_reference = COALESCE(payment_reference, $2)
+         WHERE id = $3`,
+        [newStatus, paydrcStatus.transactionId, id]
+      );
+
+      // Log the action
+      await query(
+        `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          req.user.id,
+          'SYNC_TRANSACTION',
+          'purchase',
+          id,
+          JSON.stringify({ 
+            old_status: purchase.payment_status, 
+            new_status: newStatus,
+            paydrc_status: paydrcStatus.transStatus,
+            paydrc_transaction_id: paydrcStatus.transactionId
+          })
+        ]
+      );
+    }
+
+    res.json({
+      success: true,
+      synced: true,
+      transaction: {
+        id: purchase.id,
+        old_status: purchase.payment_status,
+        new_status: newStatus,
+        status_changed: newStatus !== purchase.payment_status
+      },
+      paydrc_response: {
+        status: paydrcStatus.transStatus,
+        description: paydrcStatus.transStatusDescription,
+        transaction_id: paydrcStatus.transactionId,
+        amount: paydrcStatus.amount,
+        currency: paydrcStatus.currency,
+        method: paydrcStatus.method,
+        updated_at: paydrcStatus.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Sync transaction error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Bulk sync all pending transactions with PayDRC
+router.post('/transactions/sync-all', async (req, res) => {
+  try {
+    // Get all pending transactions with PayDRC transaction IDs
+    const pendingResult = await query(
+      `SELECT id, transaction_id, payment_status 
+       FROM purchases 
+       WHERE payment_status = 'pending' 
+         AND transaction_id IS NOT NULL
+       LIMIT 50`
+    );
+
+    if (pendingResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No pending transactions to sync',
+        synced: 0
+      });
+    }
+
+    const { checkTransactionStatus } = require('../services/paydrc');
+    const results = {
+      total: pendingResult.rows.length,
+      synced: 0,
+      updated: 0,
+      errors: 0,
+      details: []
+    };
+
+    for (const purchase of pendingResult.rows) {
+      try {
+        const paydrcStatus = await checkTransactionStatus(purchase.transaction_id);
+        
+        let detail = {
+          id: purchase.id,
+          transaction_id: purchase.transaction_id,
+          synced: false,
+          status_changed: false
+        };
+
+        if (paydrcStatus.success || paydrcStatus.found) {
+          results.synced++;
+          detail.synced = true;
+          detail.paydrc_status = paydrcStatus.transStatus;
+
+          // Map status
+          const statusMap = {
+            'P': 'pending',
+            'S': 'completed',
+            'F': 'failed',
+            'C': 'failed',
+            'R': 'failed',
+          };
+          const newStatus = statusMap[paydrcStatus.transStatus] || purchase.payment_status;
+
+          if (newStatus !== purchase.payment_status) {
+            await query(
+              'UPDATE purchases SET payment_status = $1, updated_at = NOW() WHERE id = $2',
+              [newStatus, purchase.id]
+            );
+            results.updated++;
+            detail.status_changed = true;
+            detail.old_status = purchase.payment_status;
+            detail.new_status = newStatus;
+          }
+        }
+
+        results.details.push(detail);
+
+        // Small delay to avoid overwhelming PayDRC API
+        await new Promise(r => setTimeout(r, 200));
+      } catch (err) {
+        results.errors++;
+        results.details.push({
+          id: purchase.id,
+          error: err.message
+        });
+      }
+    }
+
+    // Log bulk sync action
+    await query(
+      `INSERT INTO admin_logs (admin_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user.id,
+        'BULK_SYNC_TRANSACTIONS',
+        'purchase',
+        null,
+        JSON.stringify(results)
+      ]
+    );
+
+    res.json({
+      success: true,
+      ...results
+    });
+
+  } catch (error) {
+    console.error('Bulk sync transactions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
     });
   }
 });

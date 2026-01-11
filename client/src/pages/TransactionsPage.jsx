@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
-import api from '../services/api';
+import { adminAPI } from '../services/api';
+
+// Helper pour faire des requêtes HTTP directes
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getToken = () => localStorage.getItem('kolo_token');
+
+const apiRequest = async (endpoint, options = {}) => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Erreur serveur');
+  return { data };
+};
 
 const TransactionsPage = () => {
   const [transactions, setTransactions] = useState([]);
@@ -8,6 +25,8 @@ const TransactionsPage = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState(null);
+  const [syncingId, setSyncingId] = useState(null);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   useEffect(() => {
     fetchTransactions();
@@ -16,9 +35,28 @@ const TransactionsPage = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/transactions');
+      const response = await apiRequest('/admin/transactions');
       if (response.data.success) {
-        setTransactions(response.data.transactions || []);
+        // Mapper les champs de l'API vers le format attendu par le frontend
+        const mappedTransactions = (response.data.data?.transactions || response.data.transactions || []).map(t => ({
+          id: t.transaction_id,
+          transaction_id: t.external_transaction_id || `TXN-${t.transaction_id}`,
+          user_id: t.user_id,
+          user_name: t.user_name,
+          user_email: t.user_email,
+          phone_number: t.user_phone,
+          campaign_id: t.campaign_id,
+          campaign_name: t.campaign_title,
+          ticket_count: t.ticket_count,
+          quantity: t.ticket_count,
+          amount: parseFloat(t.total_amount) || 0,
+          status: t.payment_status || 'pending',
+          payment_method: t.payment_method,
+          tickets: t.tickets || [],
+          created_at: t.created_at,
+          updated_at: t.updated_at
+        }));
+        setTransactions(mappedTransactions);
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -30,8 +68,9 @@ const TransactionsPage = () => {
   const updateTransactionStatus = async (transactionId, newStatus) => {
     try {
       setProcessingId(transactionId);
-      const response = await api.patch(`/admin/transactions/${transactionId}`, {
-        status: newStatus
+      const response = await apiRequest(`/admin/transactions/${transactionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus })
       });
       if (response.data.success) {
         // Refresh transactions
@@ -92,6 +131,50 @@ const TransactionsPage = () => {
     totalAmount: transactions.filter(t => t.status === 'completed').reduce((sum, t) => sum + (t.amount || 0), 0)
   };
 
+  // Sync single transaction with PayDRC
+  const syncTransaction = async (transactionId) => {
+    try {
+      setSyncingId(transactionId);
+      const response = await apiRequest(`/admin/transactions/${transactionId}/sync`, {
+        method: 'POST'
+      });
+      if (response.data.success) {
+        await fetchTransactions();
+        if (response.data.transaction?.status_changed) {
+          alert(`Transaction synchronisée ! Statut mis à jour: ${response.data.transaction.new_status}`);
+        } else {
+          alert('Transaction synchronisée - aucun changement de statut');
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing transaction:', error);
+      alert('Erreur lors de la synchronisation');
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  // Sync all pending transactions with PayDRC
+  const syncAllTransactions = async () => {
+    if (!window.confirm('Synchroniser toutes les transactions en attente avec PayDRC ?')) return;
+    
+    try {
+      setSyncingAll(true);
+      const response = await apiRequest('/admin/transactions/sync-all', {
+        method: 'POST'
+      });
+      if (response.data.success) {
+        await fetchTransactions();
+        alert(`Synchronisation terminée !\n${response.data.synced} synchronisées\n${response.data.updated} mises à jour\n${response.data.errors} erreurs`);
+      }
+    } catch (error) {
+      console.error('Error syncing all transactions:', error);
+      alert('Erreur lors de la synchronisation globale');
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -101,15 +184,43 @@ const TransactionsPage = () => {
             <h1 className="text-2xl font-bold text-gray-900">Gestion des Transactions</h1>
             <p className="text-gray-600">Gérez les paiements et validez les transactions</p>
           </div>
-          <button 
-            onClick={fetchTransactions}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Actualiser
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={syncAllTransactions}
+              disabled={syncingAll || stats.pending === 0}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                syncingAll || stats.pending === 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
+              }`}
+            >
+              {syncingAll ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Sync en cours...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Sync PayDRC
+                </>
+              )}
+            </button>
+            <button 
+              onClick={fetchTransactions}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Actualiser
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -237,7 +348,15 @@ const TransactionsPage = () => {
                       </td>
                       <td className="p-4">
                         {transaction.status === 'pending' && (
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => syncTransaction(transaction.id)}
+                              disabled={syncingId === transaction.id}
+                              className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                              title="Synchroniser avec PayDRC"
+                            >
+                              {syncingId === transaction.id ? '...' : 'Sync'}
+                            </button>
                             <button
                               onClick={() => updateTransactionStatus(transaction.id, 'completed')}
                               disabled={processingId === transaction.id}
