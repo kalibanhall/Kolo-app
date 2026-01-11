@@ -48,18 +48,6 @@ export const HomePage = () => {
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-6">
             Une <strong>opportunité réelle</strong> de devenir propriétaire et de bâtir un nouvel avenir.
           </p>
-          
-          {!isAuthenticated() && (
-            <Link
-              to="/register"
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold px-6 sm:px-8 py-2.5 sm:py-3 rounded-full text-sm sm:text-base transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>Commencer maintenant</span>
-            </Link>
-          )}
         </div>
       </section>
 

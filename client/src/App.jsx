@@ -40,6 +40,7 @@ const WalletPage = lazy(() => import('./pages/WalletPage'));
 const UserTransactionsPage = lazy(() => import('./pages/UserTransactionsPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PaymentPendingPage = lazy(() => import('./pages/PaymentPendingPage'));
+const AdminPromosPage = lazy(() => import('./pages/AdminPromosPage'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -227,6 +228,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <PrizeDeliveryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/promos"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminPromosPage />
               </ProtectedRoute>
             }
           />

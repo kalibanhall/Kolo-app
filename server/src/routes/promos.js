@@ -141,7 +141,9 @@ router.post('/calculate', verifyToken, [
 router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await query(
-      `SELECT pc.*, u.name as created_by_name
+      `SELECT pc.*, 
+              u.name as created_by_name,
+              COALESCE(pc.current_uses, pc.used_count, 0) as used_count
        FROM promo_codes pc
        LEFT JOIN users u ON pc.created_by = u.id
        ORDER BY pc.created_at DESC`
@@ -151,10 +153,13 @@ router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
       success: true,
       data: result.rows.map(row => ({
         ...row,
+        discount_percent: row.discount_type === 'percentage' ? parseFloat(row.discount_value) : null,
         discount_value: parseFloat(row.discount_value),
         min_purchase: parseFloat(row.min_purchase),
-        max_discount: row.max_discount ? parseFloat(row.max_discount) : null
+        max_discount: row.max_discount ? parseFloat(row.max_discount) : null,
+        used_count: parseInt(row.used_count) || 0
       }))
+    });
     });
   } catch (error) {
     console.error('List promo codes error:', error);
@@ -165,13 +170,15 @@ router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
 // Create promo code (admin)
 router.post('/admin', verifyToken, verifyAdmin, [
   body('code').notEmpty().trim().toUpperCase().isLength({ min: 3, max: 50 }),
+  body('influencer_name').optional().trim(),
   body('description').optional().trim(),
-  body('discount_type').isIn(['percentage', 'fixed']),
-  body('discount_value').isFloat({ min: 0 }),
+  body('discount_type').optional().isIn(['percentage', 'fixed']),
+  body('discount_value').optional().isFloat({ min: 0 }),
+  body('discount_percent').optional().isInt({ min: 1, max: 100 }),
   body('min_purchase').optional().isFloat({ min: 0 }),
   body('max_discount').optional().isFloat({ min: 0 }),
   body('max_uses').optional().isInt({ min: 1 }),
-  body('expires_at').optional().isISO8601()
+  body('expires_at').optional()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -184,8 +191,8 @@ router.post('/admin', verifyToken, verifyAdmin, [
     }
 
     const { 
-      code, description, discount_type, discount_value, 
-      min_purchase, max_discount, max_uses, expires_at 
+      code, influencer_name, description, discount_type, discount_value, 
+      discount_percent, min_purchase, max_discount, max_uses, expires_at 
     } = req.body;
 
     // Check if code already exists
@@ -197,16 +204,21 @@ router.post('/admin', verifyToken, verifyAdmin, [
       });
     }
 
+    // Use discount_percent if provided, otherwise use discount_value
+    const finalDiscountType = discount_percent ? 'percentage' : (discount_type || 'percentage');
+    const finalDiscountValue = discount_percent || discount_value || 10;
+
     const result = await query(
       `INSERT INTO promo_codes 
-       (code, description, discount_type, discount_value, min_purchase, max_discount, max_uses, expires_at, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (code, influencer_name, description, discount_type, discount_value, min_purchase, max_discount, max_uses, expires_at, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         code, 
-        description || null, 
-        discount_type, 
-        discount_value, 
+        influencer_name || null,
+        description || `Code promo pour ${influencer_name || 'influenceur'}`,
+        finalDiscountType,
+        finalDiscountValue,
         min_purchase || 0, 
         max_discount || null, 
         max_uses || null, 

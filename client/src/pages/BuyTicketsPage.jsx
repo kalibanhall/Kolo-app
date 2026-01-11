@@ -1017,9 +1017,9 @@ export const BuyTicketsPage = () => {
                         <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           Numéro Mobile Money <span className="text-xs text-gray-500">(Votre portefeuille)</span>
                         </label>
-                        <div className="flex">
-                          <span className={`px-3 py-2 rounded-l-lg font-medium ${
-                            isDarkMode ? 'bg-gray-700 text-gray-400 border border-gray-600' : 'bg-gray-100 text-gray-500 border border-gray-300'
+                        <div className="flex items-stretch">
+                          <span className={`flex items-center px-3 py-2.5 rounded-l-lg font-medium border ${
+                            isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-gray-100 text-gray-500 border-gray-300'
                           }`}>
                             +243
                           </span>
@@ -1027,8 +1027,8 @@ export const BuyTicketsPage = () => {
                             type="tel"
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                            placeholder="972148867"
-                            className={`flex-1 px-3 py-2 rounded-r-lg border-t border-r border-b ${
+                            placeholder="822156182"
+                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-r-lg border-t border-r border-b focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               isDarkMode
                                 ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500'
                                 : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
@@ -1074,8 +1074,7 @@ export const BuyTicketsPage = () => {
                         </button>
                       </div>
                       <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Montant: {formatPaymentAmount(totalPrice)}
-                        {paymentCurrency === 'CDF' && <span className="block">(Taux: 1$ = 2 500 FC)</span>}
+                        Montant: {formatPaymentAmount(finalPrice)}
                       </p>
                     </div>
                   )}
@@ -1183,10 +1182,7 @@ export const BuyTicketsPage = () => {
                   <div className={`pt-3 border-t flex justify-between text-lg ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total</span>
                     <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
-                      {paymentMethod === 'wallet' 
-                        ? formatCurrencyCDF(finalPrice * 2500)
-                        : formatPaymentAmount(finalPrice)
-                      }
+                      {formatCurrency(finalPrice)}
                     </span>
                   </div>
                 </div>

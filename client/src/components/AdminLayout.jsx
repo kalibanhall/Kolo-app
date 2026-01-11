@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon } from './Icons';
+import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon } from './Icons';
 import { LogoKolo } from './LogoKolo';
 
 export const AdminLayout = ({ children }) => {
@@ -16,6 +16,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/transactions', label: 'Gestion des transactions', Icon: MoneyIcon },
     { path: '/admin/draws', label: 'Gestion des Tirages', Icon: TargetIcon },
     { path: '/admin/delivery', label: 'Livraison des prix', Icon: TrophyIcon },
+    { path: '/admin/promos', label: 'Codes Promo', Icon: TicketIcon },
     { path: '/admin/logs', label: 'Journal & Sécurité', Icon: SettingsIcon },
   ];
 
