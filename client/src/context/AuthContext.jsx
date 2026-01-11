@@ -62,8 +62,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Session timeout - déconnexion après 7 minutes d'inactivité
-  const SESSION_TIMEOUT = 7 * 60 * 1000; // 7 minutes
+  // Session timeout - déconnexion après 48 heures d'inactivité
+  const SESSION_TIMEOUT = 48 * 60 * 60 * 1000; // 48 heures
   const lastActivityRef = useRef(Date.now());
 
   const updateActivity = useCallback(() => {
