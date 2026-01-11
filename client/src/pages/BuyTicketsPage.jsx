@@ -283,7 +283,7 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (ticketCount < 1 || ticketCount > 5) {
+    if (ticketCount < 1 || ticketCount > 10) {
       setError('Vous pouvez sélectionner entre 1 et 5 tickets à la fois par campagne');
       return;
     }
@@ -602,7 +602,7 @@ export const BuyTicketsPage = () => {
                       <button
                         onClick={() => {
                           // Charger les tickets du compositeur dans la sélection
-                          setTicketCount(Math.min(5, composerItems.length));
+                          setTicketCount(Math.min(10, composerItems.length));
                           setSelectionMode('manual');
                           setSelectedNumbers(composerItems.slice(0, 5));
                           setShowComposer(false);
@@ -714,9 +714,9 @@ export const BuyTicketsPage = () => {
                   <input
                     type="number"
                     value={ticketCount}
-                    onChange={(e) => setTicketCount(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+                    onChange={(e) => setTicketCount(Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
                     min="1"
-                    max="5"
+                    max="10"
                     className={`w-20 text-center px-4 py-3 rounded-xl text-2xl font-bold ${
                       isDarkMode 
                         ? 'bg-gray-700 border-gray-600 text-white' 
@@ -725,24 +725,24 @@ export const BuyTicketsPage = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => setTicketCount(prev => Math.min(5, prev + 1))}
+                    onClick={() => setTicketCount(prev => Math.min(10, prev + 1))}
                     className={`w-12 h-12 rounded-xl text-xl font-bold transition-colors ${
                       isDarkMode 
                         ? 'bg-gray-700 hover:bg-gray-600 text-white' 
                         : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                     }`}
-                    disabled={ticketCount >= 5}
+                    disabled={ticketCount >= 10}
                   >
                     +
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  {[1, 2, 3, 4, 5].map(num => (
+                  {[1, 2, 3, 5, 10].map(num => (
                     <button
                       key={num}
                       type="button"
                       onClick={() => setTicketCount(num)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                         ticketCount === num 
                           ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white' 
                           : isDarkMode
@@ -750,7 +750,7 @@ export const BuyTicketsPage = () => {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {num} ticket{num > 1 ? 's' : ''}
+                      {num}
                     </button>
                   ))}
                 </div>

@@ -5,18 +5,21 @@ import { useCart } from '../context/CartContext';
 import { LogoKoloIcon } from './LogoKolo';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
-import { CartIcon } from './Icons';
+import { TicketIcon, TrashIcon } from './Icons';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const { getItemCount } = useCart();
+  const { cart, getItemCount, removeFromCart, clearCart, verifyAvailability } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [unavailableTickets, setUnavailableTickets] = useState([]);
   
-  const cartItemCount = getItemCount();
+  const composerCount = getItemCount();
 
   // Detect scroll for navbar effect
   useEffect(() => {
@@ -31,7 +34,36 @@ const Navbar = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
     setUserMenuOpen(false);
+    setComposerOpen(false);
   }, [location.pathname]);
+
+  // Vérifier disponibilité quand on ouvre le compositeur
+  const handleComposerOpen = async () => {
+    if (!composerOpen && composerCount > 0) {
+      setVerifying(true);
+      setComposerOpen(true);
+      try {
+        const result = await verifyAvailability();
+        if (result.unavailable && result.unavailable.length > 0) {
+          setUnavailableTickets(result.unavailable);
+        } else {
+          setUnavailableTickets([]);
+        }
+      } catch (e) {
+        console.error('Error verifying:', e);
+      } finally {
+        setVerifying(false);
+      }
+    } else {
+      setComposerOpen(!composerOpen);
+    }
+  };
+
+  // Acheter les tickets du compositeur
+  const handleBuyComposer = () => {
+    setComposerOpen(false);
+    navigate('/buy');
+  };
 
   const handleLogout = () => {
     const confirmed = logout();
@@ -87,18 +119,99 @@ const Navbar = () => {
               <div className="flex items-center space-x-2">
                 <ThemeToggle compact />
                 
-                {/* Cart Icon - Always visible */}
-                <Link
-                  to="/buy"
-                  className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                >
-                  <CartIcon className="w-5 h-5" />
-                  {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                      {cartItemCount}
-                    </span>
+                {/* Composer Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={handleComposerOpen}
+                    className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                  >
+                    <TicketIcon className="w-5 h-5" />
+                    {composerCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold animate-pulse">
+                        {composerCount}
+                      </span>
+                    )}
+                  </button>
+                  
+                  {/* Composer Dropdown Content */}
+                  {composerOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setComposerOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl z-20 border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-bold">Compositeur</h3>
+                            <span className="text-sm bg-white/20 px-2 py-0.5 rounded-full">
+                              {composerCount} ticket{composerCount > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {verifying ? (
+                          <div className="p-4 text-center">
+                            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <p className="text-sm text-gray-500 mt-2">Vérification...</p>
+                          </div>
+                        ) : composerCount === 0 ? (
+                          <div className="p-6 text-center">
+                            <TicketIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Aucun ticket sélectionné</p>
+                            <Link
+                              to="/buy"
+                              onClick={() => setComposerOpen(false)}
+                              className="text-purple-600 dark:text-purple-400 text-sm font-medium hover:underline mt-2 block"
+                            >
+                              Sélectionner des tickets →
+                            </Link>
+                          </div>
+                        ) : (
+                          <>
+                            {unavailableTickets.length > 0 && (
+                              <div className="px-3 py-2 bg-red-50 dark:bg-red-900/30 border-b border-red-100 dark:border-red-800">
+                                <p className="text-xs text-red-600 dark:text-red-400">
+                                  ⚠️ {unavailableTickets.length} ticket(s) retiré(s) (déjà vendus)
+                                </p>
+                              </div>
+                            )}
+                            <div className="max-h-48 overflow-y-auto p-2">
+                              {cart.items.map((ticket, index) => (
+                                <div key={ticket} className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg group">
+                                  <span className="text-sm font-mono text-gray-700 dark:text-gray-300">{ticket}</span>
+                                  <button
+                                    onClick={() => removeFromCart(ticket)}
+                                    className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="p-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-500 dark:text-gray-400">Total</span>
+                                <span className="font-bold text-gray-900 dark:text-white">
+                                  ${(cart.campaign?.ticket_price || 2.99) * composerCount}
+                                </span>
+                              </div>
+                              <button
+                                onClick={handleBuyComposer}
+                                className="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition text-sm"
+                              >
+                                Acheter ces tickets
+                              </button>
+                              <button
+                                onClick={() => { clearCart(); setComposerOpen(false); }}
+                                className="w-full py-1.5 text-gray-500 hover:text-red-500 text-xs transition"
+                              >
+                                Vider le compositeur
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </>
                   )}
-                </Link>
+                </div>
                 
                 <NotificationBell compact />
                 
@@ -196,19 +309,19 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center space-x-1">
             <ThemeToggle compact />
-            {/* Mobile Cart Icon */}
+            {/* Mobile Composer Icon */}
             {user && (
-              <Link
-                to="/buy"
-                className="relative p-1.5 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+              <button
+                onClick={handleComposerOpen}
+                className="relative p-1.5 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
               >
-                <CartIcon className="w-4 h-4" />
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                    {cartItemCount}
+                <TicketIcon className="w-4 h-4" />
+                {composerCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-purple-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">
+                    {composerCount}
                   </span>
                 )}
-              </Link>
+              </button>
             )}
             {user && <NotificationBell compact />}
             <button
@@ -229,6 +342,89 @@ const Navbar = () => {
               </div>
             </button>
           </div>
+
+          {/* Mobile Composer Dropdown - Positioned under navbar */}
+          {composerOpen && (
+            <>
+              <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setComposerOpen(false)} />
+              <div className="md:hidden fixed left-2 right-2 top-14 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[70vh]">
+                <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold">Compositeur</h3>
+                    <button onClick={() => setComposerOpen(false)} className="p-1 hover:bg-white/20 rounded">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {verifying ? (
+                  <div className="p-6 text-center">
+                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Vérification de disponibilité...</p>
+                  </div>
+                ) : composerCount === 0 ? (
+                  <div className="p-6 text-center">
+                    <TicketIcon className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 dark:text-gray-400">Aucun ticket sélectionné</p>
+                    <Link
+                      to="/buy"
+                      onClick={() => setComposerOpen(false)}
+                      className="inline-block mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm"
+                    >
+                      Sélectionner des tickets
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    {unavailableTickets.length > 0 && (
+                      <div className="px-4 py-2 bg-red-50 dark:bg-red-900/30 border-b border-red-100 dark:border-red-800">
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          ⚠️ {unavailableTickets.length} ticket(s) retiré(s) car déjà vendus
+                        </p>
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto p-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {cart.items.map((ticket) => (
+                          <div key={ticket} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <span className="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">{ticket}</span>
+                            <button
+                              onClick={() => removeFromCart(ticket)}
+                              className="p-1 text-gray-400 hover:text-red-500 transition"
+                            >
+                              <TrashIcon className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">{composerCount} ticket(s)</span>
+                        <span className="font-bold text-gray-900 dark:text-white">
+                          ${((cart.campaign?.ticket_price || 2.99) * composerCount).toFixed(2)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleBuyComposer}
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl transition"
+                      >
+                        Acheter ces tickets
+                      </button>
+                      <button
+                        onClick={() => { clearCart(); setComposerOpen(false); }}
+                        className="w-full py-2 text-gray-500 hover:text-red-500 text-sm transition"
+                      >
+                        Vider le compositeur
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
