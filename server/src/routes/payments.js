@@ -657,7 +657,7 @@ router.post(
 
       // Check campaign exists and is open
       const campaignResult = await query(
-        `SELECT id, title, status, total_tickets, sold_tickets, ticket_price, currency
+        `SELECT id, title, status, total_tickets, sold_tickets, ticket_price
        FROM campaigns WHERE id = $1`,
         [campaign_id]
       );
@@ -670,6 +670,7 @@ router.post(
       }
 
       const campaign = campaignResult.rows[0];
+      const currency = 'CDF'; // Default currency
 
       if (campaign.status !== 'open') {
         return res.status(400).json({
@@ -687,7 +688,7 @@ router.post(
       }
 
       const total_amount = campaign.ticket_price * ticket_count;
-      const currency = campaign.currency || 'CDF';
+      // currency is already defined above as 'CDF'
 
       // Normalize phone and detect provider
       const normalizedPhone = paydrc.normalizePhoneNumber(phone_number);
