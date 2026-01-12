@@ -5,15 +5,42 @@ const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { logAdminAction } = require('../utils/logger');
 const router = express.Router();
 
-// Get current active campaign
+// Get all active campaigns (for slider on homepage)
+router.get('/active', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, title, description, status, total_tickets, sold_tickets, 
+              ticket_price, main_prize, secondary_prizes, third_prize,
+              image_url, start_date, end_date, draw_date, display_order, is_featured
+       FROM campaigns 
+       WHERE status IN ('open', 'active')
+       ORDER BY is_featured DESC, display_order ASC, created_at DESC`
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('Get active campaigns error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get current active campaign (first one for backward compatibility)
 router.get('/current', async (req, res) => {
   try {
     const result = await query(
       `SELECT id, title, description, status, total_tickets, sold_tickets, 
-              ticket_price, main_prize, image_url, start_date, end_date, draw_date
+              ticket_price, main_prize, secondary_prizes, third_prize,
+              image_url, start_date, end_date, draw_date
        FROM campaigns 
        WHERE status IN ('open', 'active')
-       ORDER BY created_at DESC 
+       ORDER BY is_featured DESC, display_order ASC, created_at DESC 
        LIMIT 1`
     );
     
@@ -175,11 +202,14 @@ router.post('/', verifyToken, verifyAdmin, [
   body('ticket_price').isFloat({ min: 0.01 }),
   body('main_prize').notEmpty().trim(),
   body('start_date').isISO8601(),
-  body('end_date').isISO8601(),
+  body('end_date').optional({ nullable: true }).isISO8601(),
   body('status').optional().isIn(['draft', 'open']),
   body('draw_date').optional({ nullable: true }).isISO8601(),
-  body('secondary_prizes').optional().trim(),
-  body('rules').optional().trim()
+  body('secondary_prizes').optional({ nullable: true }).trim(),
+  body('third_prize').optional({ nullable: true }).trim(),
+  body('rules').optional({ nullable: true }).trim(),
+  body('display_order').optional().isInt(),
+  body('is_featured').optional().isBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -194,20 +224,22 @@ router.post('/', verifyToken, verifyAdmin, [
     const { 
       title, description, total_tickets, ticket_price, 
       main_prize, image_url, start_date, end_date,
-      status, draw_date, secondary_prizes, rules
+      status, draw_date, secondary_prizes, third_prize, rules,
+      display_order, is_featured
     } = req.body;
 
     const result = await query(
       `INSERT INTO campaigns (
         title, description, status, total_tickets, ticket_price, 
         main_prize, image_url, start_date, end_date, draw_date,
-        secondary_prizes, rules, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        secondary_prizes, third_prize, rules, display_order, is_featured, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         title, description, status || 'draft', total_tickets, ticket_price,
-        main_prize, image_url || null, start_date, end_date, draw_date || null,
-        secondary_prizes || null, rules || null, req.user.id
+        main_prize, image_url || null, start_date, end_date || null, draw_date || null,
+        secondary_prizes || null, third_prize || null, rules || null, 
+        display_order || 0, is_featured || false, req.user.id
       ]
     );
 

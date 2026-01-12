@@ -112,9 +112,14 @@ export const authAPI = {
 // ======================
 
 export const campaignsAPI = {
-  // Obtenir la campagne active
+  // Obtenir la campagne active (première)
   getCurrent: async () => {
     return await request('/campaigns/current', { includeAuth: false });
+  },
+
+  // Obtenir toutes les campagnes actives (pour slider)
+  getActive: async () => {
+    return await request('/campaigns/active', { includeAuth: false });
   },
 
   // Obtenir une campagne par ID
