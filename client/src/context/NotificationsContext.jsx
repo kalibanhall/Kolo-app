@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import api from '../services/api';
 
@@ -18,24 +18,48 @@ export const NotificationsProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Prevent multiple simultaneous requests and error loops
+  const isFetchingRef = useRef(false);
+  const errorCountRef = useRef(0);
+  const lastFetchRef = useRef(0);
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
+    
+    // Prevent concurrent requests
+    if (isFetchingRef.current) return;
+    
+    // Rate limit: minimum 5 seconds between requests
+    const now = Date.now();
+    if (now - lastFetchRef.current < 5000) return;
+    
+    // Stop fetching after 5 consecutive errors (will reset on success)
+    if (errorCountRef.current >= 5) {
+      console.warn('Notifications: Too many errors, stopping polling');
+      return;
+    }
 
     try {
+      isFetchingRef.current = true;
+      lastFetchRef.current = now;
       setLoading(true);
       setError(null);
+      
       const response = await api.notifications.getAll({ limit: 50 });
       if (response.success) {
         setNotifications(response.data.notifications || []);
         setUnreadCount(response.data.unread_count || 0);
+        errorCountRef.current = 0; // Reset error count on success
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
       setError(err.message);
+      errorCountRef.current += 1;
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [user]);
 
