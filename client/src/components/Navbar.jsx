@@ -140,7 +140,7 @@ const Navbar = () => {
                       <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl z-20 border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-bold">Compositeur</h3>
+                            <h3 className="font-bold">Panier</h3>
                             <span className="text-sm bg-white/20 px-2 py-0.5 rounded-full">
                               {composerCount} ticket{composerCount > 1 ? 's' : ''}
                             </span>
@@ -203,7 +203,7 @@ const Navbar = () => {
                                 onClick={() => { clearCart(); setComposerOpen(false); }}
                                 className="w-full py-1.5 text-gray-500 hover:text-red-500 text-xs transition"
                               >
-                                Vider le compositeur
+                                Vider le panier
                               </button>
                             </div>
                           </>
@@ -350,7 +350,7 @@ const Navbar = () => {
               <div className="md:hidden fixed left-2 right-2 top-14 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[70vh]">
                 <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold">Compositeur</h3>
+                    <h3 className="font-bold">Panier</h3>
                     <button onClick={() => setComposerOpen(false)} className="p-1 hover:bg-white/20 rounded">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -417,7 +417,7 @@ const Navbar = () => {
                         onClick={() => { clearCart(); setComposerOpen(false); }}
                         className="w-full py-2 text-gray-500 hover:text-red-500 text-sm transition"
                       >
-                        Vider le compositeur
+                        Vider le panier
                       </button>
                     </div>
                   </>

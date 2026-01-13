@@ -198,15 +198,28 @@ export const HomePage = () => {
                     )}
                   </div>
 
-                  {/* Stats */}
+                  {/* Stats + Voir plus */}
                   <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-3 border border-green-200 dark:border-green-800">
                     <div className="flex items-center gap-2">
                       <TicketIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
-                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Disponibles</span>
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium">Tickets disponibles</span>
                     </div>
                     <span className="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
                       {(currentCampaign.total_tickets - currentCampaign.sold_tickets).toLocaleString('fr-FR')}
                     </span>
+                  </div>
+                  
+                  {/* Voir plus */}
+                  <div className="mt-3 text-center">
+                    <Link
+                      to={`/campaigns/${currentCampaign.id}`}
+                      className="inline-flex items-center text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition"
+                    >
+                      Voir plus de détails
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
                   </div>
                 </div>
               </div>

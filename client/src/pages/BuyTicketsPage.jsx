@@ -7,8 +7,8 @@ import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, 
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
-// Storage key for composer
-const COMPOSER_KEY = 'kolo_composer';
+// Storage key for cart
+const CART_KEY = 'kolo_cart';
 
 export const BuyTicketsPage = () => {
   const { user } = useAuth();
@@ -58,10 +58,10 @@ export const BuyTicketsPage = () => {
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [loadingNumbers, setLoadingNumbers] = useState(false);
 
-  // Charger le compositeur depuis localStorage
+  // Charger le panier depuis localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(COMPOSER_KEY);
+      const saved = localStorage.getItem(CART_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -69,16 +69,16 @@ export const BuyTicketsPage = () => {
         }
       }
     } catch (e) {
-      console.error('Error loading composer:', e);
+      console.error('Error loading cart:', e);
     }
   }, []);
 
-  // Sauvegarder le compositeur dans localStorage
+  // Sauvegarder le panier dans localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(COMPOSER_KEY, JSON.stringify(composerItems));
+      localStorage.setItem(CART_KEY, JSON.stringify(composerItems));
     } catch (e) {
-      console.error('Error saving composer:', e);
+      console.error('Error saving cart:', e);
     }
   }, [composerItems]);
 
@@ -96,11 +96,11 @@ export const BuyTicketsPage = () => {
     setUnavailableTickets(prev => prev.filter(n => n !== ticketNumber));
   }, []);
 
-  // Vider le compositeur
+  // Vider le panier
   const clearComposer = useCallback(() => {
     setComposerItems([]);
     setUnavailableTickets([]);
-    localStorage.removeItem(COMPOSER_KEY);
+    localStorage.removeItem(CART_KEY);
   }, []);
 
   // Vérifier la disponibilité des tickets du compositeur
@@ -248,15 +248,17 @@ export const BuyTicketsPage = () => {
       const response = await promosAPI.validate(promoCode);
       if (response.success) {
         const promo = response.data;
-        // Calculate the discount
-        const calcResponse = await promosAPI.calculate(promoCode, totalPrice);
-        if (calcResponse.success) {
-          setPromoDiscount({
-            ...promo,
-            discount_amount: calcResponse.data.discount,
-            final_amount: calcResponse.data.final_amount
-          });
-        }
+        // Apply fixed discount of $0.30 per ticket
+        const discountPerTicket = 0.30;
+        const totalDiscount = discountPerTicket * ticketCount;
+        const finalAmount = Math.max(0, totalPrice - totalDiscount);
+        
+        setPromoDiscount({
+          ...promo,
+          discount_per_ticket: discountPerTicket,
+          discount_amount: totalDiscount,
+          final_amount: finalAmount
+        });
       }
     } catch (err) {
       setPromoError(err.message || 'Code promo invalide');
@@ -299,9 +301,19 @@ export const BuyTicketsPage = () => {
       return;
     }
 
-    if (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9)) {
-      setError('Veuillez entrer un numéro de téléphone valide');
-      return;
+    if (paymentMethod === 'mobile_money') {
+      if (!phoneNumber || phoneNumber.length < 9) {
+        setError('Veuillez entrer un numéro de téléphone valide (9 chiffres)');
+        return;
+      }
+      
+      // Validate phone number prefix (DRC operators)
+      const prefix = phoneNumber.substring(0, 2);
+      const validPrefixes = ['81', '82', '83', '84', '85', '89', '90', '97', '99', '91'];
+      if (!validPrefixes.includes(prefix)) {
+        setError(`Numéro invalide. Préfixes acceptés: 081-083 (Vodacom), 084-085/089 (Orange), 097/099 (Airtel), 091 (Afrimoney)`);
+        return;
+      }
     }
 
     // Afficher modal de confirmation
@@ -454,7 +466,9 @@ export const BuyTicketsPage = () => {
   }
 
   const totalPrice = ticketCount * campaign.ticket_price;
-  const finalPrice = promoDiscount ? promoDiscount.final_amount : totalPrice;
+  // Code promo: $0.30 discount per ticket
+  const promoDiscountAmount = promoDiscount ? (0.30 * ticketCount) : 0;
+  const finalPrice = promoDiscount ? Math.max(0, totalPrice - promoDiscountAmount) : totalPrice;
   const availableTickets = campaign.total_tickets - campaign.sold_tickets;
 
   return (
@@ -526,7 +540,7 @@ export const BuyTicketsPage = () => {
                 }`}>
                   <div className="flex items-center gap-2">
                     <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      Mon Compositeur
+                      Mon Panier
                     </h4>
                     {verifyingComposer && (
                       <span className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -696,7 +710,7 @@ export const BuyTicketsPage = () => {
               {/* Ticket Count */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Nombre de tickets (max 5 par sélection)
+                  Nombre de tickets
                 </label>
                 <div className="flex items-center gap-4">
                   <button
@@ -925,27 +939,10 @@ export const BuyTicketsPage = () => {
               <div className={`rounded-xl p-6 space-y-3 ${
                 isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50'
               }`}>
-                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  <span>Prix unitaire</span>
-                  <span className="font-semibold">{formatCurrency(campaign.ticket_price)}</span>
-                </div>
-                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  <span>Quantité</span>
-                  <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
-                </div>
-                {selectionMode === 'manual' && (
-                  <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <span>Numéros choisis</span>
-                    <span className={`font-semibold ${selectedNumbers.length === ticketCount ? 'text-green-500' : 'text-orange-500'}`}>
-                      {selectedNumbers.length} / {ticketCount}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Code Promo */}
-                <div className={`border-t pt-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                {/* Code Promo - En haut */}
+                <div className={`pb-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Code promo (optionnel)
+                    Avez-vous un code promo ?
                   </label>
                   {!promoDiscount ? (
                     <div className="flex gap-2">
@@ -978,12 +975,10 @@ export const BuyTicketsPage = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className={`font-bold ${isDarkMode ? 'text-green-400' : 'text-green-700'}`}>
-                            {promoDiscount.code}
+                            ✓ {promoDiscount.code}
                           </span>
                           <span className={`text-sm ml-2 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
-                            ({promoDiscount.discount_type === 'percentage' 
-                              ? `-${promoDiscount.discount_value}%` 
-                              : `-$${promoDiscount.discount_value}`})
+                            (-$0.30 / ticket)
                           </span>
                         </div>
                         <button
@@ -1001,6 +996,23 @@ export const BuyTicketsPage = () => {
                   )}
                 </div>
 
+                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span>Prix unitaire</span>
+                  <span className="font-semibold">{formatCurrency(campaign.ticket_price)}</span>
+                </div>
+                <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span>Quantité</span>
+                  <span className="font-semibold">{ticketCount} ticket{ticketCount > 1 ? 's' : ''}</span>
+                </div>
+                {selectionMode === 'manual' && (
+                  <div className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <span>Numéros choisis</span>
+                    <span className={`font-semibold ${selectedNumbers.length === ticketCount ? 'text-green-500' : 'text-orange-500'}`}>
+                      {selectedNumbers.length} / {ticketCount}
+                    </span>
+                  </div>
+                )}
+
                 {/* Sous-total et remise */}
                 {promoDiscount && (
                   <>
@@ -1009,8 +1021,8 @@ export const BuyTicketsPage = () => {
                       <span className="font-semibold">{formatCurrency(totalPrice)}</span>
                     </div>
                     <div className={`flex justify-between text-green-500`}>
-                      <span>Remise ({promoDiscount.code})</span>
-                      <span className="font-semibold">-{formatCurrency(promoDiscount.discount_amount)}</span>
+                      <span>Remise ({promoDiscount.code}: -$0.30 × {ticketCount})</span>
+                      <span className="font-semibold">-{formatCurrency(promoDiscountAmount)}</span>
                     </div>
                   </>
                 )}
@@ -1141,7 +1153,7 @@ export const BuyTicketsPage = () => {
                         />
                       </div>
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange)
+                        Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange), 099 (Afrimoney)
                       </p>
                     </div>
                   )}
@@ -1166,7 +1178,7 @@ export const BuyTicketsPage = () => {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Garder dans le compositeur ({selectedNumbers.length} ticket{selectedNumbers.length > 1 ? 's' : ''})
+                    Ajouter au panier ({selectedNumbers.length} ticket{selectedNumbers.length > 1 ? 's' : ''})
                   </span>
                 </button>
               )}
@@ -1195,7 +1207,7 @@ export const BuyTicketsPage = () => {
                     {paymentMethod === 'wallet' ? 'Achat en cours...' : 'Redirection...'}
                   </span>
                 ) : paymentMethod === 'wallet' ? (
-                  `Payer avec mon solde (${formatCurrencyCDF(finalPrice * 2500)})`
+                  `Payer avec mon portefeuille`
                 ) : (
                   `Payer ${formatCurrency(finalPrice)} via Mobile Money`
                 )}
