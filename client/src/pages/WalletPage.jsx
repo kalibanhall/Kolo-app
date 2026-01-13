@@ -140,6 +140,23 @@ const WalletPage = () => {
     }
   };
 
+  // Cancel pending transaction
+  const handleCancelTransaction = async (reference) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir annuler cette transaction ?')) {
+      return;
+    }
+    
+    try {
+      const response = await walletAPI.cancelTransaction(reference);
+      if (response.success) {
+        setMessage({ type: 'success', text: 'Transaction annulée avec succès' });
+        loadWallet();
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Erreur lors de l\'annulation' });
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
   };
@@ -383,18 +400,26 @@ const WalletPage = () => {
                       {formatDate(tx.created_at)}
                     </p>
                     {tx.status === 'pending' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                        En attente
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          En attente
+                        </span>
+                        <button
+                          onClick={() => handleCancelTransaction(tx.reference)}
+                          className="text-xs text-red-500 hover:text-red-700 underline"
+                        >
+                          Annuler
+                        </button>
                         {/* DEV: Simulate button */}
                         {process.env.NODE_ENV !== 'production' && (
                           <button
                             onClick={() => handleSimulateDeposit(tx.reference)}
-                            className="ml-2 text-blue-600 underline"
+                            className="text-xs text-blue-600 underline"
                           >
                             Simuler
                           </button>
                         )}
-                      </span>
+                      </div>
                     )}
                   </div>
                   

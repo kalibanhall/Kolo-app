@@ -313,6 +313,13 @@ export const walletAPI = {
       body: JSON.stringify({ reference }),
     });
   },
+
+  // Annuler une transaction en attente
+  cancelTransaction: async (reference) => {
+    return await request(`/wallet/transactions/${reference}/cancel`, {
+      method: 'POST',
+    });
+  },
 };
 
 // ======================

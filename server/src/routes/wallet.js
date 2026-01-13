@@ -414,6 +414,66 @@ router.get('/deposit/status/:reference', verifyToken, async (req, res) => {
   }
 });
 
+// ============================================
+// Cancel pending deposit/transaction
+// ============================================
+router.post('/transactions/:reference/cancel', verifyToken, async (req, res) => {
+  try {
+    const { reference } = req.params;
+    const userId = req.user.id;
+
+    // Find the pending transaction
+    const txResult = await query(
+      `SELECT wt.*, w.id as wallet_id
+       FROM wallet_transactions wt
+       JOIN wallets w ON wt.wallet_id = w.id
+       WHERE wt.reference = $1 AND w.user_id = $2`,
+      [reference, userId]
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction non trouvée'
+      });
+    }
+
+    const tx = txResult.rows[0];
+
+    // Can only cancel pending transactions
+    if (tx.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Impossible d'annuler une transaction avec le statut "${tx.status}"`
+      });
+    }
+
+    // Update status to cancelled
+    await query(
+      `UPDATE wallet_transactions 
+       SET status = 'cancelled', description = 'Annulé par l\'utilisateur', updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [tx.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Transaction annulée avec succès',
+      data: {
+        reference,
+        status: 'cancelled'
+      }
+    });
+
+  } catch (error) {
+    console.error('Cancel transaction error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'annulation de la transaction'
+    });
+  }
+});
+
 // PayDRC Wallet callback
 router.post('/paydrc/callback', async (req, res) => {
   try {
