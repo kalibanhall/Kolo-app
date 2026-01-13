@@ -155,29 +155,26 @@ router.post('/webhook', async (req, res) => {
         // Generate unique ticket numbers
         const tickets = [];
         for (let i = 0; i < purchase.ticket_count; i++) {
-          let ticketNumber;
-          let isUnique = false;
-
-          // Ensure ticket number is unique
-          while (!isUnique) {
-            ticketNumber = generateTicketNumber();
-            const checkResult = await client.query(
-              'SELECT id FROM tickets WHERE ticket_number = $1',
-              [ticketNumber]
-            );
-            isUnique = checkResult.rows.length === 0;
-          }
-
-          // Insert ticket
+          // Insert ticket with temporary number first to get ID
           const ticketResult = await client.query(
             `INSERT INTO tickets (
               ticket_number, campaign_id, user_id, purchase_id, status
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *`,
-            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+            ['TEMP', purchase.campaign_id, purchase.user_id, purchase.id, 'active']
           );
 
-          tickets.push(ticketResult.rows[0]);
+          const ticket = ticketResult.rows[0];
+          
+          // Update with proper ticket number based on ID
+          const finalTicketNumber = generateTicketNumber(ticket.id);
+          await client.query(
+            'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
+            [finalTicketNumber, ticket.id]
+          );
+          
+          ticket.ticket_number = finalTicketNumber;
+          tickets.push(ticket);
         }
 
         // Update campaign sold_tickets count
@@ -430,16 +427,25 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
       // Generate tickets
       const tickets = [];
       for (let i = 0; i < purchase.ticket_count; i++) {
-        const ticketNumber = await generateTicketNumber();
-
+        // Insert with temp number first
         const ticketResult = await client.query(
           `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
            VALUES ($1, $2, $3, $4, 'active')
            RETURNING *`,
-          [ticketNumber, purchase.campaign_id, purchase.user_id, purchaseId]
+          ['TEMP', purchase.campaign_id, purchase.user_id, purchaseId]
         );
 
-        tickets.push(ticketResult.rows[0]);
+        const ticket = ticketResult.rows[0];
+        
+        // Update with proper ticket number based on ID
+        const finalTicketNumber = generateTicketNumber(ticket.id);
+        await client.query(
+          'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
+          [finalTicketNumber, ticket.id]
+        );
+        
+        ticket.ticket_number = finalTicketNumber;
+        tickets.push(ticket);
       }
 
       // Update campaign sold tickets

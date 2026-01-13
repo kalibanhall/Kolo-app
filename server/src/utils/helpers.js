@@ -1,11 +1,11 @@
-// Generate unique ticket number
-const generateTicketNumber = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let ticket = '#';
-  for (let i = 0; i < 5; i++) {
-    ticket += chars.charAt(Math.floor(Math.random() * chars.length));
+// Generate unique ticket number (simple incremental format)
+const generateTicketNumber = (ticketId = null) => {
+  if (ticketId) {
+    // Format: KOLO-01, KOLO-02, etc. (zero-padded to 2 digits minimum)
+    return `KOLO-${ticketId.toString().padStart(2, '0')}`;
   }
-  return ticket;
+  // Fallback for temporary tickets before DB insertion
+  return `KOLO-TEMP-${Date.now()}`;
 };
 
 // Generate invoice number

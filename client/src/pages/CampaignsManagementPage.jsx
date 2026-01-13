@@ -50,6 +50,11 @@ export const CampaignsManagementPage = () => {
     total_tickets: 15200,
     ticket_price: 1,
     main_prize: '',
+    secondary_prizes: '',
+    third_prize: '',
+    rules: '',
+    display_order: 0,
+    is_featured: false,
     start_date: '',
     end_date: '',
     draw_date: '',
@@ -189,6 +194,11 @@ export const CampaignsManagementPage = () => {
       total_tickets: campaign.total_tickets || 15200,
       ticket_price: campaign.ticket_price || 1,
       main_prize: campaign.main_prize || '',
+      secondary_prizes: campaign.secondary_prizes || '',
+      third_prize: campaign.third_prize || '',
+      rules: campaign.rules || '',
+      display_order: campaign.display_order || 0,
+      is_featured: campaign.is_featured || false,
       start_date: campaign.start_date ? campaign.start_date.split('T')[0] : '',
       end_date: campaign.end_date ? campaign.end_date.split('T')[0] : '',
       draw_date: campaign.draw_date ? campaign.draw_date.split('T')[0] : '',
@@ -228,6 +238,11 @@ export const CampaignsManagementPage = () => {
       total_tickets: 15200,
       ticket_price: 1,
       main_prize: '',
+      secondary_prizes: '',
+      third_prize: '',
+      rules: '',
+      display_order: 0,
+      is_featured: false,
       start_date: '',
       end_date: '',
       draw_date: '',
@@ -387,10 +402,10 @@ export const CampaignsManagementPage = () => {
                 />
               </div>
 
-              {/* Prix principal */}
+              {/* Prix */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prix principal *
+                  1er Prix *
                 </label>
                 <input
                   type="text"
@@ -401,6 +416,82 @@ export const CampaignsManagementPage = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Ex: Toyota RAV4 2025 Hybrid"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    2ème Prix (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    name="secondary_prizes"
+                    value={formData.secondary_prizes}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ex: iPhone 15 Pro Max"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    3ème Prix (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    name="third_prize"
+                    value={formData.third_prize}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ex: Ordinateur portable"
+                  />
+                </div>
+              </div>
+
+              {/* Règlement */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Règlement de la campagne (optionnel)
+                </label>
+                <textarea
+                  name="rules"
+                  value={formData.rules}
+                  onChange={handleChange}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Conditions de participation, règles du tirage..."
+                />
+              </div>
+
+              {/* Display Order & Featured */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ordre d'affichage (0 = premier)
+                  </label>
+                  <input
+                    type="number"
+                    name="display_order"
+                    value={formData.display_order}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="flex items-center pt-8">
+                  <input
+                    type="checkbox"
+                    name="is_featured"
+                    id="is_featured"
+                    checked={formData.is_featured}
+                    onChange={(e) => setFormData(prev => ({ ...prev, is_featured: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-900">
+                    ⭐ Campagne en vedette (affichée en premier)
+                  </label>
+                </div>
               </div>
 
               {/* Images */}
