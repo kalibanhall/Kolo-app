@@ -605,6 +605,18 @@ export const BuyTicketsPage = () => {
                       </div>
                     </div>
                     <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                      {/* Avertissement d'expiration */}
+                      <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 ${
+                        isDarkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs">
+                          Panier valide 24h - Finalisez avant qu'il n'expire
+                        </span>
+                      </div>
+                      
                       <div className="flex justify-between items-center mb-2">
                         <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           Total ({composerItems.length} tickets)
