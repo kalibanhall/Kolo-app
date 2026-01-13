@@ -522,7 +522,7 @@ async function checkTransactionStatus(reference) {
 /**
  * Detect mobile money provider from phone number
  * @param {string} phoneNumber
- * @returns {string} - vodacom, airtel, orange, africell
+ * @returns {string} - mpesa, airtel, orange, afrimoney (PayDRC method values)
  */
 function detectMobileProvider(phoneNumber) {
   // Normalize phone number
@@ -532,20 +532,20 @@ function detectMobileProvider(phoneNumber) {
 
   const prefix = normalized.slice(0, 3);
 
-  // Vodacom: 081, 082, 083
-  if (['081', '082', '083'].includes(prefix)) return 'vodacom';
+  // Vodacom M-Pesa: 081, 082, 083 -> method: "mpesa"
+  if (['081', '082', '083'].includes(prefix)) return 'mpesa';
 
-  // Airtel: 097, 099
+  // Airtel Money: 097, 099 -> method: "airtel"
   if (['097', '099'].includes(prefix)) return 'airtel';
 
-  // Orange: 084, 085, 089
+  // Orange Money: 084, 085, 089 -> method: "orange"
   if (['084', '085', '089'].includes(prefix)) return 'orange';
 
-  // Africell: 090, 091
-  if (['090', '091'].includes(prefix)) return 'africell';
+  // Afrimoney: 090, 091 -> method: "afrimoney"
+  if (['090', '091'].includes(prefix)) return 'afrimoney';
 
-  // Default to airtel if unknown
-  return 'airtel';
+  // Default to mpesa if unknown
+  return 'mpesa';
 }
 
 /**
