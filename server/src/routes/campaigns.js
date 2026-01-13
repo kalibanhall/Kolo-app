@@ -86,6 +86,9 @@ router.get('/:id/available-numbers', async (req, res) => {
     
     const campaign = campaignResult.rows[0];
     
+    // Calculate padding based on total tickets (e.g., 1000 -> 4 digits, 100 -> 3 digits)
+    const padLength = Math.max(2, String(campaign.total_tickets).length);
+    
     // Get already used ticket numbers for this campaign
     const usedResult = await query(
       'SELECT ticket_number FROM tickets WHERE campaign_id = $1',
@@ -97,7 +100,7 @@ router.get('/:id/available-numbers', async (req, res) => {
     // Generate available numbers with limit for performance
     const availableNumbers = [];
     for (let i = 1; i <= campaign.total_tickets && availableNumbers.length < limit; i++) {
-      const ticketNumber = `KOLO-${String(i).padStart(2, '0')}`;
+      const ticketNumber = `K-${String(i).padStart(padLength, '0')}`;
       if (!usedNumbers.has(ticketNumber)) {
         availableNumbers.push({
           number: i,
@@ -111,6 +114,7 @@ router.get('/:id/available-numbers', async (req, res) => {
       numbers: availableNumbers,
       total_available: campaign.total_tickets - campaign.sold_tickets,
       total_tickets: campaign.total_tickets,
+      padLength: padLength,
       limited: availableNumbers.length >= limit
     });
 

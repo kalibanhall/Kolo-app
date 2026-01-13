@@ -223,10 +223,13 @@ export const BuyTicketsPage = () => {
       // Generate sample numbers if API not available
       const sampleNumbers = [];
       const soldCount = campaign.sold_tickets || 0;
-      for (let i = soldCount + 1; i <= Math.min(soldCount + 100, campaign.total_tickets); i++) {
+      const totalTickets = campaign.total_tickets || 100;
+      // Calculate padding based on total tickets
+      const padLength = Math.max(2, String(totalTickets).length);
+      for (let i = soldCount + 1; i <= Math.min(soldCount + 100, totalTickets); i++) {
         sampleNumbers.push({
           number: i,
-          display: `KOLO-${String(i).padStart(2, '0')}`
+          display: `K-${String(i).padStart(padLength, '0')}`
         });
       }
       setAvailableNumbers(sampleNumbers);

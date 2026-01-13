@@ -1,11 +1,13 @@
-// Generate unique ticket number (simple incremental format)
-const generateTicketNumber = (ticketId = null) => {
+// Generate unique ticket number based on total tickets in campaign
+// Format: K-0001 (for 1000 tickets), K-01 (for 99 tickets), etc.
+const generateTicketNumber = (ticketId = null, totalTickets = 100) => {
   if (ticketId) {
-    // Format: KOLO-01, KOLO-02, etc. (zero-padded to 2 digits minimum)
-    return `KOLO-${ticketId.toString().padStart(2, '0')}`;
+    // Calculate padding based on total tickets
+    const padLength = Math.max(2, String(totalTickets).length);
+    return `K-${ticketId.toString().padStart(padLength, '0')}`;
   }
   // Fallback for temporary tickets before DB insertion
-  return `KOLO-TEMP-${Date.now()}`;
+  return `K-TEMP-${Date.now()}`;
 };
 
 // Generate invoice number

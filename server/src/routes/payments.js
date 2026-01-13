@@ -144,6 +144,13 @@ router.post('/webhook', async (req, res) => {
     // If payment successful, generate tickets
     if (payment_status === 'completed') {
       const ticketData = await transaction(async (client) => {
+        // Get campaign info for ticket number format
+        const campaignResult = await client.query(
+          'SELECT total_tickets FROM campaigns WHERE id = $1',
+          [purchase.campaign_id]
+        );
+        const totalTickets = campaignResult.rows[0]?.total_tickets || 1000;
+        
         // Update purchase status
         await client.query(
           `UPDATE purchases 
@@ -166,8 +173,8 @@ router.post('/webhook', async (req, res) => {
 
           const ticket = ticketResult.rows[0];
           
-          // Update with proper ticket number based on ID
-          const finalTicketNumber = generateTicketNumber(ticket.id);
+          // Update with proper ticket number based on ID and campaign total
+          const finalTicketNumber = generateTicketNumber(ticket.id, totalTickets);
           await client.query(
             'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
             [finalTicketNumber, ticket.id]
@@ -437,8 +444,8 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
 
         const ticket = ticketResult.rows[0];
         
-        // Update with proper ticket number based on ID
-        const finalTicketNumber = generateTicketNumber(ticket.id);
+        // Update with proper ticket number based on ID and campaign total
+        const finalTicketNumber = generateTicketNumber(ticket.id, purchase.total_tickets);
         await client.query(
           'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
           [finalTicketNumber, ticket.id]
