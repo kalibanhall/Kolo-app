@@ -23,6 +23,7 @@ router.get('/profile/:userId', async (req, res) => {
 router.put('/profile/:userId', [
   body('name').optional().notEmpty().trim().isLength({ min: 2, max: 100 }),
   body('phone').optional().notEmpty().trim(),
+  body('photo_url').optional().isURL().withMessage('URL de photo invalide'),
   body('address_line1').optional().trim().isLength({ max: 200 }),
   body('address_line2').optional().trim().isLength({ max: 200 }),
   body('city').optional().trim().isLength({ max: 100 }),
@@ -35,12 +36,13 @@ router.put('/profile/:userId', [
       return res.status(400).json({ success: false, message: 'Validation errors', errors: errors.array() });
     }
     const userId = parseInt(req.params.userId);
-    const { name, phone, address_line1, address_line2, city, province, postal_code } = req.body;
+    const { name, phone, photo_url, address_line1, address_line2, city, province, postal_code } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 1;
     if (name !== undefined) { updates.push('name = $' + (paramCount++) + ''); values.push(name); }
     if (phone !== undefined) { updates.push('phone = $' + (paramCount++) + ''); values.push(phone); }
+    if (photo_url !== undefined) { updates.push('photo_url = $' + (paramCount++) + ''); values.push(photo_url || null); }
     if (address_line1 !== undefined) { updates.push('address_line1 = $' + (paramCount++) + ''); values.push(address_line1 || null); }
     if (address_line2 !== undefined) { updates.push('address_line2 = $' + (paramCount++) + ''); values.push(address_line2 || null); }
     if (city !== undefined) { updates.push('city = $' + (paramCount++) + ''); values.push(city || null); }
@@ -51,7 +53,7 @@ router.put('/profile/:userId', [
     }
     updates.push('updated_at = CURRENT_TIMESTAMP');
     values.push(userId);
-    const updateQuery = 'UPDATE users SET ' + updates.join(', ') + ' WHERE id = $' + paramCount + ' RETURNING id, email, name, phone, is_admin, email_verified, address_line1, address_line2, city, province, postal_code, created_at, updated_at';
+    const updateQuery = 'UPDATE users SET ' + updates.join(', ') + ' WHERE id = $' + paramCount + ' RETURNING id, email, name, phone, photo_url, is_admin, email_verified, address_line1, address_line2, city, province, postal_code, created_at, updated_at';
     const result = await query(updateQuery, values);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });

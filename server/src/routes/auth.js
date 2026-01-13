@@ -228,7 +228,7 @@ router.get('/verify', async (req, res) => {
 
     // Get user from database
     const result = await query(
-      'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
+      'SELECT id, email, name, phone, photo_url, is_admin, is_active FROM users WHERE id = $1',
       [decoded.userId]
     );
 
