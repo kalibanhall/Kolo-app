@@ -118,7 +118,7 @@ function App() {
             }
           />
           <Route
-            path="/buy"
+            path="/buy/:campaignId?"
             element={
               <ProtectedRoute userOnly={true}>
                 <BuyTicketsPage />

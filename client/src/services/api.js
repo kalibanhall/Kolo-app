@@ -165,8 +165,9 @@ export const campaignsAPI = {
   },
 
   // Obtenir les numéros disponibles pour une campagne
-  getAvailableNumbers: async (campaignId) => {
-    return await request(`/campaigns/${campaignId}/available-numbers`, { includeAuth: false });
+  getAvailableNumbers: async (campaignId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/campaigns/${campaignId}/available-numbers${queryString ? `?${queryString}` : ''}`, { includeAuth: false });
   },
 };
 

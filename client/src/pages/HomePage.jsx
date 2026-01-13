@@ -155,7 +155,7 @@ export const HomePage = () => {
                 <div className="px-4 sm:px-8 -mt-5 sm:-mt-7 relative z-10">
                   {isAuthenticated() ? (
                     <Link
-                      to="/buy"
+                      to={`/buy/${currentCampaign.id}`}
                       className="flex items-center justify-center w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-bold px-4 py-3 sm:py-4 rounded-xl text-sm sm:text-base transition-all duration-300 shadow-xl hover:shadow-2xl"
                     >
                       <TicketIcon className="w-5 h-5 mr-2" />
@@ -178,25 +178,23 @@ export const HomePage = () => {
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{currentCampaign.description}</p>
                   </div>
 
-                  {/* Prizes */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                    <div className="bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/30 dark:to-amber-800/30 rounded-xl p-3 text-center border border-yellow-200 dark:border-yellow-700">
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">🥇 1er Prix</p>
-                      <p className="text-sm sm:text-base font-bold text-yellow-700 dark:text-yellow-300 truncate">{currentCampaign.main_prize}</p>
+                  {/* Prizes - Only show if secondary prizes exist */}
+                  {(currentCampaign.secondary_prizes || currentCampaign.third_prize) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
+                      {currentCampaign.secondary_prizes && (
+                        <div className="bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-700/30 dark:to-slate-800/30 rounded-xl p-3 text-center border border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">🥈 2ème Prix</p>
+                          <p className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate">{currentCampaign.secondary_prizes}</p>
+                        </div>
+                      )}
+                      {currentCampaign.third_prize && (
+                        <div className="bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/30 dark:to-amber-800/30 rounded-xl p-3 text-center border border-orange-200 dark:border-orange-700">
+                          <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">🥉 3ème Prix</p>
+                          <p className="text-sm font-bold text-orange-700 dark:text-orange-300 truncate">{currentCampaign.third_prize}</p>
+                        </div>
+                      )}
                     </div>
-                    {currentCampaign.secondary_prizes && (
-                      <div className="bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-700/30 dark:to-slate-800/30 rounded-xl p-3 text-center border border-gray-200 dark:border-gray-600">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">🥈 2ème Prix</p>
-                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300 truncate">{currentCampaign.secondary_prizes}</p>
-                      </div>
-                    )}
-                    {currentCampaign.third_prize && (
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/30 dark:to-amber-800/30 rounded-xl p-3 text-center border border-orange-200 dark:border-orange-700">
-                        <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">🥉 3ème Prix</p>
-                        <p className="text-sm font-bold text-orange-700 dark:text-orange-300 truncate">{currentCampaign.third_prize}</p>
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   {/* Stats + Voir plus */}
                   <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-3 border border-green-200 dark:border-green-800">

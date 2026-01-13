@@ -69,6 +69,7 @@ router.get('/current', async (req, res) => {
 router.get('/:id/available-numbers', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
+    const limit = parseInt(req.query.limit) || 500; // Default 500, max for performance
     
     // Get campaign info
     const campaignResult = await query(
@@ -85,7 +86,7 @@ router.get('/:id/available-numbers', async (req, res) => {
     
     const campaign = campaignResult.rows[0];
     
-    // Get already used ticket numbers
+    // Get already used ticket numbers for this campaign
     const usedResult = await query(
       'SELECT ticket_number FROM tickets WHERE campaign_id = $1',
       [campaignId]
@@ -93,10 +94,10 @@ router.get('/:id/available-numbers', async (req, res) => {
     
     const usedNumbers = new Set(usedResult.rows.map(r => r.ticket_number));
     
-    // Generate available numbers
+    // Generate available numbers with limit for performance
     const availableNumbers = [];
-    for (let i = 1; i <= campaign.total_tickets; i++) {
-      const ticketNumber = `KOLO-${String(i).padStart(6, '0')}`;
+    for (let i = 1; i <= campaign.total_tickets && availableNumbers.length < limit; i++) {
+      const ticketNumber = `KOLO-${String(i).padStart(2, '0')}`;
       if (!usedNumbers.has(ticketNumber)) {
         availableNumbers.push({
           number: i,
@@ -108,8 +109,9 @@ router.get('/:id/available-numbers', async (req, res) => {
     res.json({
       success: true,
       numbers: availableNumbers,
-      total_available: availableNumbers.length,
-      total_tickets: campaign.total_tickets
+      total_available: campaign.total_tickets - campaign.sold_tickets,
+      total_tickets: campaign.total_tickets,
+      limited: availableNumbers.length >= limit
     });
 
   } catch (error) {

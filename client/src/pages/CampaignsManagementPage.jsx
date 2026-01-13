@@ -610,7 +610,7 @@ export const CampaignsManagementPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date de fin
+                    Date de fin <span className="text-gray-400 font-normal">(optionnel)</span>
                   </label>
                   <input
                     type="date"
@@ -623,7 +623,7 @@ export const CampaignsManagementPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date du tirage
+                    Date du tirage <span className="text-gray-400 font-normal">(optionnel)</span>
                   </label>
                   <input
                     type="date"

@@ -40,7 +40,7 @@ export const CampaignDetailPage = () => {
     if (!isAuthenticated()) {
       navigate('/login', { state: { from: `/campaigns/${id}` } });
     } else {
-      navigate('/buy');
+      navigate(`/buy/${id}`);
     }
   };
 
@@ -284,6 +284,37 @@ export const CampaignDetailPage = () => {
             </p>
           </div>
         </div>
+
+        {/* Secondary Prizes - Only show if they exist */}
+        {(campaign.secondary_prizes || campaign.third_prize) && (
+          <div className={`rounded-2xl overflow-hidden mb-8 ${
+            isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-xl'
+          }`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                🎁 Autres Prix à Gagner
+              </h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {campaign.secondary_prizes && (
+                <div className={`p-4 rounded-xl text-center ${
+                  isDarkMode ? 'bg-gray-700/50 border border-gray-600' : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <p className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>🥈 2ème Prix</p>
+                  <p className={`text-lg font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{campaign.secondary_prizes}</p>
+                </div>
+              )}
+              {campaign.third_prize && (
+                <div className={`p-4 rounded-xl text-center ${
+                  isDarkMode ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-50 border border-orange-200'
+                }`}>
+                  <p className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>🥉 3ème Prix</p>
+                  <p className={`text-lg font-bold ${isDarkMode ? 'text-orange-300' : 'text-orange-700'}`}>{campaign.third_prize}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* CTA Section */}
         <div className={`rounded-2xl overflow-hidden ${

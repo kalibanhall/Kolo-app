@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, MoneyIcon } from '../components/Icons';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
-// Storage key for cart
-const CART_KEY = 'kolo_cart';
+// Storage key for cart - now campaign-specific
+const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
 
 export const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
+  const { campaignId } = useParams(); // Get campaign ID from URL
   const [campaign, setCampaign] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,25 +59,29 @@ export const BuyTicketsPage = () => {
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [loadingNumbers, setLoadingNumbers] = useState(false);
 
-  // Charger le panier depuis localStorage
+  // Charger le panier depuis localStorage - spécifique à la campagne
   useEffect(() => {
+    if (!campaign?.id) return;
     try {
-      const saved = localStorage.getItem(CART_KEY);
+      const saved = localStorage.getItem(getCartKey(campaign.id));
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           setComposerItems(parsed);
         }
+      } else {
+        setComposerItems([]); // Reset cart if different campaign
       }
     } catch (e) {
       console.error('Error loading cart:', e);
     }
-  }, []);
+  }, [campaign?.id]);
 
-  // Sauvegarder le panier dans localStorage
+  // Sauvegarder le panier dans localStorage - spécifique à la campagne
   useEffect(() => {
+    if (!campaign?.id) return;
     try {
-      localStorage.setItem(CART_KEY, JSON.stringify(composerItems));
+      localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
     } catch (e) {
       console.error('Error saving cart:', e);
     }
@@ -100,8 +105,10 @@ export const BuyTicketsPage = () => {
   const clearComposer = useCallback(() => {
     setComposerItems([]);
     setUnavailableTickets([]);
-    localStorage.removeItem(CART_KEY);
-  }, []);
+    if (campaign?.id) {
+      localStorage.removeItem(getCartKey(campaign.id));
+    }
+  }, [campaign?.id]);
 
   // Vérifier la disponibilité des tickets du compositeur
   const verifyComposerTickets = useCallback(async () => {
@@ -155,7 +162,7 @@ export const BuyTicketsPage = () => {
       const cleanPhone = user.phone.replace('+243', '').replace(/\D/g, '');
       setPhoneNumber(cleanPhone);
     }
-  }, [user]);
+  }, [user, campaignId]);
 
   // Load available numbers when campaign is loaded
   useEffect(() => {
@@ -174,10 +181,21 @@ export const BuyTicketsPage = () => {
   const loadCampaign = async () => {
     try {
       setLoading(true);
-      const response = await campaignsAPI.getCurrent();
+      let response;
+      
+      // If campaignId is provided in URL, load that specific campaign
+      if (campaignId) {
+        response = await campaignsAPI.getById(campaignId);
+      } else {
+        // Otherwise, load the current/default campaign
+        response = await campaignsAPI.getCurrent();
+      }
+      
       setCampaign(response.data);
+      // Reset cart when loading a new campaign
+      setComposerItems([]);
     } catch (err) {
-      setError('Impossible de charger la campagne active');
+      setError('Impossible de charger la campagne');
     } finally {
       setLoading(false);
     }
@@ -197,17 +215,18 @@ export const BuyTicketsPage = () => {
     
     setLoadingNumbers(true);
     try {
-      const response = await campaignsAPI.getAvailableNumbers(campaign.id);
+      // Charger avec une limite pour améliorer la performance
+      const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: 200 });
       setAvailableNumbers(response.numbers || []);
     } catch (err) {
       console.error('Error loading available numbers:', err);
       // Generate sample numbers if API not available
       const sampleNumbers = [];
       const soldCount = campaign.sold_tickets || 0;
-      for (let i = soldCount + 1; i <= Math.min(soldCount + 500, campaign.total_tickets); i++) {
+      for (let i = soldCount + 1; i <= Math.min(soldCount + 100, campaign.total_tickets); i++) {
         sampleNumbers.push({
           number: i,
-          display: `KOLO-${String(i).padStart(6, '0')}`
+          display: `KOLO-${String(i).padStart(2, '0')}`
         });
       }
       setAvailableNumbers(sampleNumbers);
@@ -963,7 +982,7 @@ export const BuyTicketsPage = () => {
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                         placeholder="Entrez votre code"
-                        className={`flex-1 px-3 py-2 rounded-lg border ${
+                        className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm ${
                           isDarkMode 
                             ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' 
                             : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
@@ -973,7 +992,7 @@ export const BuyTicketsPage = () => {
                         type="button"
                         onClick={validatePromoCode}
                         disabled={promoLoading || !promoCode.trim()}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                        className={`px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap flex-shrink-0 transition-all ${
                           isDarkMode
                             ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
                             : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-200 disabled:text-gray-400'
