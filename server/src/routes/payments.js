@@ -683,7 +683,15 @@ router.post(
       }
 
       const campaign = campaignResult.rows[0];
-      const currency = 'CDF'; // Default currency
+      // Détection dynamique de la devise
+      let currency = 'USD';
+      if (campaign.ticket_price_currency && ['USD', 'CDF'].includes(campaign.ticket_price_currency)) {
+        currency = campaign.ticket_price_currency;
+      } else if (process.env.DEFAULT_CURRENCY && ['USD', 'CDF'].includes(process.env.DEFAULT_CURRENCY)) {
+        currency = process.env.DEFAULT_CURRENCY;
+      } else {
+        currency = 'USD';
+      }
 
       if (campaign.status !== 'open') {
         return res.status(400).json({
