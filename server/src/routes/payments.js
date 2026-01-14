@@ -740,9 +740,9 @@ router.post(
       }/api/payments/paydrc/callback`;
 
       // Split user name into first and last name
-      const nameParts = (user.name || 'Client KOLO').split(' ');
-      const firstName = nameParts[0] || 'Client';
-      const lastName = nameParts.slice(1).join(' ') || 'KOLO';
+      // Champs statiques pour PayDRC
+      const firstName = 'Congohigh';
+      const lastName = 'Technologie';
 
       // Initiate PayDRC transaction
       const paymentResponse = await paydrc.initiatePayIn({
