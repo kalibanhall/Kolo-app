@@ -1,3 +1,12 @@
+  // Charger plus de tickets
+  const handleLoadMoreNumbers = () => {
+    setNumbersPage(prev => prev + 1);
+  };
+  useEffect(() => {
+    if (numbersPage > 1 && campaign) {
+      loadAvailableNumbers();
+    }
+  }, [numbersPage]);
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -56,6 +65,8 @@ export const BuyTicketsPage = () => {
   
   // Sélection manuelle des numéros uniquement
   const [availableNumbers, setAvailableNumbers] = useState([]);
+  const [numbersPage, setNumbersPage] = useState(1);
+  const [hasMoreNumbers, setHasMoreNumbers] = useState(true);
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [loadingNumbers, setLoadingNumbers] = useState(false);
 
@@ -166,38 +177,21 @@ export const BuyTicketsPage = () => {
 
   // Load available numbers when campaign is loaded
   useEffect(() => {
-    if (campaign) {
-      loadAvailableNumbers();
-    }
-  }, [campaign]);
-
-  // Reset selected numbers when ticket count changes
-  useEffect(() => {
-    if (selectedNumbers.length > ticketCount) {
-      setSelectedNumbers(prev => prev.slice(0, ticketCount));
-    }
-  }, [ticketCount, selectedNumbers.length]);
-
-  const loadCampaign = async () => {
+    if (!campaign) return;
+    setLoadingNumbers(true);
     try {
-      setLoading(true);
-      let response;
-      
-      // If campaignId is provided in URL, load that specific campaign
-      if (campaignId) {
-        response = await campaignsAPI.getById(campaignId);
+      const pageSize = 500;
+      const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
+      if (numbersPage === 1) {
+        setAvailableNumbers(response.numbers || []);
       } else {
-        // Otherwise, load the current/default campaign
-        response = await campaignsAPI.getCurrent();
+        setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
       }
-      
-      setCampaign(response.data);
-      // Reset cart when loading a new campaign
-      setComposerItems([]);
+      setHasMoreNumbers((response.numbers || []).length === pageSize);
     } catch (err) {
-      setError('Impossible de charger la campagne');
+      console.error('Error loading available numbers:', err);
     } finally {
-      setLoading(false);
+      setLoadingNumbers(false);
     }
   };
 
@@ -353,9 +347,9 @@ export const BuyTicketsPage = () => {
         ticket_count: ticketCount,
         selection_mode: selectionMode,
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
-        amount: totalPrice,
-        amount_cdf: finalPrice * 2500,
-        currency: paymentMethod === 'wallet' ? 'CDF' : 'USD'
+        amount: campaign.currency === 'CDF' ? finalPrice * 2500 : finalPrice,
+        amount_cdf: campaign.currency === 'CDF' ? finalPrice * 2500 : undefined,
+        currency: campaign.currency === 'CDF' ? 'CDF' : 'USD'
       };
 
       // Payment with wallet balance (always in CDF)
@@ -1243,7 +1237,9 @@ export const BuyTicketsPage = () => {
                 ) : paymentMethod === 'wallet' ? (
                   `Payer avec mon portefeuille`
                 ) : (
-                  `Payer ${formatCurrency(finalPrice)} via Mobile Money`
+                  campaign.currency === 'CDF'
+                    ? `Payer ${formatCurrencyCDF(finalPrice)} via Mobile Money`
+                    : `Payer ${formatCurrency(finalPrice)} via Mobile Money`
                 )}
               </button>
 
@@ -1327,7 +1323,9 @@ export const BuyTicketsPage = () => {
                   <div className={`pt-3 border-t flex justify-between text-lg ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total</span>
                     <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
-                      {formatCurrency(finalPrice)}
+                      {campaign.currency === 'CDF'
+                        ? formatCurrencyCDF(finalPrice)
+                        : formatCurrency(finalPrice)}
                     </span>
                   </div>
                 </div>
@@ -1340,37 +1338,18 @@ export const BuyTicketsPage = () => {
                 </p>
               </div>
 
-              {/* Boutons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
-                    isDarkMode 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={confirmPurchase}
-                  disabled={purchasing}
-                  className={`flex-1 py-3 rounded-xl font-semibold transition-all text-white ${
-                    paymentMethod === 'wallet'
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-                      : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
-                  } disabled:opacity-50`}
-                >
-                  {purchasing ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Traitement...
-                    </span>
-                  ) : (
-                    'Confirmer le paiement'
-                  )}
-                </button>
-              </div>
+              {/* Bouton charger plus de tickets */}
+              {hasMoreNumbers && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    onClick={handleLoadMoreNumbers}
+                    className={`px-6 py-2 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                    disabled={loadingNumbers}
+                  >
+                    {loadingNumbers ? 'Chargement...' : 'Charger plus de tickets'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
