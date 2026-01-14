@@ -127,32 +127,24 @@ export const PaymentPendingPage = () => {
           </div>
         )}
 
-        <div className={`space-y-3 text-left p-4 rounded-xl mb-6 ${
-          isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'
-        }`}>
+        <div className={`space-y-3 text-left p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
           <div className="flex justify-between">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Référence</span>
-            <span className={`font-mono text-sm ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
-              {reference?.slice(0, 20)}...
-            </span>
+            <span className={`font-mono text-sm ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>{reference?.slice(0, 20)}...</span>
           </div>
           <div className="flex justify-between">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Montant</span>
             <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {amount?.toLocaleString('fr-FR')} FC
+              {amount?.toLocaleString('fr-FR')} {location.state?.currency === 'USD' ? '$' : 'FC'}
             </span>
           </div>
           <div className="flex justify-between">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Tickets</span>
-            <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {ticket_count}
-            </span>
+            <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ticket_count}</span>
           </div>
           <div className="flex justify-between">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Opérateur</span>
-            <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {getProviderLabel(provider)}
-            </span>
+            <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{getProviderLabel(provider)}</span>
           </div>
         </div>
 
@@ -163,39 +155,16 @@ export const PaymentPendingPage = () => {
         )}
 
         <div className="flex gap-3">
-          {status === 'pending' && (
-            <button
-              onClick={() => window.history.back()}
-              className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-                isDarkMode 
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              Retour
-            </button>
-          )}
-          {status === 'failed' && (
-            <button
-              onClick={() => window.history.back()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
-            >
-              Réessayer
-            </button>
-          )}
-          
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => navigate('/buy', { state: { ...location.state } })}
             className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
-              status === 'failed' || status === 'pending'
-                ? isDarkMode 
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+              isDarkMode 
+                ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
             }`}
           >
-            {status === 'completed' ? 'Voir mes tickets' : 'Tableau de bord'}
-          </Link>
+            Retour
+          </button>
         </div>
       </div>
     </div>
