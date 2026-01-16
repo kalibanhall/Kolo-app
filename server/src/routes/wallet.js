@@ -271,10 +271,9 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
     const normalizedPhone = paydrc.normalizePhoneNumber(phone_number);
     const provider = paydrc.detectMobileProvider(normalizedPhone);
 
-    // Split user name
-    const nameParts = (req.user.name || 'Client KOLO').split(' ');
-    const firstName = nameParts[0] || 'Client';
-    const lastName = nameParts.slice(1).join(' ') || 'KOLO';
+    // Champs statiques pour PayDRC (comme pour l'achat de tickets)
+    const firstName = 'Congohigh';
+    const lastName = 'Technologie';
 
     // Build callback URL
     const callbackUrl = `${process.env.API_URL || 'https://kolo-api.onrender.com'}/api/wallet/paydrc/callback`;

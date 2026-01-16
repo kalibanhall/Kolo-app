@@ -1,12 +1,3 @@
-  // Charger plus de tickets
-  const handleLoadMoreNumbers = () => {
-    setNumbersPage(prev => prev + 1);
-  };
-  useEffect(() => {
-    if (numbersPage > 1 && campaign) {
-      loadAvailableNumbers();
-    }
-  }, [numbersPage]);
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -19,7 +10,7 @@ import { LogoKolo } from '../components/LogoKolo';
 // Storage key for cart - now campaign-specific
 const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
 
-export const BuyTicketsPage = () => {
+const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -46,43 +37,13 @@ export const BuyTicketsPage = () => {
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
     ticketCount: 1,
-    phoneNumber: '',
-    selectedNumbers: [],
-    selectionMode: 'manual'
   });
   
-  // États dérivés de purchaseData
-  const ticketCount = purchaseData.ticketCount;
-  const phoneNumber = purchaseData.phoneNumber;
-  const selectedNumbers = purchaseData.selectedNumbers;
-  const selectionMode = purchaseData.selectionMode || 'manual';
-  
-  // Fonctions pour mettre à jour les états
-  const setTicketCount = (value) => setPurchaseData(prev => ({ ...prev, ticketCount: typeof value === 'function' ? value(prev.ticketCount) : value }));
-  const setPhoneNumber = (value) => setPurchaseData(prev => ({ ...prev, phoneNumber: value }));
-  const setSelectedNumbers = (value) => setPurchaseData(prev => ({ ...prev, selectedNumbers: typeof value === 'function' ? value(prev.selectedNumbers) : value }));
-  const setSelectionMode = (value) => setPurchaseData(prev => ({ ...prev, selectionMode: value, selectedNumbers: [] }));
-  
-  // Sélection manuelle des numéros uniquement
-  const [availableNumbers, setAvailableNumbers] = useState([]);
-  const [numbersPage, setNumbersPage] = useState(1);
-  const [hasMoreNumbers, setHasMoreNumbers] = useState(true);
-  const [numberSearchTerm, setNumberSearchTerm] = useState('');
-  const [loadingNumbers, setLoadingNumbers] = useState(false);
-
-  // Charger le panier depuis localStorage - spécifique à la campagne
+  // Sauvegarder le panier dans localStorage - spécifique à la campagne
   useEffect(() => {
     if (!campaign?.id) return;
     try {
-      const saved = localStorage.getItem(getCartKey(campaign.id));
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setComposerItems(parsed);
-        }
-      } else {
-        setComposerItems([]); // Reset cart if different campaign
-      }
+      localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
     } catch (e) {
       console.error('Error loading cart:', e);
     }
@@ -129,18 +90,14 @@ export const BuyTicketsPage = () => {
     setUnavailableTickets([]);
     
     try {
-      const response = await campaignsAPI.getAvailableNumbers(campaign.id);
-      const availableSet = new Set((response.numbers || []).map(n => n.number));
+      const numbers = composerItems.map(item => item.number);
+      const response = await ticketsAPI.checkAvailability({
+        campaign_id: campaign.id,
+        ticket_numbers: numbers
+      });
       
-      const unavailable = composerItems.filter(item => !availableSet.has(item.number)).map(item => item.number);
-      
-      if (unavailable.length > 0) {
-        setUnavailableTickets(unavailable);
-        // Auto-remove unavailable tickets after showing message
-        setTimeout(() => {
-          setComposerItems(prev => prev.filter(item => !unavailable.includes(item.number)));
-          setUnavailableTickets([]);
-        }, 3000);
+      if (response.unavailable && response.unavailable.length > 0) {
+        setUnavailableTickets(response.unavailable);
       }
     } catch (err) {
       console.error('Error verifying tickets:', err);
@@ -148,23 +105,6 @@ export const BuyTicketsPage = () => {
       setVerifyingComposer(false);
     }
   }, [composerItems, campaign]);
-
-  // Check if ticket is in composer
-  const isInComposer = useCallback((ticketNumber) => {
-    return composerItems.some(item => item.number === ticketNumber);
-  }, [composerItems]);
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate('/login', { 
-        state: { 
-          message: 'Vous devez vous connecter pour acheter des tickets',
-          from: '/buy' 
-        } 
-      });
-    }
-  }, [user, navigate]);
 
   useEffect(() => {
     loadCampaign();
@@ -178,22 +118,25 @@ export const BuyTicketsPage = () => {
   // Load available numbers when campaign is loaded
   useEffect(() => {
     if (!campaign) return;
-    setLoadingNumbers(true);
-    try {
-      const pageSize = 500;
-      const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
-      if (numbersPage === 1) {
-        setAvailableNumbers(response.numbers || []);
-      } else {
-        setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
+    const fetchNumbers = async () => {
+      setLoadingNumbers(true);
+      try {
+        const pageSize = 500;
+        const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
+        if (numbersPage === 1) {
+          setAvailableNumbers(response.numbers || []);
+        } else {
+          setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
+        }
+        setHasMoreNumbers((response.numbers || []).length === pageSize);
+      } catch (err) {
+        console.error('Error loading available numbers:', err);
+      } finally {
+        setLoadingNumbers(false);
       }
-      setHasMoreNumbers((response.numbers || []).length === pageSize);
-    } catch (err) {
-      console.error('Error loading available numbers:', err);
-    } finally {
-      setLoadingNumbers(false);
-    }
-  };
+    };
+    fetchNumbers();
+  }, [campaign, numbersPage]);
 
   const loadWallet = async () => {
     try {
@@ -201,34 +144,6 @@ export const BuyTicketsPage = () => {
       setWallet(response.data.wallet);
     } catch (err) {
       console.error('Failed to load wallet:', err);
-    }
-  };
-
-  const loadAvailableNumbers = async () => {
-    if (!campaign) return;
-    
-    setLoadingNumbers(true);
-    try {
-      // Charger avec une limite pour améliorer la performance
-      const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: 200 });
-      setAvailableNumbers(response.numbers || []);
-    } catch (err) {
-      console.error('Error loading available numbers:', err);
-      // Generate sample numbers if API not available
-      const sampleNumbers = [];
-      const soldCount = campaign.sold_tickets || 0;
-      const totalTickets = campaign.total_tickets || 100;
-      // Calculate padding based on total tickets
-      const padLength = Math.max(2, String(totalTickets).length);
-      for (let i = soldCount + 1; i <= Math.min(soldCount + 100, totalTickets); i++) {
-        sampleNumbers.push({
-          number: i,
-          display: `K-${String(i).padStart(padLength, '0')}`
-        });
-      }
-      setAvailableNumbers(sampleNumbers);
-    } finally {
-      setLoadingNumbers(false);
     }
   };
 
@@ -595,23 +510,23 @@ export const BuyTicketsPage = () => {
                     </p>
                   </div>
                 ) : (
-                  <>
+                  <div>
                     <div className="max-h-48 overflow-y-auto p-3">
                       <div className="flex flex-wrap gap-2">
                         {composerItems.map(item => (
-                          <span
-                            key={item.number}
+                          <span 
+                            key={item.number} 
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
-                              unavailableTickets.includes(item.number)
-                                ? 'bg-red-100 text-red-700 line-through'
+                              unavailableTickets.includes(item.number) 
+                                ? 'bg-red-100 text-red-700 line-through' 
                                 : isDarkMode 
                                   ? 'bg-purple-900/30 text-purple-400' 
                                   : 'bg-purple-100 text-purple-700'
                             }`}
                           >
                             {item.display || `#${String(item.number).padStart(4, '0')}`}
-                            <button
-                              onClick={() => removeFromComposer(item.number)}
+                            <button 
+                              onClick={() => removeFromComposer(item.number)} 
                               className={`hover:text-red-500 ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}
                             >
                               ×
@@ -621,18 +536,12 @@ export const BuyTicketsPage = () => {
                       </div>
                     </div>
                     <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      {/* Avertissement d'expiration */}
-                      <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 ${
-                        isDarkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
-                      }`}>
+                      <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 ${isDarkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
                         <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                         </svg>
-                        <span className="text-xs">
-                          Panier valide 24h - Finalisez avant qu'il n'expire
-                        </span>
+                        <span className="text-xs">Panier valide 24h - Finalisez avant qu'il n'expire</span>
                       </div>
-                      
                       <div className="flex justify-between items-center mb-2">
                         <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           Total ({composerItems.length} tickets)
@@ -641,25 +550,24 @@ export const BuyTicketsPage = () => {
                           {formatCurrency(composerItems.length * (campaign?.ticket_price || 0))}
                         </span>
                       </div>
-                      <button
+                      <button 
                         onClick={() => {
-                          // Charger les tickets du compositeur dans la sélection
                           setTicketCount(Math.min(10, composerItems.length));
                           setSelectionMode('manual');
                           setSelectedNumbers(composerItems.slice(0, 5));
                           setShowComposer(false);
-                        }}
-                        disabled={composerItems.length === 0 || unavailableTickets.length > 0}
+                        }} 
+                        disabled={composerItems.length === 0 || unavailableTickets.length > 0} 
                         className={`w-full py-2 rounded-lg font-medium text-sm transition-all ${
-                          isDarkMode
-                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
+                          isDarkMode 
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500' 
                             : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-200 disabled:text-gray-400'
                         }`}
                       >
                         Passer à l'achat
                       </button>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             )}
@@ -667,44 +575,8 @@ export const BuyTicketsPage = () => {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        {/* Campaign Info Card */}
-        <div className={`relative rounded-2xl overflow-hidden mb-6 ${
-          isDarkMode 
-            ? 'bg-gradient-to-r from-cyan-900/50 via-blue-900/50 to-indigo-900/50 border border-gray-700' 
-            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600'
-        }`}>
-          <div className="absolute inset-0 opacity-10">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
-                </pattern>
-              </defs>
-              <rect width="100" height="100" fill="url(#grid)" />
-            </svg>
-          </div>
-          
-          <div className="relative p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <TrophyIcon className="w-8 h-8 text-yellow-400" />
-              <h2 className="text-2xl font-bold text-white">{campaign.main_prize}</h2>
-            </div>
-            <p className="text-white/80 text-sm mb-4">{campaign.title}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className={`rounded-xl p-4 ${isDarkMode ? 'bg-white/5' : 'bg-white/10'} backdrop-blur-sm`}>
-                <p className="text-blue-200 text-sm">Prix du ticket</p>
-                <p className="text-2xl font-bold text-white">{formatCurrency(campaign.ticket_price)}</p>
-              </div>
-              <div className={`rounded-xl p-4 ${isDarkMode ? 'bg-white/5' : 'bg-white/10'} backdrop-blur-sm`}>
-                <p className="text-blue-200 text-sm">Tickets disponibles</p>
-                <p className="text-2xl font-bold text-white">{availableTickets.toLocaleString('fr-FR')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Purchase Form */}
+      {/* Purchase Form */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
         <div className={`rounded-2xl overflow-hidden ${
           isDarkMode 
             ? 'bg-gray-800/50 border border-gray-700 backdrop-blur-sm' 
@@ -869,7 +741,8 @@ export const BuyTicketsPage = () => {
                     }`}>
                       {selectedNumbers.length} / {ticketCount}
                     </span>
-                  </div>
+                  {/* Fermeture correcte du bloc */}
+                </div>
                   
                   <input
                     type="text"
@@ -1269,7 +1142,7 @@ export const BuyTicketsPage = () => {
           </div>
         </div>
       </div>
-
+      
       {/* Modal de Confirmation */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -1281,10 +1154,9 @@ export const BuyTicketsPage = () => {
                 Confirmer votre achat
               </h3>
             </div>
-            
             <div className="p-6 space-y-4">
               {/* Récapitulatif */}
-              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}> 
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Campagne</span>
@@ -1323,7 +1195,7 @@ export const BuyTicketsPage = () => {
                   <div className={`pt-3 border-t flex justify-between text-lg ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                     <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Total</span>
                     <span className={`font-bold ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
-                      {campaign.currency === 'CDF'
+                      {campaign?.currency === 'CDF'
                         ? formatCurrencyCDF(finalPrice)
                         : formatCurrency(finalPrice)}
                     </span>
@@ -1338,18 +1210,26 @@ export const BuyTicketsPage = () => {
                 </p>
               </div>
 
-              {/* Bouton charger plus de tickets */}
-              {hasMoreNumbers && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    onClick={handleLoadMoreNumbers}
-                    className={`px-6 py-2 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
-                    disabled={loadingNumbers}
-                  >
-                    {loadingNumbers ? 'Chargement...' : 'Charger plus de tickets'}
-                  </button>
-                </div>
-              )}
+              {/* Boutons d'action */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmPurchase}
+                  disabled={purchasing}
+                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {purchasing ? 'Traitement...' : 'Confirmer'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1359,3 +1239,4 @@ export const BuyTicketsPage = () => {
 };
 
 export default BuyTicketsPage;
+
