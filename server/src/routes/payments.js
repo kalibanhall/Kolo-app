@@ -766,14 +766,9 @@ router.post(
       });
 
       if (paymentResponse.success) {
-        // Update purchase with PayDRC transaction ID
-        await query(
-          `UPDATE purchases SET 
-          transaction_id = $1,
-          payment_status = 'pending'
-        WHERE id = $2`,
-          [paymentResponse.transactionId || reference, purchase.id]
-        );
+        // Purchase already has the correct transaction_id (reference)
+        // PayDRC's transactionId is logged but we keep our reference for tracking
+        console.log(`✅ PayDRC payment initiated for purchase ${purchase.id}, PayDRC ID: ${paymentResponse.transactionId}`);
 
         res.json({
           success: true,
@@ -818,13 +813,13 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
   try {
     const { reference } = req.params;
 
-    // Check our database first
+    // Check our database first - search by transaction_id OR by LIKE match (in case reference was modified)
     const purchaseResult = await query(
       `SELECT p.*, c.title as campaign_title
        FROM purchases p
        JOIN campaigns c ON p.campaign_id = c.id
-       WHERE p.transaction_id = $1 AND p.user_id = $2`,
-      [reference, req.user.id]
+       WHERE (p.transaction_id = $1 OR p.transaction_id LIKE $3) AND p.user_id = $2`,
+      [reference, req.user.id, `%${reference}%`]
     );
 
     if (purchaseResult.rows.length === 0) {

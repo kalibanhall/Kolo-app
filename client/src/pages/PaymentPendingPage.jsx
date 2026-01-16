@@ -303,10 +303,10 @@ export const PaymentPendingPage = () => {
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex justify-center">
           <button
             onClick={() => navigate('/buy')}
-            className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all ${
+            className={`w-full max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
               isDarkMode 
                 ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
                 : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
@@ -314,16 +314,6 @@ export const PaymentPendingPage = () => {
           >
             Retour
           </button>
-          <Link
-            to="/dashboard"
-            className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all text-center ${
-              isDarkMode 
-                ? 'bg-cyan-600 hover:bg-cyan-700 text-white' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
-          >
-            Tableau de bord
-          </Link>
         </div>
       </div>
     </div>
