@@ -34,6 +34,17 @@ const BuyTicketsPage = () => {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState('');
   
+  // Variables d'achat de tickets
+  const [ticketCount, setTicketCount] = useState(1);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectionMode, setSelectionMode] = useState('auto'); // 'auto' or 'manual'
+  const [selectedNumbers, setSelectedNumbers] = useState([]);
+  const [availableNumbers, setAvailableNumbers] = useState([]);
+  const [numberSearchTerm, setNumberSearchTerm] = useState('');
+  const [numbersPage, setNumbersPage] = useState(1);
+  const [loadingNumbers, setLoadingNumbers] = useState(false);
+  const [hasMoreNumbers, setHasMoreNumbers] = useState(true);
+  
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
     ticketCount: 1,
