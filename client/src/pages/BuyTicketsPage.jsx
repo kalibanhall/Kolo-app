@@ -117,6 +117,47 @@ const BuyTicketsPage = () => {
     }
   }, [composerItems, campaign]);
 
+  // Charger la campagne
+  const loadCampaign = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      let campaignData;
+      
+      if (campaignId) {
+        // Si on a un ID de campagne dans l'URL, charger cette campagne spécifique
+        const response = await campaignsAPI.getById(campaignId);
+        campaignData = response.data || response.campaign || response;
+      } else {
+        // Sinon, charger la campagne active courante
+        const response = await campaignsAPI.getCurrent();
+        campaignData = response.data || response.campaign || response;
+      }
+      
+      if (campaignData && campaignData.id) {
+        setCampaign(campaignData);
+        
+        // Charger le panier sauvegardé pour cette campagne
+        try {
+          const savedCart = localStorage.getItem(getCartKey(campaignData.id));
+          if (savedCart) {
+            setComposerItems(JSON.parse(savedCart));
+          }
+        } catch (e) {
+          console.error('Error loading saved cart:', e);
+        }
+      } else {
+        setError('Aucune campagne trouvée');
+      }
+    } catch (err) {
+      console.error('Error loading campaign:', err);
+      setError(err.message || 'Erreur lors du chargement de la campagne');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCampaign();
     loadWallet();
@@ -382,7 +423,34 @@ const BuyTicketsPage = () => {
     );
   }
 
-  if (!campaign || campaign.status !== 'open') {
+  if (error && !campaign) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center p-4 ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+      }`}>
+        <div className={`max-w-md w-full rounded-2xl shadow-xl p-8 text-center ${
+          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
+        }`}>
+          <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Erreur de chargement
+          </h2>
+          <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            {error}
+          </p>
+          <Link
+            to="/dashboard"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
+          >
+            Retour au tableau de bord
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!campaign || !['open', 'active'].includes(campaign.status)) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${
         isDarkMode 
@@ -409,11 +477,14 @@ const BuyTicketsPage = () => {
     );
   }
 
-  const totalPrice = ticketCount * campaign.ticket_price;
+  const totalPrice = ticketCount * (campaign.ticket_price || 0);
   // Code promo: $0.30 discount per ticket
   const promoDiscountAmount = promoDiscount ? (0.30 * ticketCount) : 0;
   const finalPrice = promoDiscount ? Math.max(0, totalPrice - promoDiscountAmount) : totalPrice;
-  const availableTickets = campaign.total_tickets - campaign.sold_tickets;
+  // Calculer les tickets disponibles avec valeurs par défaut
+  const totalTickets = parseInt(campaign.total_tickets) || 0;
+  const soldTickets = parseInt(campaign.sold_tickets) || 0;
+  const availableTickets = Math.max(0, totalTickets - soldTickets);
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${

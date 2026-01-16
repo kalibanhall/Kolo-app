@@ -18,7 +18,7 @@ import { HomePage } from './pages/HomePage';
 
 // Lazy-load non-critical pages
 const UserDashboard = lazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard })));
-const BuyTicketsPage = lazy(() => import('./pages/BuyTicketsPage').then(m => ({ default: m.BuyTicketsPage })));
+const BuyTicketsPage = lazy(() => import('./pages/BuyTicketsPage'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const ParticipantsPage = lazy(() => import('./pages/ParticipantsPage').then(m => ({ default: m.ParticipantsPage })));
 const DrawManagementPage = lazy(() => import('./pages/DrawManagementPage'));
