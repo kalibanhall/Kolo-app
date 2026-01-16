@@ -20,6 +20,7 @@ export const PaymentPendingPage = () => {
   const { 
     reference = null, 
     amount = 0, 
+    amountUSD = 0,
     provider = 'mobile_money', 
     ticket_count = 0,
     currency = 'CDF'
@@ -282,7 +283,7 @@ export const PaymentPendingPage = () => {
           <div className="flex justify-between items-center">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Montant</span>
             <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {amount ? amount.toLocaleString('fr-FR') : '0'} {currency === 'USD' ? '$' : 'FC'}
+              {amountUSD ? `$${amountUSD.toLocaleString('en-US')}` : (amount ? `${amount.toLocaleString('fr-FR')} FC` : '$0')}
             </span>
           </div>
           <div className="flex justify-between items-center">

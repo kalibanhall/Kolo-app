@@ -318,6 +318,8 @@ const BuyTicketsPage = () => {
             state: { 
               reference: response.data.reference,
               amount: response.data.amount,
+              amountUSD: finalPrice,
+              currency: response.data.currency || 'CDF',
               provider: response.data.provider,
               ticket_count: ticketCount
             } 
