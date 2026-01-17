@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPool } = require('../database/supabase');
+const { pool, query } = require('../config/database');
 const { authenticateToken, isAdmin } = require('../middleware/auth');
 
 /**
@@ -24,8 +24,6 @@ const { authenticateToken, isAdmin } = require('../middleware/auth');
  */
 router.get('/stats', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const pool = getPool();
-    
     // Statistiques par ville
     const cityStats = await pool.query(`
       SELECT 
@@ -164,7 +162,6 @@ router.put('/user', authenticateToken, async (req, res) => {
   try {
     const { city, latitude, longitude } = req.body;
     const userId = req.user.id;
-    const pool = getPool();
 
     await pool.query(`
       UPDATE users 
