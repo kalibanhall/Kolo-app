@@ -172,10 +172,18 @@ export const CampaignsManagementPage = () => {
     setError(null);
 
     try {
+      // Convert dates to ISO 8601 format for backend validation
+      const dataToSend = {
+        ...formData,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        draw_date: formData.draw_date ? new Date(formData.draw_date).toISOString() : null,
+      };
+
       if (editingCampaign) {
-        await campaignsAPI.update(editingCampaign.id, formData);
+        await campaignsAPI.update(editingCampaign.id, dataToSend);
       } else {
-        await campaignsAPI.create(formData);
+        await campaignsAPI.create(dataToSend);
       }
       
       // Reset form and reload

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useCart } from '../context/CartContext';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, MoneyIcon } from '../components/Icons';
@@ -14,7 +13,6 @@ const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
 const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
-  const { addToCart: addToGlobalCart, clearCart: clearGlobalCart } = useCart();
   const navigate = useNavigate();
   const { campaignId } = useParams(); // Get campaign ID from URL
   const [campaign, setCampaign] = useState(null);
@@ -52,28 +50,28 @@ const BuyTicketsPage = () => {
     ticketCount: 1,
   });
   
-  // Sauvegarder le panier dans localStorage - spécifique à la campagne
+  // Charger le panier sauvegardé quand la campagne est chargée
   useEffect(() => {
     if (!campaign?.id) return;
     try {
-      localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
+      const savedCart = localStorage.getItem(getCartKey(campaign.id));
+      if (savedCart) {
+        setComposerItems(JSON.parse(savedCart));
+      }
     } catch (e) {
       console.error('Error loading cart:', e);
     }
   }, [campaign?.id]);
 
-  // Sauvegarder le panier dans localStorage et synchroniser avec le contexte global
+  // Sauvegarder le panier dans localStorage quand il change
   useEffect(() => {
-    if (!campaign?.id) return;
+    if (!campaign?.id || composerItems.length === 0) return;
     try {
       localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
-      // Synchroniser avec le panier global pour l'affichage dans la Navbar
-      const ticketNumbers = composerItems.map(item => item.number);
-      addToGlobalCart(campaign.id, campaign, ticketNumbers);
     } catch (e) {
       console.error('Error saving cart:', e);
     }
-  }, [composerItems, campaign, addToGlobalCart]);
+  }, [composerItems, campaign?.id]);
 
   // Ajouter au compositeur
   const addToComposer = useCallback((ticketNumber) => {
@@ -507,15 +505,8 @@ const BuyTicketsPage = () => {
           : 'bg-white/80 border-gray-200'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => {
-              // Navigate to campaign detail if we have a campaignId, otherwise to dashboard
-              if (campaignId) {
-                navigate(`/campaign/${campaignId}`);
-              } else {
-                navigate('/dashboard');
-              }
-            }}
+          <Link
+            to={campaignId ? `/campaigns/${campaignId}` : '/'}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -526,7 +517,7 @@ const BuyTicketsPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span className="font-medium hidden sm:inline">Retour</span>
-          </button>
+          </Link>
           
           <div className="flex items-center gap-2">
             <LogoKolo size="small" />

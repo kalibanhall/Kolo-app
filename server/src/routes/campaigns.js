@@ -202,20 +202,20 @@ router.get('/:id', async (req, res) => {
 
 // Create new campaign (admin only)
 router.post('/', verifyToken, verifyAdmin, [
-  body('title').notEmpty().trim().isLength({ min: 5, max: 200 }),
-  body('description').notEmpty().trim(),
-  body('total_tickets').isInt({ min: 1 }),
-  body('ticket_price').isFloat({ min: 0.01 }),
-  body('main_prize').notEmpty().trim(),
-  body('start_date').isISO8601(),
-  body('end_date').optional({ nullable: true }).isISO8601(),
-  body('status').optional().isIn(['draft', 'open']),
-  body('draw_date').optional({ nullable: true }).isISO8601(),
+  body('title').notEmpty().withMessage('Le titre est requis').trim().isLength({ min: 5, max: 200 }).withMessage('Le titre doit avoir entre 5 et 200 caractères'),
+  body('description').notEmpty().withMessage('La description est requise').trim(),
+  body('total_tickets').isInt({ min: 1 }).withMessage('Le nombre de tickets doit être au moins 1'),
+  body('ticket_price').isFloat({ min: 0.01 }).withMessage('Le prix du ticket doit être au moins 0.01'),
+  body('main_prize').notEmpty().withMessage('Le prix principal est requis').trim(),
+  body('start_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de début doit être au format valide'),
+  body('end_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de fin doit être au format valide'),
+  body('status').optional().isIn(['draft', 'open']).withMessage('Le statut doit être draft ou open'),
+  body('draw_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de tirage doit être au format valide'),
   body('secondary_prizes').optional({ nullable: true }).trim(),
   body('third_prize').optional({ nullable: true }).trim(),
   body('rules').optional({ nullable: true }).trim(),
-  body('display_order').optional().isInt(),
-  body('is_featured').optional().isBoolean()
+  body('display_order').optional().isInt().withMessage('L\'ordre d\'affichage doit être un nombre'),
+  body('is_featured').optional().isBoolean().withMessage('is_featured doit être un booléen')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -337,12 +337,15 @@ router.patch('/:id/status', verifyToken, verifyAdmin, [
 
 // Update complete campaign (admin only)
 router.put('/:id', verifyToken, verifyAdmin, [
-  body('title').optional().trim().isLength({ min: 5, max: 200 }),
+  body('title').optional().trim().isLength({ min: 5, max: 200 }).withMessage('Le titre doit avoir entre 5 et 200 caractères'),
   body('description').optional().trim(),
-  body('total_tickets').optional().isInt({ min: 1 }),
-  body('ticket_price').optional().isFloat({ min: 0.01 }),
+  body('total_tickets').optional().isInt({ min: 1 }).withMessage('Le nombre de tickets doit être au moins 1'),
+  body('ticket_price').optional().isFloat({ min: 0.01 }).withMessage('Le prix du ticket doit être au moins 0.01'),
   body('main_prize').optional().trim(),
-  body('status').optional().isIn(['draft', 'open', 'closed', 'completed'])
+  body('start_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de début doit être au format valide'),
+  body('end_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de fin doit être au format valide'),
+  body('draw_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de tirage doit être au format valide'),
+  body('status').optional().isIn(['draft', 'open', 'closed', 'completed']).withMessage('Statut invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

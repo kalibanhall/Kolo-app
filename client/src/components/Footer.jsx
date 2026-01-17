@@ -16,7 +16,7 @@ const Footer = () => {
               <LogoKoloFull size="small" darkMode={true} />
             </div>
             <p className="text-xs sm:text-sm text-gray-400">
-              Plateforme sécurisée de tombola en ligne
+              Koma Propriétaire - Là où un ticket peut changer une vie
             </p>
           </div>
 
@@ -67,7 +67,10 @@ const Footer = () => {
         {/* Bottom */}
         <div className="border-t border-gray-800 mt-4 sm:mt-8 pt-4 sm:pt-8 text-center">
           <p className="text-xs sm:text-sm text-gray-400">
-            © {currentYear} KOLO - Tombola en ligne
+            © {currentYear} KOLO | Koma Propriétaire
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Là où un ticket peut changer une vie
           </p>
         </div>
       </div>

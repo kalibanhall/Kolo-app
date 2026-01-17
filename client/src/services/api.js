@@ -33,7 +33,13 @@ const request = async (endpoint, options = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Une erreur est survenue');
+      // Include validation errors in the message if available
+      let errorMessage = data.message || 'Une erreur est survenue';
+      if (data.errors && Array.isArray(data.errors)) {
+        const errorDetails = data.errors.map(e => e.msg || e.message).join(', ');
+        errorMessage = `${errorMessage}: ${errorDetails}`;
+      }
+      throw new Error(errorMessage);
     }
 
     return data;

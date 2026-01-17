@@ -9,92 +9,188 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'support@kolo.cd';
-const FROM_NAME = process.env.FROM_NAME || 'KOLO Tombola';
+const FROM_NAME = process.env.FROM_NAME || 'KOLO | Koma Propriétaire';
+const LOGO_URL = 'https://res.cloudinary.com/djuyrqof8/image/upload/v1737158400/kolo/logo-kolo.png';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kolo.cd';
+
+/**
+ * Template HTML de base pour tous les emails KOLO
+ */
+const getEmailTemplate = (content, preheader = '') => `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>KOLO | Koma Propriétaire</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; }
+    .preheader { display: none !important; visibility: hidden; mso-hide: all; font-size: 1px; color: #f3f4f6; line-height: 1px; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; }
+    .email-wrapper { width: 100%; background-color: #f3f4f6; padding: 40px 20px; }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    .email-header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%); padding: 32px 40px; text-align: center; }
+    .logo-container { margin-bottom: 16px; }
+    .logo { height: 60px; width: auto; }
+    .brand-name { color: #ffffff; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; }
+    .email-body { padding: 40px; }
+    .greeting { font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 16px; }
+    .content { color: #4b5563; font-size: 16px; margin-bottom: 24px; }
+    .highlight-box { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .success-box { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .warning-box { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .danger-box { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 1px solid #fecaca; border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .ticket-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .ticket-number { display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); }
+    .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #6b7280; font-size: 14px; }
+    .detail-value { color: #1f2937; font-weight: 600; font-size: 14px; }
+    .cta-button { display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff !important; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-align: center; margin: 24px 0; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); transition: all 0.3s ease; }
+    .cta-button:hover { box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5); }
+    .cta-button-success { background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4); }
+    .cta-button-danger { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4); }
+    .email-footer { background-color: #f9fafb; padding: 32px 40px; text-align: center; border-top: 1px solid #e5e7eb; }
+    .footer-logo { height: 40px; margin-bottom: 16px; opacity: 0.8; }
+    .footer-text { color: #6b7280; font-size: 13px; margin-bottom: 8px; }
+    .footer-links { margin: 16px 0; }
+    .footer-link { color: #4f46e5; text-decoration: none; font-size: 13px; margin: 0 12px; }
+    .social-links { margin-top: 20px; }
+    .social-icon { display: inline-block; margin: 0 8px; }
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, #e5e7eb, transparent); margin: 24px 0; }
+    
+    @media only screen and (max-width: 600px) {
+      .email-wrapper { padding: 16px 8px; }
+      .email-header { padding: 24px 20px; }
+      .email-body { padding: 24px 20px; }
+      .email-footer { padding: 24px 20px; }
+      .greeting { font-size: 20px; }
+      .cta-button { display: block; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <span class="preheader">${preheader}</span>
+  <div class="email-wrapper">
+    <div class="email-container">
+      <div class="email-header">
+        <div class="logo-container">
+          <img src="${LOGO_URL}" alt="KOLO" class="logo" />
+        </div>
+        <div class="brand-name">Koma Propriétaire</div>
+      </div>
+      <div class="email-body">
+        ${content}
+      </div>
+      <div class="email-footer">
+        <img src="${LOGO_URL}" alt="KOLO" class="footer-logo" />
+        <p class="footer-text"><strong>KOLO | Koma Propriétaire</strong></p>
+        <p class="footer-text">Là où un ticket peut changer une vie</p>
+        <div class="footer-links">
+          <a href="${FRONTEND_URL}" class="footer-link">Site Web</a>
+          <a href="${FRONTEND_URL}/about" class="footer-link">À propos</a>
+          <a href="${FRONTEND_URL}/contact" class="footer-link">Contact</a>
+        </div>
+        <div class="divider"></div>
+        <p class="footer-text">📧 support@kolo.cd | 📞 +243 841 209 627</p>
+        <p class="footer-text" style="margin-top: 16px; font-size: 11px; color: #9ca3af;">
+          Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.
+        </p>
+        <p class="footer-text" style="font-size: 11px; color: #9ca3af;">
+          © ${new Date().getFullYear()} KOLO. Tous droits réservés.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`;
 
 /**
  * Envoie un email de confirmation d'achat avec facture
- * @param {object} options - Options d'envoi
- * @param {string} options.to - Email du destinataire
- * @param {string} options.userName - Nom de l'utilisateur
- * @param {number} options.ticketCount - Nombre de tickets achetés
- * @param {array} options.ticketNumbers - Numéros de tickets
- * @param {number} options.totalAmount - Montant total
- * @param {string} options.campaignTitle - Titre de la campagne
- * @param {Buffer} options.pdfAttachment - Buffer du PDF de la facture
  */
 async function sendPurchaseConfirmation(options) {
   const { to, userName, ticketCount, ticketNumbers, totalAmount, campaignTitle, pdfAttachment, invoiceNumber } = options;
 
+  const ticketNumbersHtml = ticketNumbers.map(num => 
+    `<span class="ticket-number">${num}</span>`
+  ).join('');
+
+  const content = `
+    <h1 class="greeting">🎉 Félicitations ${userName} !</h1>
+    <p class="content">Votre achat a été confirmé avec succès. Vous êtes maintenant officiellement en lice pour la tombola <strong>${campaignTitle}</strong>.</p>
+    
+    <div class="success-box">
+      <h3 style="color: #059669; font-size: 18px; margin-bottom: 16px;">📋 Détails de votre achat</h3>
+      <div class="detail-row">
+        <span class="detail-label">Campagne</span>
+        <span class="detail-value">${campaignTitle}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Nombre de tickets</span>
+        <span class="detail-value">${ticketCount} ticket${ticketCount > 1 ? 's' : ''}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Montant total</span>
+        <span class="detail-value">${totalAmount} $</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">N° Facture</span>
+        <span class="detail-value">${invoiceNumber}</span>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <h3 style="color: #0369a1; font-size: 16px; margin-bottom: 12px;">🎟️ Vos numéros de tickets</h3>
+      <div class="ticket-grid">
+        ${ticketNumbersHtml}
+      </div>
+      <p style="color: #64748b; font-size: 13px; margin-top: 16px;">
+        Conservez précieusement ces numéros. Ils seront vérifiés lors du tirage au sort.
+      </p>
+    </div>
+
+    <p class="content">
+      ✅ Votre facture est jointe à cet email en pièce jointe (PDF).
+    </p>
+
+    <div style="text-align: center;">
+      <a href="${FRONTEND_URL}/profile" class="cta-button cta-button-success">
+        👀 Voir mes tickets
+      </a>
+    </div>
+
+    <div class="divider"></div>
+    
+    <p class="content" style="text-align: center;">
+      🍀 <strong>Bonne chance pour le tirage au sort !</strong><br>
+      <span style="font-size: 14px; color: #6b7280;">Que la chance soit avec vous.</span>
+    </p>
+  `;
+
   const msg = {
     to,
-    from: {
-      email: FROM_EMAIL,
-      name: FROM_NAME
-    },
+    from: { email: FROM_EMAIL, name: FROM_NAME },
     subject: '🎉 Achat confirmé - Vos tickets KOLO',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-          .ticket-box { background: white; border: 2px dashed #4f46e5; padding: 20px; margin: 20px 0; border-radius: 8px; }
-          .ticket-number { display: inline-block; background: #e0e7ff; color: #4f46e5; padding: 8px 16px; margin: 5px; border-radius: 5px; font-weight: bold; }
-          .button { display: inline-block; background: #4f46e5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 30px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎊 Félicitations ${userName} !</h1>
-            <p>Votre achat a été confirmé avec succès</p>
-          </div>
-          <div class="content">
-            <p>Bonjour <strong>${userName}</strong>,</p>
-            <p>Nous sommes ravis de vous confirmer l'achat de vos tickets pour la tombola <strong>${campaignTitle}</strong>.</p>
-            
-            <div class="ticket-box">
-              <h3>📋 Détails de votre achat</h3>
-              <p><strong>Nombre de tickets :</strong> ${ticketCount}</p>
-              <p><strong>Montant total :</strong> ${totalAmount} $</p>
-              <p><strong>Numéro de facture :</strong> ${invoiceNumber}</p>
-              
-              <h4>🎟️ Vos numéros de tickets :</h4>
-              <div>
-                ${ticketNumbers.map(num => `<span class="ticket-number">${num}</span>`).join('')}
-              </div>
-            </div>
-
-            <p>✅ Votre facture est jointe à cet email en pièce jointe.</p>
-            <p>🍀 <strong>Bonne chance pour le tirage au sort !</strong></p>
-
-            <p style="margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/profile" class="button">
-                Voir mes tickets
-              </a>
-            </p>
-          </div>
-          <div class="footer">
-            <p>KOLO - Tombola Digitale</p>
-            <p>contact@kolo.cd | +243 841 209 627</p>
-            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    attachments: pdfAttachment ? [
-      {
-        content: pdfAttachment.toString('base64'),
-        filename: `facture-${invoiceNumber}.pdf`,
-        type: 'application/pdf',
-        disposition: 'attachment'
-      }
-    ] : []
+    html: getEmailTemplate(content, `Félicitations ${userName}! Votre achat de ${ticketCount} ticket(s) KOLO a été confirmé.`),
+    attachments: pdfAttachment ? [{
+      content: pdfAttachment.toString('base64'),
+      filename: `facture-${invoiceNumber}.pdf`,
+      type: 'application/pdf',
+      disposition: 'attachment'
+    }] : []
   };
 
   try {
@@ -109,64 +205,51 @@ async function sendPurchaseConfirmation(options) {
 
 /**
  * Envoie un email de notification de gain
- * @param {object} options - Options d'envoi
  */
 async function sendWinnerNotification(options) {
   const { to, userName, prize, ticketNumber, campaignTitle } = options;
 
+  const content = `
+    <div style="text-align: center; padding: 20px 0;">
+      <div style="font-size: 64px; margin-bottom: 16px;">🎊🏆🎊</div>
+      <h1 style="font-size: 32px; color: #f59e0b; margin-bottom: 8px;">FÉLICITATIONS !</h1>
+      <p style="font-size: 20px; color: #1f2937; font-weight: 600;">Vous avez GAGNÉ !</p>
+    </div>
+
+    <p class="content">Cher(e) <strong>${userName}</strong>,</p>
+    <p class="content">Nous avons l'immense plaisir de vous annoncer une EXCELLENTE nouvelle ! Votre ticket a été tiré au sort et vous êtes officiellement <strong>GAGNANT(E)</strong> !</p>
+    
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #f59e0b; border-radius: 16px; padding: 32px; margin: 24px 0; text-align: center;">
+      <p style="color: #92400e; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">🏆 Votre Lot</p>
+      <h2 style="color: #78350f; font-size: 28px; font-weight: 700; margin-bottom: 16px;">${prize}</h2>
+      <div style="background: #ffffff; border-radius: 8px; padding: 12px; display: inline-block;">
+        <p style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Ticket gagnant</p>
+        <p style="color: #4f46e5; font-size: 20px; font-weight: 700;">${ticketNumber}</p>
+      </div>
+      <p style="color: #78350f; font-size: 14px; margin-top: 16px;">Campagne: ${campaignTitle}</p>
+    </div>
+
+    <div class="highlight-box">
+      <h3 style="color: #0369a1; font-size: 16px; margin-bottom: 16px;">📞 Prochaines étapes</h3>
+      <ul style="color: #4b5563; font-size: 14px; padding-left: 20px;">
+        <li style="margin-bottom: 8px;">Notre équipe vous contactera sous <strong>48 heures</strong></li>
+        <li style="margin-bottom: 8px;">Nous vérifierons votre identité</li>
+        <li style="margin-bottom: 8px;">Nous organiserons la remise de votre lot</li>
+      </ul>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="${FRONTEND_URL}/profile" class="cta-button" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+        🎁 Voir mes gains
+      </a>
+    </div>
+  `;
+
   const msg = {
     to,
-    from: {
-      email: FROM_EMAIL,
-      name: FROM_NAME
-    },
-    subject: '🏆 FÉLICITATIONS ! Vous avez gagné !',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: white; padding: 40px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #fffbeb; padding: 30px; border-radius: 0 0 10px 10px; }
-          .prize-box { background: white; border: 3px solid #f59e0b; padding: 30px; margin: 20px 0; border-radius: 8px; text-align: center; }
-          .button { display: inline-block; background: #f59e0b; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉🎉🎉 VOUS AVEZ GAGNÉ ! 🎉🎉🎉</h1>
-          </div>
-          <div class="content">
-            <p>Cher(e) <strong>${userName}</strong>,</p>
-            <p>Nous avons le plaisir de vous annoncer une EXCELLENTE nouvelle !</p>
-            
-            <div class="prize-box">
-              <h2 style="color: #f59e0b; margin: 0;">🏆 ${prize}</h2>
-              <p style="font-size: 18px; margin: 20px 0;">Ticket gagnant: <strong>${ticketNumber}</strong></p>
-              <p>Campagne: ${campaignTitle}</p>
-            </div>
-
-            <p><strong>Félicitations !</strong> Votre ticket a été tiré au sort et vous êtes officiellement gagnant(e) !</p>
-            
-            <p>📞 <strong>Prochaines étapes :</strong></p>
-            <ul>
-              <li>Notre équipe vous contactera sous 48h au numéro enregistré</li>
-              <li>Nous vérifierons votre identité</li>
-              <li>Nous organiserons la remise de votre lot</li>
-            </ul>
-
-            <p style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/profile" class="button">
-                Voir mes gains
-              </a>
-            </p>
-          </div>
-        </div>
-      </html>
-    `
+    from: { email: FROM_EMAIL, name: FROM_NAME },
+    subject: '🏆 FÉLICITATIONS ! Vous avez GAGNÉ !',
+    html: getEmailTemplate(content, `Félicitations ${userName}! Vous avez gagné ${prize} avec le ticket ${ticketNumber}!`)
   };
 
   try {
@@ -181,60 +264,47 @@ async function sendWinnerNotification(options) {
 
 /**
  * Envoie un email de vérification
- * @param {object} options - Options d'envoi
  */
 async function sendVerificationEmail(options) {
   const { to, userName, verificationToken } = options;
+  const verificationUrl = `${FRONTEND_URL}/verify-email/${verificationToken}`;
 
-  const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+  const content = `
+    <h1 class="greeting">Bienvenue ${userName} ! 👋</h1>
+    <p class="content">Merci de vous être inscrit(e) sur <strong>KOLO | Koma Propriétaire</strong>. Vous êtes à un pas de pouvoir participer à nos tombolas et peut-être changer votre vie !</p>
+    
+    <div class="highlight-box">
+      <h3 style="color: #0369a1; font-size: 16px; margin-bottom: 12px;">✉️ Vérifiez votre adresse email</h3>
+      <p style="color: #4b5563; font-size: 14px;">
+        Pour activer votre compte et accéder à toutes les fonctionnalités, veuillez confirmer votre adresse email.
+      </p>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="${verificationUrl}" class="cta-button">
+        ✅ Vérifier mon email
+      </a>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center;">
+      Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br>
+      <a href="${verificationUrl}" style="color: #4f46e5; word-break: break-all; font-size: 12px;">${verificationUrl}</a>
+    </p>
+
+    <div class="warning-box" style="margin-top: 24px;">
+      <p style="color: #92400e; font-size: 13px;">
+        ⏰ <strong>Ce lien expire dans 24 heures.</strong> Si vous n'avez pas créé de compte KOLO, ignorez cet email.
+      </p>
+    </div>
+  `;
 
   const msg = {
     to,
-    from: {
-      email: FROM_EMAIL,
-      name: FROM_NAME
-    },
-    subject: '✉️ Vérifiez votre adresse email - KOLO',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: #4f46e5; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>✉️ Vérification Email</h1>
-          </div>
-          <div class="content">
-            <p>Bonjour <strong>${userName}</strong>,</p>
-            <p>Merci de vous être inscrit sur KOLO ! Pour activer votre compte, veuillez vérifier votre adresse email.</p>
-            
-            <p style="text-align: center;">
-              <a href="${verificationUrl}" class="button">
-                Vérifier mon email
-              </a>
-            </p>
-
-            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur:<br>
-              <a href="${verificationUrl}" style="color: #4f46e5; word-break: break-all;">${verificationUrl}</a>
-            </p>
-
-            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-              Ce lien expire dans 24 heures.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+    from: { email: FROM_EMAIL, name: FROM_NAME },
+    subject: '✉️ Vérifiez votre email - KOLO | Koma Propriétaire',
+    html: getEmailTemplate(content, `${userName}, vérifiez votre adresse email pour activer votre compte KOLO.`)
   };
 
   try {
@@ -249,71 +319,114 @@ async function sendVerificationEmail(options) {
 
 /**
  * Envoie un email de réinitialisation de mot de passe
- * @param {object} options - Options d'envoi
  */
 async function sendPasswordResetEmail(options) {
   const { to, userName, resetToken } = options;
+  const resetUrl = `${FRONTEND_URL}/reset-password/${resetToken}`;
 
-  const transporter = createTransporter();
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+  const content = `
+    <h1 class="greeting">Réinitialisation de mot de passe 🔐</h1>
+    <p class="content">Bonjour <strong>${userName}</strong>,</p>
+    <p class="content">Vous avez demandé à réinitialiser votre mot de passe pour votre compte <strong>KOLO | Koma Propriétaire</strong>.</p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${resetUrl}" class="cta-button cta-button-danger">
+        🔑 Réinitialiser mon mot de passe
+      </a>
+    </div>
 
-  const mailOptions = {
-    from: `"KOLO Tombola" <${process.env.EMAIL_USER || 'no-reply@kolo.cd'}>`,
+    <div class="danger-box">
+      <h3 style="color: #dc2626; font-size: 14px; margin-bottom: 8px;">⚠️ Important</h3>
+      <p style="color: #7f1d1d; font-size: 13px; margin-bottom: 0;">
+        Si vous n'avez <strong>pas</strong> demandé cette réinitialisation, ignorez simplement cet email. Votre mot de passe actuel reste sécurisé et ne sera pas modifié.
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="color: #6b7280; font-size: 13px; text-align: center;">
+      Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br>
+      <a href="${resetUrl}" style="color: #dc2626; word-break: break-all; font-size: 12px;">${resetUrl}</a>
+    </p>
+
+    <div class="warning-box" style="margin-top: 24px;">
+      <p style="color: #92400e; font-size: 13px;">
+        ⏰ <strong>Ce lien expire dans 1 heure.</strong> Après ce délai, vous devrez faire une nouvelle demande.
+      </p>
+    </div>
+
+    <div class="highlight-box" style="margin-top: 24px;">
+      <h4 style="color: #0369a1; font-size: 14px; margin-bottom: 8px;">🛡️ Conseils de sécurité</h4>
+      <ul style="color: #4b5563; font-size: 13px; padding-left: 20px; margin: 0;">
+        <li>Utilisez un mot de passe unique et complexe</li>
+        <li>Ne partagez jamais votre mot de passe</li>
+        <li>Activez la double authentification si disponible</li>
+      </ul>
+    </div>
+  `;
+
+  const msg = {
     to,
+    from: { email: FROM_EMAIL, name: FROM_NAME },
     subject: '🔐 Réinitialisation de mot de passe - KOLO',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #fef2f2; padding: 30px; border-radius: 0 0 10px 10px; }
-          .button { display: inline-block; background: #ef4444; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-          .warning { background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🔐 Réinitialisation Mot de Passe</h1>
-          </div>
-          <div class="content">
-            <p>Bonjour <strong>${userName}</strong>,</p>
-            <p>Vous avez demandé à réinitialiser votre mot de passe KOLO.</p>
-            
-            <p style="text-align: center;">
-              <a href="${resetUrl}" class="button">
-                Réinitialiser mon mot de passe
-              </a>
-            </p>
-
-            <div class="warning">
-              <strong>⚠️ Important:</strong> Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe actuel reste sécurisé.
-            </div>
-
-            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur:<br>
-              <a href="${resetUrl}" style="color: #ef4444; word-break: break-all;">${resetUrl}</a>
-            </p>
-
-            <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">
-              Ce lien expire dans 1 heure.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `
+    html: getEmailTemplate(content, `${userName}, voici le lien pour réinitialiser votre mot de passe KOLO.`)
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Password reset email sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    await sgMail.send(msg);
+    console.log(`✅ Password reset email sent to ${to}`);
+    return { success: true };
   } catch (error) {
     console.error('❌ Password reset email failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Envoie un email de test
+ */
+async function sendTestEmail(to) {
+  const content = `
+    <h1 class="greeting">Test Email KOLO 🧪</h1>
+    <p class="content">Ceci est un email de test pour vérifier que la configuration SendGrid fonctionne correctement.</p>
+    
+    <div class="success-box">
+      <h3 style="color: #059669; font-size: 16px; margin-bottom: 8px;">✅ Configuration réussie !</h3>
+      <p style="color: #065f46; font-size: 14px;">
+        Si vous recevez cet email, votre service d'envoi d'emails est correctement configuré.
+      </p>
+    </div>
+
+    <div class="highlight-box">
+      <h4 style="color: #0369a1; font-size: 14px; margin-bottom: 8px;">📊 Informations techniques</h4>
+      <div class="detail-row">
+        <span class="detail-label">Date d'envoi</span>
+        <span class="detail-value">${new Date().toLocaleString('fr-FR')}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Service</span>
+        <span class="detail-value">SendGrid</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Environnement</span>
+        <span class="detail-value">${process.env.NODE_ENV || 'development'}</span>
+      </div>
+    </div>
+  `;
+
+  const msg = {
+    to,
+    from: { email: FROM_EMAIL, name: FROM_NAME },
+    subject: '🧪 Test Email - KOLO | Koma Propriétaire',
+    html: getEmailTemplate(content, 'Ceci est un email de test de la plateforme KOLO.')
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ Test email sent to ${to}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Test email failed:', error);
     throw error;
   }
 }
@@ -322,5 +435,6 @@ module.exports = {
   sendPurchaseConfirmation,
   sendWinnerNotification,
   sendVerificationEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendTestEmail
 };
