@@ -390,7 +390,7 @@ const BuyTicketsPage = () => {
             replace: true,
             state: { 
               reference: response.data.reference,
-              amount: response.data.amount,
+              amount: amountToCharge,
               amountUSD: finalPrice,
               currency: selectedCurrency,
               provider: response.data.provider,
@@ -521,7 +521,7 @@ const BuyTicketsPage = () => {
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
-            to={campaignId ? `/campaigns/${campaignId}` : '/'}
+            to="/"
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -531,7 +531,7 @@ const BuyTicketsPage = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span className="font-medium hidden sm:inline">Retour</span>
+            <span className="font-medium hidden sm:inline">Accueil</span>
           </Link>
           
           <div className="flex items-center gap-2">
@@ -1260,9 +1260,9 @@ const BuyTicketsPage = () => {
                 ) : paymentMethod === 'wallet' ? (
                   `Payer avec mon portefeuille`
                 ) : (
-                  campaign.currency === 'CDF'
-                    ? `Payer ${formatCurrencyCDF(finalPrice)} via Mobile Money`
-                    : `Payer ${formatCurrency(finalPrice)} via Mobile Money`
+                  selectedCurrency === 'CDF'
+                    ? `Payer ${(finalPrice * 2850).toLocaleString('fr-FR')} FC via Mobile Money`
+                    : `Payer $${finalPrice.toLocaleString('en-US')} via Mobile Money`
                 )}
               </button>
 

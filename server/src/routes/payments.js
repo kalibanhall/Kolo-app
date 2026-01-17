@@ -646,6 +646,8 @@ router.post(
     body('campaign_id').isInt({ min: 1 }),
     body('ticket_count').isInt({ min: 1, max: 1000 }),
     body('phone_number').notEmpty().trim(),
+    body('currency').optional().isIn(['USD', 'CDF']),
+    body('amount').optional().isFloat({ min: 0 }),
   ],
   async (req, res) => {
     try {
@@ -658,7 +660,7 @@ router.post(
         });
       }
 
-      const { campaign_id, ticket_count, phone_number } = req.body;
+      const { campaign_id, ticket_count, phone_number, currency: requestedCurrency, amount: requestedAmount } = req.body;
       const user_id = req.user.id;
 
       // Get user details
@@ -683,15 +685,9 @@ router.post(
       }
 
       const campaign = campaignResult.rows[0];
-      // Détection dynamique de la devise
-      let currency = 'USD';
-      if (campaign.ticket_price_currency && ['USD', 'CDF'].includes(campaign.ticket_price_currency)) {
-        currency = campaign.ticket_price_currency;
-      } else if (process.env.DEFAULT_CURRENCY && ['USD', 'CDF'].includes(process.env.DEFAULT_CURRENCY)) {
-        currency = process.env.DEFAULT_CURRENCY;
-      } else {
-        currency = 'USD';
-      }
+      
+      // Use currency from frontend request, fallback to USD
+      const currency = requestedCurrency || 'USD';
 
       if (campaign.status !== 'open') {
         return res.status(400).json({
@@ -708,8 +704,11 @@ router.post(
         });
       }
 
-      const total_amount = campaign.ticket_price * ticket_count;
-      // currency is already defined above as 'CDF'
+      // Use amount from frontend if provided, otherwise calculate
+      // Frontend sends: USD = price in $, CDF = price * 2850
+      const total_amount = requestedAmount || (currency === 'CDF' 
+        ? campaign.ticket_price * ticket_count * 2850 
+        : campaign.ticket_price * ticket_count);
 
       // Normalize phone and detect provider
       const normalizedPhone = paydrc.normalizePhoneNumber(phone_number);

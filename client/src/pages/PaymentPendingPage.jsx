@@ -283,7 +283,10 @@ export const PaymentPendingPage = () => {
           <div className="flex justify-between items-center">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Montant</span>
             <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {amountUSD ? `$${amountUSD.toLocaleString('en-US')}` : (amount ? `${amount.toLocaleString('fr-FR')} FC` : '$0')}
+              {currency === 'CDF' 
+                ? `${amount?.toLocaleString('fr-FR')} FC` 
+                : `$${(amountUSD || amount)?.toLocaleString('en-US')}`
+              }
             </span>
           </div>
           <div className="flex justify-between items-center">
