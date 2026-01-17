@@ -16,13 +16,13 @@ export const HomePage = () => {
     loadCampaigns();
   }, []);
 
-  // Auto-slide toutes les 6 secondes
+  // Auto-slide toutes les 8 secondes
   useEffect(() => {
     if (campaigns.length <= 1) return;
     
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % campaigns.length);
-    }, 6000);
+    }, 8000);
     
     return () => clearInterval(interval);
   }, [campaigns.length]);

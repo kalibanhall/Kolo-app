@@ -37,6 +37,7 @@ const BuyTicketsPage = () => {
   // Variables d'achat de tickets
   const [ticketCount, setTicketCount] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState('USD'); // 'USD' or 'CDF'
   const [selectionMode, setSelectionMode] = useState('auto'); // 'auto' or 'manual'
   const [selectedNumbers, setSelectedNumbers] = useState([]);
   const [availableNumbers, setAvailableNumbers] = useState([]);
@@ -49,6 +50,14 @@ const BuyTicketsPage = () => {
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
     ticketCount: 1,
   });
+  
+  // Ajuster selectedNumbers quand ticketCount change (si en mode manuel)
+  useEffect(() => {
+    if (selectionMode === 'manual' && selectedNumbers.length > ticketCount) {
+      // Réduire les numéros sélectionnés pour correspondre au nouveau ticketCount
+      setSelectedNumbers(prev => prev.slice(0, ticketCount));
+    }
+  }, [ticketCount, selectionMode]);
   
   // Charger le panier sauvegardé quand la campagne est chargée
   useEffect(() => {
@@ -352,16 +361,22 @@ const BuyTicketsPage = () => {
         }
       } else {
         // Payment via PayDRC (MOKO Afrika) Mobile Money
+        const amountToCharge = selectedCurrency === 'CDF' ? finalPrice * 2850 : finalPrice;
+        
         console.log('Initiating PayDRC payment...', {
           campaign_id: campaign.id,
           ticket_count: ticketCount,
-          phone_number: phoneNumber
+          phone_number: phoneNumber,
+          currency: selectedCurrency,
+          amount: amountToCharge
         });
         
         const response = await paymentsAPI.initiatePayDRC({
           campaign_id: campaign.id,
           ticket_count: ticketCount,
-          phone_number: phoneNumber
+          phone_number: phoneNumber,
+          currency: selectedCurrency,
+          amount: amountToCharge
         });
         
         console.log('PayDRC response:', response);
@@ -377,7 +392,7 @@ const BuyTicketsPage = () => {
               reference: response.data.reference,
               amount: response.data.amount,
               amountUSD: finalPrice,
-              currency: response.data.currency || 'CDF',
+              currency: selectedCurrency,
               provider: response.data.provider,
               ticket_count: ticketCount
             } 
@@ -1145,6 +1160,51 @@ const BuyTicketsPage = () => {
                       </div>
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                         Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange), 099 (Afrimoney)
+                      </p>
+                      
+                      {/* Currency Selection */}
+                      <label className={`text-sm font-medium mb-2 mt-4 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Devise de paiement
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCurrency('USD')}
+                          className={`py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                            selectedCurrency === 'USD'
+                              ? isDarkMode
+                                ? 'bg-green-600 text-white border-2 border-green-500'
+                                : 'bg-green-500 text-white border-2 border-green-600'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:border-gray-500'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <span className="text-lg">$</span>
+                          <span>USD</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCurrency('CDF')}
+                          className={`py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                            selectedCurrency === 'CDF'
+                              ? isDarkMode
+                                ? 'bg-blue-600 text-white border-2 border-blue-500'
+                                : 'bg-blue-500 text-white border-2 border-blue-600'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:border-gray-500'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <span className="text-lg">FC</span>
+                          <span>Francs</span>
+                        </button>
+                      </div>
+                      <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Montant: {selectedCurrency === 'USD' 
+                          ? `$${finalPrice.toLocaleString('en-US')}`
+                          : `${(finalPrice * 2850).toLocaleString('fr-FR')} FC`
+                        }
                       </p>
                     </div>
                   )}
