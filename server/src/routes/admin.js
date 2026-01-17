@@ -33,7 +33,9 @@ router.get('/stats', async (req, res) => {
     // Get current/active campaign stats  
     const campaignResult = await query(
       `SELECT c.id, c.title, c.total_tickets, c.sold_tickets, c.ticket_price, c.status, c.draw_date,
-              (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id) as actual_sold
+              c.main_prize,
+              (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id AND t.status = 'active') as actual_sold,
+              (SELECT COALESCE(SUM(p.total_amount), 0) FROM purchases p WHERE p.campaign_id = c.id AND p.payment_status = 'completed') as campaign_revenue
        FROM campaigns c
        WHERE c.status IN ('open', 'active')
        ORDER BY c.created_at DESC
@@ -60,12 +62,14 @@ router.get('/stats', async (req, res) => {
         total_tickets_sold: parseInt(stats.total_tickets_sold),
         pending_payments: parseInt(stats.pending_payments),
         completed_payments: parseInt(stats.completed_payments),
-        total_revenue: parseFloat(stats.total_revenue),
+        // Utiliser les recettes de la campagne active si disponible, sinon le total global
+        total_revenue: campaign ? parseFloat(campaign.campaign_revenue) : parseFloat(stats.total_revenue),
         total_winners: parseInt(stats.total_winners),
         campaign: campaign ? {
           ...campaign,
           sold_tickets: parseInt(campaign.sold_tickets),
-          total_tickets: parseInt(campaign.total_tickets)
+          total_tickets: parseInt(campaign.total_tickets),
+          revenue: parseFloat(campaign.campaign_revenue)
         } : null
       }
     });
@@ -194,7 +198,16 @@ router.get('/participants', async (req, res) => {
         COUNT(DISTINCT p.id) as purchases,
         COALESCE(SUM(p.total_amount), 0) as total_spent,
         MAX(p.created_at) as last_purchase,
-        (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_count
+        (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_count,
+        (SELECT json_agg(json_build_object('campaign_id', sub.campaign_id, 'campaign_title', sub.title, 'tickets', sub.cnt))
+         FROM (
+           SELECT t2.campaign_id, c2.title, COUNT(*) as cnt
+           FROM tickets t2
+           JOIN campaigns c2 ON t2.campaign_id = c2.id
+           WHERE t2.user_id = u.id
+           GROUP BY t2.campaign_id, c2.title
+         ) sub
+        ) as campaigns_participation
        FROM users u
        LEFT JOIN purchases p ON u.id = p.user_id AND p.payment_status = 'completed'
        LEFT JOIN tickets t ON u.id = t.user_id
@@ -220,7 +233,8 @@ router.get('/participants', async (req, res) => {
           total_spent: parseFloat(p.total_spent),
           join_date: p.join_date,
           last_purchase: p.last_purchase,
-          is_active: p.is_active !== false && parseInt(p.ticket_count) > 0
+          is_active: p.is_active !== false && parseInt(p.ticket_count) > 0,
+          campaigns_participation: p.campaigns_participation || []
         })),
         pagination: {
           page,
@@ -1255,12 +1269,15 @@ router.get('/transactions', async (req, res) => {
         u.name as user_name,
         u.email as user_email,
         u.phone as user_phone,
+        p.phone_number as payment_phone,
         p.campaign_id,
         c.title as campaign_title,
         p.total_amount,
         p.ticket_count,
         p.payment_method,
+        p.payment_provider,
         p.payment_status,
+        p.error_message,
         p.created_at,
         p.updated_at,
         (SELECT COUNT(*) FROM purchases ${status ? 'WHERE payment_status = $3' : ''}) as total_count,

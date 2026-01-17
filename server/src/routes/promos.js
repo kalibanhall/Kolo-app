@@ -141,9 +141,12 @@ router.post('/calculate', verifyToken, [
 router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await query(
-      `SELECT pc.*, 
-              u.name as created_by_name,
-              COALESCE(pc.current_uses, pc.used_count, 0) as used_count
+      `SELECT pc.id, pc.code, pc.description, pc.discount_type, pc.discount_value,
+              pc.min_purchase, pc.max_discount, pc.max_uses, pc.is_active,
+              pc.starts_at, pc.expires_at, pc.created_by, pc.created_at, pc.updated_at,
+              pc.influencer_name,
+              COALESCE(pc.current_uses, 0) as current_uses,
+              u.name as created_by_name
        FROM promo_codes pc
        LEFT JOIN users u ON pc.created_by = u.id
        ORDER BY pc.created_at DESC`
@@ -154,10 +157,10 @@ router.get('/admin', verifyToken, verifyAdmin, async (req, res) => {
       data: result.rows.map(row => ({
         ...row,
         discount_percent: row.discount_type === 'percentage' ? parseFloat(row.discount_value) : null,
-        discount_value: parseFloat(row.discount_value),
-        min_purchase: parseFloat(row.min_purchase),
+        discount_value: parseFloat(row.discount_value) || 0,
+        min_purchase: parseFloat(row.min_purchase) || 0,
         max_discount: row.max_discount ? parseFloat(row.max_discount) : null,
-        used_count: parseInt(row.used_count) || 0
+        used_count: parseInt(row.current_uses) || 0
       }))
     });
   } catch (error) {

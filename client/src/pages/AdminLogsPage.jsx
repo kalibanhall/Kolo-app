@@ -165,15 +165,80 @@ const AdminLogsPage = () => {
     });
   };
 
-  // Formater les détails JSON
+  // Formater les détails JSON de manière lisible
   const formatDetails = (details) => {
     if (!details) return null;
     try {
       const parsed = typeof details === 'string' ? JSON.parse(details) : details;
-      return JSON.stringify(parsed, null, 2);
+      return parsed;
     } catch {
-      return String(details);
+      return { raw: String(details) };
     }
+  };
+
+  // Rendre les détails de manière lisible
+  const renderDetailValue = (key, value) => {
+    if (value === null || value === undefined) return <span className="text-gray-400">-</span>;
+    if (typeof value === 'boolean') return value ? '✅ Oui' : '❌ Non';
+    if (typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.map((v, i) => (
+          <span key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 bg-gray-700 rounded text-xs">
+            {typeof v === 'object' ? JSON.stringify(v) : v}
+          </span>
+        ));
+      }
+      return <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>;
+    }
+    // Format currency
+    if (key.includes('amount') || key.includes('price') || key.includes('revenue')) {
+      return `$${parseFloat(value).toFixed(2)}`;
+    }
+    // Format status
+    if (key === 'status' || key === 'payment_status') {
+      const statusColors = {
+        'completed': 'bg-green-600',
+        'pending': 'bg-yellow-600',
+        'failed': 'bg-red-600',
+        'open': 'bg-green-600',
+        'closed': 'bg-gray-600',
+      };
+      return (
+        <span className={`px-2 py-0.5 rounded text-white text-xs ${statusColors[value] || 'bg-gray-600'}`}>
+          {value}
+        </span>
+      );
+    }
+    return String(value);
+  };
+
+  // Labels français pour les clés
+  const getKeyLabel = (key) => {
+    const labels = {
+      'campaign_id': 'Campagne ID',
+      'title': 'Titre',
+      'status': 'Statut',
+      'old_status': 'Ancien statut',
+      'new_status': 'Nouveau statut',
+      'winners_count': 'Nombre gagnants',
+      'total_participants': 'Participants totaux',
+      'winners': 'Gagnants',
+      'ticket_number': 'Numéro ticket',
+      'user_name': 'Utilisateur',
+      'user_email': 'Email',
+      'prize_name': 'Prix',
+      'transaction_id': 'ID Transaction',
+      'amount': 'Montant',
+      'payment_status': 'Statut paiement',
+      'payment_method': 'Mode paiement',
+      'synced': 'Synchronisés',
+      'updated': 'Mis à jour',
+      'errors': 'Erreurs',
+      'code': 'Code',
+      'discount_percent': 'Remise %',
+      'influencer_name': 'Influenceur',
+    };
+    return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   // Stats rapides
@@ -372,15 +437,34 @@ const AdminLogsPage = () => {
                             <tr className="bg-gray-50">
                               <td colSpan={6} className="px-6 py-4">
                                 <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                                  <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">
-                                    {formatDetails(log.details)}
-                                  </pre>
-                                </div>
-                                {log.user_agent && (
-                                  <div className="mt-2 text-xs text-gray-500">
-                                    <span className="font-medium">User Agent:</span> {log.user_agent}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {Object.entries(formatDetails(log.details) || {}).map(([key, value]) => (
+                                      <div key={key} className="bg-gray-800 rounded-lg p-3">
+                                        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                                          {getKeyLabel(key)}
+                                        </p>
+                                        <div className="text-green-400 font-medium">
+                                          {renderDetailValue(key, value)}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                )}
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                                  {log.user_agent && (
+                                    <div>
+                                      <span className="font-medium">Navigateur:</span> {log.user_agent.split(' ')[0]}
+                                    </div>
+                                  )}
+                                  {log.ip_address && (
+                                    <div>
+                                      <span className="font-medium">IP:</span> {log.ip_address}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="font-medium">ID Log:</span> #{log.id}
+                                  </div>
+                                </div>
                               </td>
                             </tr>
                           )}

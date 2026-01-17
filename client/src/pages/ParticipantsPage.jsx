@@ -154,6 +154,9 @@ export const ParticipantsPage = () => {
                 >
                   Tickets {sortBy === 'tickets' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Participation
+                </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('amount')}
@@ -198,6 +201,23 @@ export const ParticipantsPage = () => {
                       <span className="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 rounded-full">
                         {participant.ticket_count}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {participant.campaigns_participation && participant.campaigns_participation.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {participant.campaigns_participation.map((cp, i) => (
+                            <span 
+                              key={i} 
+                              className="px-2 py-0.5 text-xs bg-purple-50 text-purple-700 rounded-full"
+                              title={cp.campaign_title}
+                            >
+                              {cp.campaign_title?.substring(0, 15)}{cp.campaign_title?.length > 15 ? '...' : ''}: {cp.tickets}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                       ${parseFloat(participant.total_spent).toFixed(2)}

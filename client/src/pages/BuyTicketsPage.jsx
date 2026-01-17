@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useCart } from '../context/CartContext';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, MoneyIcon } from '../components/Icons';
@@ -13,6 +14,7 @@ const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
 const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
+  const { addToCart: addToGlobalCart, clearCart: clearGlobalCart } = useCart();
   const navigate = useNavigate();
   const { campaignId } = useParams(); // Get campaign ID from URL
   const [campaign, setCampaign] = useState(null);
@@ -60,15 +62,18 @@ const BuyTicketsPage = () => {
     }
   }, [campaign?.id]);
 
-  // Sauvegarder le panier dans localStorage - spécifique à la campagne
+  // Sauvegarder le panier dans localStorage et synchroniser avec le contexte global
   useEffect(() => {
     if (!campaign?.id) return;
     try {
       localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
+      // Synchroniser avec le panier global pour l'affichage dans la Navbar
+      const ticketNumbers = composerItems.map(item => item.number);
+      addToGlobalCart(campaign.id, campaign, ticketNumbers);
     } catch (e) {
       console.error('Error saving cart:', e);
     }
-  }, [composerItems]);
+  }, [composerItems, campaign, addToGlobalCart]);
 
   // Ajouter au compositeur
   const addToComposer = useCallback((ticketNumber) => {
@@ -173,13 +178,15 @@ const BuyTicketsPage = () => {
     const fetchNumbers = async () => {
       setLoadingNumbers(true);
       try {
-        const pageSize = 500;
+        // Charger tous les numéros disponibles (jusqu'à 50000)
+        const pageSize = 10000;
         const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
         if (numbersPage === 1) {
           setAvailableNumbers(response.numbers || []);
         } else {
           setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
         }
+        // Continuer à charger s'il y a plus de numéros
         setHasMoreNumbers((response.numbers || []).length === pageSize);
       } catch (err) {
         console.error('Error loading available numbers:', err);

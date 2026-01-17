@@ -117,8 +117,8 @@ export const AdminDashboard = () => {
         {/* Tickets achetés */}
         <StatCard
           title="Tickets achetés"
-          value={`${stats?.campaign?.sold_tickets || 0} / ${stats?.campaign?.total_tickets || 0}`}
-          subtitle={`Taux d'occupation: ${occupationRate}%`}
+          value={stats?.campaign?.sold_tickets || 0}
+          subtitle={`Sur ${stats?.campaign?.total_tickets || 0} disponibles (${occupationRate}%)`}
           icon={TicketIcon}
           iconBg="bg-blue-100"
           iconColor="text-blue-600"
@@ -136,9 +136,9 @@ export const AdminDashboard = () => {
 
         {/* Recettes totales */}
         <StatCard
-          title="Recettes totales"
+          title="Recettes campagne"
           value={`$${(parseFloat(stats?.total_revenue) || 0).toFixed(2)}`}
-          subtitle="Total des ventes"
+          subtitle={stats?.completed_payments ? `${stats.completed_payments} paiement(s) validé(s)` : 'Aucun paiement validé'}
           icon={MoneyIcon}
           iconBg="bg-yellow-100"
           iconColor="text-yellow-600"

@@ -69,7 +69,7 @@ router.get('/current', async (req, res) => {
 router.get('/:id/available-numbers', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
-    const limit = parseInt(req.query.limit) || 500; // Default 500, max for performance
+    const limit = Math.min(parseInt(req.query.limit) || 10000, 50000); // Default 10000, max 50000
     
     // Get campaign info
     const campaignResult = await query(

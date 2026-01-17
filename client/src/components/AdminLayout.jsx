@@ -47,7 +47,6 @@ export const AdminLayout = ({ children }) => {
             <LogoKolo size="small" />
             <div>
               <h1 className="text-base lg:text-lg font-bold">KOLO ADMIN</h1>
-              <p className={`text-[10px] lg:text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-400'}`}>Tombola</p>
             </div>
           </div>
         </div>
@@ -98,7 +97,7 @@ export const AdminLayout = ({ children }) => {
                 {navItems.find(item => item.path === location.pathname)?.label || 'Admin'}
               </h2>
               <p className={`text-xs lg:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} hidden sm:block`}>
-                KOLO Tombola
+                KOLO | Koma Propriétaire
               </p>
             </div>
             
