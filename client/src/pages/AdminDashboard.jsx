@@ -12,6 +12,7 @@ import {
   TopCampaignsChart,
   PaymentMethodsChart,
 } from '../components/DashboardCharts';
+import { LocationStats } from '../components/LocationStats';
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -260,9 +261,14 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Row 3: Top Campaigns and Payment Methods */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <TopCampaignsChart data={chartData.topCampaigns} />
           <PaymentMethodsChart data={chartData.paymentMethods} />
+        </div>
+
+        {/* Row 4: Location Stats */}
+        <div className="grid grid-cols-1 gap-6">
+          <LocationStats />
         </div>
       </div>
     </AdminLayout>

@@ -2,23 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogoKoloFull } from '../components/LogoKolo';
-import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
+import { EyeIcon, EyeOffIcon, GoogleIcon, LocationIcon } from '../components/Icons';
 import { validatePhoneNumber, formatPhoneDisplay } from '../utils/phoneValidation';
 import { useFormPersistence } from '../hooks/useFormPersistence';
+import { DRC_CITIES, getUserLocation, getProvinceFromCity } from '../services/geolocationService';
 
 export const RegisterPage = () => {
   const { register, loginWithGoogle, loading, error } = useAuth();
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
   
-  // Liste des villes de la RDC
-  const drcCities = [
-    'Kinshasa', 'Lubumbashi', 'Mbuji-Mayi', 'Kananga', 'Kisangani',
-    'Bukavu', 'Goma', 'Likasi', 'Kolwezi', 'Tshikapa',
-    'Kikwit', 'Matadi', 'Uvira', 'Butembo', 'Beni',
-    'Mbandaka', 'Kalemie', 'Bandundu', 'Boma', 'Kindu',
-    'Autre'
-  ];
+  // Liste des villes de la RDC (importée du service)
+  const drcCities = DRC_CITIES;
 
   // Utiliser la persistance de formulaire
   const [formData, setFormData, clearFormData] = useFormPersistence('register', {
@@ -42,6 +39,62 @@ export const RegisterPage = () => {
       setPhoneValidation(validation);
     }
   }, []);
+
+  // Détecter automatiquement la localisation au chargement
+  useEffect(() => {
+    if (!formData.city) {
+      detectUserLocation();
+    }
+  }, []);
+
+  // Fonction pour détecter la localisation
+  const detectUserLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const location = await getUserLocation(false); // IP d'abord (moins intrusif)
+      
+      if (location.success && location.city) {
+        // Vérifier si la ville est dans notre liste
+        const matchedCity = drcCities.find(city => 
+          city.toLowerCase() === location.city?.toLowerCase() ||
+          location.city?.toLowerCase().includes(city.toLowerCase())
+        );
+        
+        if (matchedCity) {
+          setFormData(prev => ({ ...prev, city: matchedCity }));
+          setLocationDetected(true);
+        }
+      }
+    } catch (err) {
+      console.log('Localisation automatique non disponible:', err.message);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  // Détecter par GPS (plus précis, demande permission)
+  const detectByGPS = async () => {
+    setLocationLoading(true);
+    try {
+      const location = await getUserLocation(true); // GPS prioritaire
+      
+      if (location.success && location.city) {
+        const matchedCity = drcCities.find(city => 
+          city.toLowerCase() === location.city?.toLowerCase() ||
+          location.city?.toLowerCase().includes(city.toLowerCase())
+        );
+        
+        if (matchedCity) {
+          setFormData(prev => ({ ...prev, city: matchedCity }));
+          setLocationDetected(true);
+        }
+      }
+    } catch (err) {
+      setLocalError('Impossible de détecter votre position. Veuillez sélectionner manuellement.');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -207,20 +260,49 @@ export const RegisterPage = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ville de résidence *
               </label>
-              <select
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              >
-                <option value="">Sélectionnez votre ville</option>
-                {drcCities.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  required
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Sélectionnez votre ville</option>
+                  {drcCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={detectByGPS}
+                  disabled={locationLoading}
+                  className="px-3 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors disabled:opacity-50"
+                  title="Détecter ma position"
+                >
+                  {locationLoading ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {locationDetected && (
+                <p className="text-xs text-green-600 mt-1 flex items-center">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Position détectée automatiquement
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                Principales villes de la RDC
+                Principales villes de la RDC • Cliquez 📍 pour détecter
               </p>
             </div>
 
