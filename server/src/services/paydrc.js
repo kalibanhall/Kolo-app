@@ -351,6 +351,7 @@ async function initiatePayIn(options) {
     reference,
     method,
     callbackUrl,
+    description = 'Achat tickets KOLO Koma Propriétaire',
   } = options;
 
   const payload = {
@@ -366,6 +367,8 @@ async function initiatePayIn(options) {
     reference,
     method: method.toLowerCase(),
     callback_url: callbackUrl || process.env.PAYDRC_CALLBACK_URL || '',
+    label: description,
+    description: description,
   };
 
   console.log('📤 PayDRC PayIn request:', { ...payload, merchant_secrete: '***' });
