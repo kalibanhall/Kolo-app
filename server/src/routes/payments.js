@@ -956,7 +956,7 @@ router.post('/paydrc/callback', async (req, res) => {
     }
 
     // Find the purchase
-    const purchaseResult = await query(
+    let purchaseResult = await query(
       `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status
        FROM purchases
        WHERE transaction_id = $1 OR transaction_id LIKE $2`,
@@ -966,14 +966,14 @@ router.post('/paydrc/callback', async (req, res) => {
     if (purchaseResult.rows.length === 0) {
       console.error('❌ Purchase not found for reference:', reference);
       // Try finding by PayDRC transaction ID
-      const altResult = await query(
+      purchaseResult = await query(
         `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status
          FROM purchases
          WHERE transaction_id = $1`,
         [transactionId]
       );
 
-      if (altResult.rows.length === 0) {
+      if (purchaseResult.rows.length === 0) {
         return res.status(404).json({ error: 'Purchase not found' });
       }
     }
