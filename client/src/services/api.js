@@ -538,7 +538,7 @@ export const promosAPI = {
 };
 
 // Export par défaut
-export default {
+const api = {
   auth: authAPI,
   campaigns: campaignsAPI,
   tickets: ticketsAPI,
@@ -547,4 +547,65 @@ export default {
   notifications: notificationsAPI,
   users: usersAPI,
   promos: promosAPI,
+  
+  // Generic POST method for multipart/form-data uploads
+  post: async (endpoint, formData, options = {}) => {
+    const token = getToken();
+    const headers = {};
+    
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Merge any additional headers from options, excluding Content-Type
+    if (options.headers) {
+      Object.keys(options.headers).forEach(key => {
+        if (key.toLowerCase() !== 'content-type') {
+          headers[key] = options.headers[key];
+        }
+      });
+    }
+    
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Une erreur est survenue');
+    }
+    
+    return { data };
+  },
+  
+  // Generic DELETE method
+  delete: async (endpoint) => {
+    const token = getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Une erreur est survenue');
+    }
+    
+    return { data };
+  },
 };
+
+export default api;
