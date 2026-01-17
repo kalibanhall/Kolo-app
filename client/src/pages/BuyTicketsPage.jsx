@@ -365,8 +365,9 @@ const BuyTicketsPage = () => {
           setSuccess(true);
           clearPurchaseData();
           
-          // Navigate to payment status page to track the payment
+          // Navigate to payment status page to track the payment (replace to avoid back button issues)
           navigate('/payment/pending', { 
+            replace: true,
             state: { 
               reference: response.data.reference,
               amount: response.data.amount,
@@ -500,7 +501,14 @@ const BuyTicketsPage = () => {
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => {
+              // Navigate to campaign detail if we have a campaignId, otherwise to dashboard
+              if (campaignId) {
+                navigate(`/campaign/${campaignId}`);
+              } else {
+                navigate('/dashboard');
+              }
+            }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ticketsAPI, usersAPI } from '../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
 import { ImageUpload } from '../components/ImageUpload';
@@ -10,6 +10,7 @@ import { ImageUpload } from '../components/ImageUpload';
 const UserProfilePage = () => {
   const { user, checkAuth } = useAuth();
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,7 +139,7 @@ const UserProfilePage = () => {
       }`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
-            onClick={() => window.history.back()}
+            onClick={() => navigate('/dashboard')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 

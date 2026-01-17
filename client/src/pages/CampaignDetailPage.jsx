@@ -117,7 +117,7 @@ export const CampaignDetailPage = () => {
               {error || 'Cette campagne n\'existe pas ou a été supprimée.'}
             </p>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
             >
               Retour

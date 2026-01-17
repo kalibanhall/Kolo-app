@@ -305,7 +305,7 @@ export const PaymentPendingPage = () => {
 
         <div className="flex justify-center">
           <button
-            onClick={() => navigate('/buy')}
+            onClick={() => navigate('/dashboard', { replace: true })}
             className={`w-full max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
               isDarkMode 
                 ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
