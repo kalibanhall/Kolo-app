@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool, query } = require('../config/database');
-const { authenticateToken, isAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -22,7 +22,7 @@ const { authenticateToken, isAdmin } = require('../middleware/auth');
  *       200:
  *         description: Statistiques par ville et province
  */
-router.get('/stats', authenticateToken, isAdmin, async (req, res) => {
+router.get('/stats', verifyToken, verifyAdmin, async (req, res) => {
   try {
     // Statistiques par ville
     const cityStats = await pool.query(`
@@ -158,7 +158,7 @@ router.get('/stats', authenticateToken, isAdmin, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.put('/user', authenticateToken, async (req, res) => {
+router.put('/user', verifyToken, async (req, res) => {
   try {
     const { city, latitude, longitude } = req.body;
     const userId = req.user.id;

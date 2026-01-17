@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS promo_codes (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) UNIQUE NOT NULL,
+    influencer_name VARCHAR(100),
     description TEXT,
     discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage' CHECK (discount_type IN ('percentage', 'fixed')),
     discount_value DECIMAL(10, 2) NOT NULL,
@@ -60,6 +61,15 @@ BEGIN
     END IF;
 END $$;
 
+-- Add influencer_name column if not exists
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'promo_codes' AND column_name = 'influencer_name') THEN
+        ALTER TABLE promo_codes ADD COLUMN influencer_name VARCHAR(100);
+    END IF;
+END $$;
+
 -- Trigger to update updated_at on promo_codes
 DROP TRIGGER IF EXISTS update_promo_codes_updated_at ON promo_codes;
 CREATE TRIGGER update_promo_codes_updated_at BEFORE UPDATE ON promo_codes
@@ -75,4 +85,17 @@ VALUES (
     1000,
     TRUE,
     CURRENT_TIMESTAMP + INTERVAL '365 days'
+) ON CONFLICT (code) DO NOTHING;
+
+-- Insert Herman Amisi promo code (HERMAN15 - 15% off)
+INSERT INTO promo_codes (code, influencer_name, description, discount_type, discount_value, max_uses, is_active, expires_at)
+VALUES (
+    'HERMAN15',
+    'Herman Amisi',
+    'Code influenceur Herman Amisi - 15% de réduction',
+    'percentage',
+    15,
+    500,
+    TRUE,
+    CURRENT_TIMESTAMP + INTERVAL '180 days'
 ) ON CONFLICT (code) DO NOTHING;
