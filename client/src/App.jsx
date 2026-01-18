@@ -31,6 +31,7 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const CampaignDetailPage = lazy(() => import('./pages/CampaignDetailPage'));
 const AdminActionsPage = lazy(() => import('./pages/AdminActionsPage'));
 const AdminLogsPage = lazy(() => import('./pages/AdminLogsPage'));
+const AdminDebugPage = lazy(() => import('./pages/AdminDebugPage'));
 const PrizeDeliveryPage = lazy(() => import('./pages/PrizeDeliveryPage'));
 const UserInvoicesPage = lazy(() => import('./pages/UserInvoicesPage'));
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
@@ -220,6 +221,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AdminLogsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/debug"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminDebugPage />
               </ProtectedRoute>
             }
           />

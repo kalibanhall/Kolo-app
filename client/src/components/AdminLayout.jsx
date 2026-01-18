@@ -21,6 +21,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon },
     { path: '/admin/promos', label: 'Promos', Icon: TicketIcon },
     { path: '/admin/logs', label: 'Journal', Icon: SettingsIcon },
+    { path: '/admin/debug', label: '🔧 Debug', Icon: SettingsIcon },
   ];
 
   const handleNavClick = () => {

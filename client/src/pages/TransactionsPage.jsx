@@ -37,9 +37,15 @@ const TransactionsPage = () => {
     try {
       setLoading(true);
       const response = await apiRequest('/admin/transactions');
-      if (response.data.success) {
+      console.log('Transactions response:', response); // Debug log
+      
+      // apiRequest returns the parsed JSON directly, so check response.success
+      if (response.success) {
         // Mapper les champs de l'API vers le format attendu par le frontend
-        const mappedTransactions = (response.data.data?.transactions || response.data.transactions || []).map(t => ({
+        const rawTransactions = response.data?.transactions || response.transactions || [];
+        console.log('Raw transactions:', rawTransactions); // Debug log
+        
+        const mappedTransactions = rawTransactions.map(t => ({
           id: t.transaction_id,
           transaction_id: t.external_transaction_id || `TXN-${t.transaction_id}`,
           user_id: t.user_id,
@@ -63,6 +69,8 @@ const TransactionsPage = () => {
           updated_at: t.updated_at
         }));
         setTransactions(mappedTransactions);
+      } else {
+        console.error('Response not successful:', response);
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -78,7 +86,7 @@ const TransactionsPage = () => {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus })
       });
-      if (response.data.success) {
+      if (response.success) {
         // Refresh transactions
         await fetchTransactions();
       }

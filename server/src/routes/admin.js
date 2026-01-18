@@ -26,62 +26,91 @@ router.get('/stats', async (req, res) => {
       console.log('app_settings table not found, using default exchange rate');
     }
 
-    const statsQuery = `
-      SELECT 
-        (SELECT COUNT(*) FROM campaigns WHERE status IN ('open', 'active')) as active_campaigns,
-        (SELECT COUNT(*) FROM users WHERE is_active = true AND is_admin = false) as total_users,
-        (SELECT COUNT(DISTINCT user_id) FROM tickets WHERE status = 'active') as participants_count,
-        (SELECT COUNT(*) FROM tickets WHERE status IN ('active', 'winner')) as total_tickets_sold,
-        (SELECT COUNT(*) FROM purchases WHERE payment_status = 'pending') as pending_payments,
-        (SELECT COUNT(*) FROM purchases WHERE payment_status = 'completed') as completed_payments,
-        (SELECT COALESCE(SUM(total_amount), 0) FROM purchases WHERE payment_status = 'completed') as total_revenue,
-        (SELECT COUNT(*) FROM tickets WHERE is_winner = true) as total_winners
-    `;
+    // Default stats in case of errors
+    let stats = {
+      active_campaigns: 0,
+      total_users: 0,
+      participants_count: 0,
+      total_tickets_sold: 0,
+      pending_payments: 0,
+      completed_payments: 0,
+      total_revenue: 0,
+      total_winners: 0
+    };
 
-    const result = await query(statsQuery);
-    const stats = result.rows[0];
+    try {
+      const statsQuery = `
+        SELECT 
+          (SELECT COUNT(*) FROM campaigns WHERE status IN ('open', 'active')) as active_campaigns,
+          (SELECT COUNT(*) FROM users WHERE is_active = true AND is_admin = false) as total_users,
+          (SELECT COUNT(DISTINCT user_id) FROM tickets WHERE status = 'active') as participants_count,
+          (SELECT COUNT(*) FROM tickets WHERE status IN ('active', 'winner')) as total_tickets_sold,
+          (SELECT COUNT(*) FROM purchases WHERE payment_status = 'pending') as pending_payments,
+          (SELECT COUNT(*) FROM purchases WHERE payment_status = 'completed') as completed_payments,
+          (SELECT COALESCE(SUM(total_amount), 0) FROM purchases WHERE payment_status = 'completed') as total_revenue,
+          (SELECT COUNT(*) FROM tickets WHERE is_winner = true) as total_winners
+      `;
+
+      const result = await query(statsQuery);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        stats = {
+          active_campaigns: parseInt(row.active_campaigns) || 0,
+          total_users: parseInt(row.total_users) || 0,
+          participants_count: parseInt(row.participants_count) || 0,
+          total_tickets_sold: parseInt(row.total_tickets_sold) || 0,
+          pending_payments: parseInt(row.pending_payments) || 0,
+          completed_payments: parseInt(row.completed_payments) || 0,
+          total_revenue: parseFloat(row.total_revenue) || 0,
+          total_winners: parseInt(row.total_winners) || 0
+        };
+      }
+    } catch (statsError) {
+      console.error('Stats query error:', statsError.message);
+    }
 
     // Get current/active campaign stats  
-    const campaignResult = await query(
-      `SELECT c.id, c.title, c.total_tickets, c.sold_tickets, c.ticket_price, c.status, c.draw_date,
-              c.main_prize,
-              (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id AND t.status = 'active') as actual_sold,
-              (SELECT COALESCE(SUM(p.total_amount), 0) FROM purchases p WHERE p.campaign_id = c.id AND p.payment_status = 'completed') as campaign_revenue
-       FROM campaigns c
-       WHERE c.status IN ('open', 'active')
-       ORDER BY c.created_at DESC
-       LIMIT 1`
-    );
-
-    let campaign = campaignResult.rows[0] || null;
-    
-    // Sync sold_tickets if different from actual count
-    if (campaign && parseInt(campaign.actual_sold) !== parseInt(campaign.sold_tickets)) {
-      await query(
-        'UPDATE campaigns SET sold_tickets = $1 WHERE id = $2',
-        [campaign.actual_sold, campaign.id]
+    let campaign = null;
+    try {
+      const campaignResult = await query(
+        `SELECT c.id, c.title, c.total_tickets, c.sold_tickets, c.ticket_price, c.status, c.draw_date,
+                c.main_prize,
+                (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id AND t.status = 'active') as actual_sold,
+                (SELECT COALESCE(SUM(p.total_amount), 0) FROM purchases p WHERE p.campaign_id = c.id AND p.payment_status = 'completed') as campaign_revenue
+         FROM campaigns c
+         WHERE c.status IN ('open', 'active')
+         ORDER BY c.created_at DESC
+         LIMIT 1`
       );
-      campaign.sold_tickets = parseInt(campaign.actual_sold);
+
+      if (campaignResult.rows.length > 0) {
+        campaign = campaignResult.rows[0];
+        
+        // Sync sold_tickets if different from actual count
+        if (parseInt(campaign.actual_sold) !== parseInt(campaign.sold_tickets)) {
+          await query(
+            'UPDATE campaigns SET sold_tickets = $1 WHERE id = $2',
+            [campaign.actual_sold, campaign.id]
+          );
+          campaign.sold_tickets = parseInt(campaign.actual_sold);
+        }
+      }
+    } catch (campaignError) {
+      console.error('Campaign query error:', campaignError.message);
     }
 
     res.json({
       success: true,
       data: {
-        active_campaigns: parseInt(stats.active_campaigns),
-        total_users: parseInt(stats.total_users),
-        participants_count: parseInt(stats.participants_count),
-        total_tickets_sold: parseInt(stats.total_tickets_sold),
-        pending_payments: parseInt(stats.pending_payments),
-        completed_payments: parseInt(stats.completed_payments),
+        ...stats,
         // Utiliser les recettes de la campagne active si disponible, sinon le total global
-        total_revenue: campaign ? parseFloat(campaign.campaign_revenue) : parseFloat(stats.total_revenue),
-        total_winners: parseInt(stats.total_winners),
+        total_revenue: campaign ? parseFloat(campaign.campaign_revenue) || 0 : stats.total_revenue,
         exchange_rate: exchangeRate,
         campaign: campaign ? {
           ...campaign,
-          sold_tickets: parseInt(campaign.sold_tickets),
-          total_tickets: parseInt(campaign.total_tickets),
-          revenue: parseFloat(campaign.campaign_revenue)
+          sold_tickets: parseInt(campaign.sold_tickets) || 0,
+          total_tickets: parseInt(campaign.total_tickets) || 0,
+          revenue: parseFloat(campaign.campaign_revenue) || 0
         } : null
       }
     });
@@ -90,7 +119,7 @@ router.get('/stats', async (req, res) => {
     console.error('Get admin stats error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error: ' + error.message
     });
   }
 });

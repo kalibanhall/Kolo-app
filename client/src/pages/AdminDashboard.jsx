@@ -225,14 +225,19 @@ export const AdminDashboard = () => {
   if (error) {
     return (
       <AdminLayout>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700 font-medium">Erreur : {error}</p>
-          <button
-            onClick={loadStats}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Réessayer
-          </button>
+        <div className="space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p className="text-red-700 font-medium">Erreur : {error}</p>
+            <button
+              onClick={loadStats}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Réessayer
+            </button>
+          </div>
+          
+          {/* Toujours afficher le gestionnaire de taux de change même en cas d'erreur */}
+          <ExchangeRateManager />
         </div>
       </AdminLayout>
     );
