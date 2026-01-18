@@ -39,6 +39,7 @@ router.get('/stats', async (req, res) => {
     };
 
     try {
+      // Revenue calculation: convert CDF to USD for accurate total
       const statsQuery = `
         SELECT 
           (SELECT COUNT(*) FROM campaigns WHERE status IN ('open', 'active')) as active_campaigns,
@@ -47,8 +48,13 @@ router.get('/stats', async (req, res) => {
           (SELECT COUNT(*) FROM tickets WHERE status IN ('active', 'winner')) as total_tickets_sold,
           (SELECT COUNT(*) FROM purchases WHERE payment_status = 'pending') as pending_payments,
           (SELECT COUNT(*) FROM purchases WHERE payment_status = 'completed') as completed_payments,
-          (SELECT COALESCE(SUM(total_amount), 0) FROM purchases WHERE payment_status = 'completed') as total_revenue,
-          (SELECT COUNT(*) FROM tickets WHERE is_winner = true) as total_winners
+          (SELECT COALESCE(SUM(
+            CASE 
+              WHEN currency = 'CDF' THEN total_amount / ${exchangeRate}
+              ELSE total_amount
+            END
+          ), 0) FROM purchases WHERE payment_status = 'completed') as total_revenue,
+          (SELECT COUNT(*) FROM tickets WHERE is_winner = true OR status = 'winner') as total_winners
       `;
 
       const result = await query(statsQuery);
@@ -76,11 +82,17 @@ router.get('/stats', async (req, res) => {
         `SELECT c.id, c.title, c.total_tickets, c.sold_tickets, c.ticket_price, c.status, c.draw_date,
                 c.main_prize,
                 (SELECT COUNT(*) FROM tickets t WHERE t.campaign_id = c.id AND t.status = 'active') as actual_sold,
-                (SELECT COALESCE(SUM(p.total_amount), 0) FROM purchases p WHERE p.campaign_id = c.id AND p.payment_status = 'completed') as campaign_revenue
+                (SELECT COALESCE(SUM(
+                  CASE 
+                    WHEN p.currency = 'CDF' THEN p.total_amount / ${exchangeRate}
+                    ELSE p.total_amount
+                  END
+                ), 0) FROM purchases p WHERE p.campaign_id = c.id AND p.payment_status = 'completed') as campaign_revenue
          FROM campaigns c
          WHERE c.status IN ('open', 'active')
          ORDER BY c.created_at DESC
-         LIMIT 1`
+         LIMIT 1`,
+        []
       );
 
       if (campaignResult.rows.length > 0) {
@@ -127,11 +139,27 @@ router.get('/stats', async (req, res) => {
 // Get analytics data for charts (REAL DATA)
 router.get('/analytics', async (req, res) => {
   try {
-    // 1. Revenue by month (last 6 months)
+    // Get exchange rate for normalization
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (e) {
+      console.log('app_settings table not found, using default exchange rate');
+    }
+
+    // 1. Revenue by month (last 6 months) - normalized to USD
     const revenueResult = await query(`
       SELECT 
         TO_CHAR(created_at, 'Mon') as month,
-        COALESCE(SUM(total_amount), 0)::numeric as revenue
+        COALESCE(SUM(
+          CASE 
+            WHEN currency = 'CDF' THEN total_amount / ${exchangeRate}
+            ELSE total_amount
+          END
+        ), 0)::numeric as revenue
       FROM purchases 
       WHERE payment_status = 'completed'
         AND created_at >= NOW() - INTERVAL '6 months'
@@ -165,12 +193,17 @@ router.get('/analytics', async (req, res) => {
       GROUP BY status
     `);
 
-    // 4. Sales trend (last 7 days)
+    // 4. Sales trend (last 7 days) - normalized to USD
     const salesTrendResult = await query(`
       SELECT 
         TO_CHAR(p.created_at, 'DD/MM') as date,
         COUNT(DISTINCT t.id) as tickets,
-        COALESCE(SUM(p.total_amount), 0)::numeric as revenue
+        COALESCE(SUM(
+          CASE 
+            WHEN p.currency = 'CDF' THEN p.total_amount / ${exchangeRate}
+            ELSE p.total_amount
+          END
+        ), 0)::numeric as revenue
       FROM purchases p
       LEFT JOIN tickets t ON p.id = t.purchase_id
       WHERE p.payment_status = 'completed'
@@ -179,11 +212,16 @@ router.get('/analytics', async (req, res) => {
       ORDER BY DATE(p.created_at)
     `);
 
-    // 5. Top campaigns by revenue
+    // 5. Top campaigns by revenue - normalized to USD
     const topCampaignsResult = await query(`
       SELECT 
         c.title as name,
-        COALESCE(SUM(p.total_amount), 0)::numeric as revenue
+        COALESCE(SUM(
+          CASE 
+            WHEN p.currency = 'CDF' THEN p.total_amount / ${exchangeRate}
+            ELSE p.total_amount
+          END
+        ), 0)::numeric as revenue
       FROM campaigns c
       LEFT JOIN purchases p ON c.id = p.campaign_id AND p.payment_status = 'completed'
       GROUP BY c.id, c.title
@@ -194,11 +232,11 @@ router.get('/analytics', async (req, res) => {
     // 6. Payment methods distribution
     const paymentMethodsResult = await query(`
       SELECT 
-        COALESCE(payment_method, 'Non spécifié') as name,
+        COALESCE(payment_provider, payment_method, 'Non spécifié') as name,
         COUNT(*) as value
       FROM purchases
       WHERE payment_status = 'completed'
-      GROUP BY payment_method
+      GROUP BY COALESCE(payment_provider, payment_method, 'Non spécifié')
       ORDER BY value DESC
     `);
 
@@ -210,7 +248,8 @@ router.get('/analytics', async (req, res) => {
         campaignStatus: campaignStatusResult.rows.map(r => ({ name: r.name, value: parseInt(r.value) })),
         salesTrend: salesTrendResult.rows.map(r => ({ date: r.date, tickets: parseInt(r.tickets), revenue: parseFloat(r.revenue) })),
         topCampaigns: topCampaignsResult.rows.map(r => ({ name: r.name, revenue: parseFloat(r.revenue) })),
-        paymentMethods: paymentMethodsResult.rows.map(r => ({ name: r.name, value: parseInt(r.value) }))
+        paymentMethods: paymentMethodsResult.rows.map(r => ({ name: r.name, value: parseInt(r.value) })),
+        exchange_rate: exchangeRate
       }
     });
 
