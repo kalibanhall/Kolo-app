@@ -155,16 +155,25 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       });
     }
 
+    console.log(`📋 Fetching tickets for user ${userId}`);
+
     const result = await query(
-      `SELECT t.*, c.title as campaign_title, c.main_prize,
-              p.total_amount, p.payment_status, p.created_at as purchase_date
+      `SELECT t.*, 
+              c.title as campaign_title, 
+              c.main_prize,
+              p.total_amount, 
+              p.payment_status, 
+              p.created_at as purchase_date
        FROM tickets t
-       JOIN campaigns c ON t.campaign_id = c.id
-       JOIN purchases p ON t.purchase_id = p.id
-       WHERE t.user_id = $1
+       LEFT JOIN campaigns c ON t.campaign_id = c.id
+       LEFT JOIN purchases p ON t.purchase_id = p.id
+       WHERE t.user_id = $1 
+         AND t.ticket_number NOT LIKE 'TEMP%'
        ORDER BY t.created_at DESC`,
       [userId]
     );
+
+    console.log(`✅ Found ${result.rows.length} tickets for user ${userId}`);
 
     res.json({
       success: true,
@@ -175,7 +184,8 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
     console.error('Get user tickets error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      details: error.message
     });
   }
 });

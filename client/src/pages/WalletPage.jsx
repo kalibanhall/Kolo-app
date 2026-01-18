@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { walletAPI } from '../services/api';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { MoneyIcon, TicketIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
 
 const WalletPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -240,8 +241,8 @@ const WalletPage = () => {
           : 'bg-white/80 border-gray-200'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => navigate(-1)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
               isDarkMode 
                 ? 'text-cyan-400 hover:bg-gray-800' 
@@ -252,7 +253,7 @@ const WalletPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             <span className="font-medium">Retour</span>
-          </Link>
+          </button>
           
           <div className="flex items-center gap-3">
             <LogoKolo size="small" />

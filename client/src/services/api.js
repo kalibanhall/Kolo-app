@@ -175,6 +175,11 @@ export const campaignsAPI = {
     const queryString = new URLSearchParams(params).toString();
     return await request(`/campaigns/${campaignId}/available-numbers${queryString ? `?${queryString}` : ''}`, { includeAuth: false });
   },
+
+  // Obtenir le taux de conversion USD/CDF (public)
+  getExchangeRate: async () => {
+    return await request('/campaigns/exchange-rate', { includeAuth: false });
+  },
 };
 
 // ======================
@@ -415,6 +420,39 @@ export const adminAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  // ============ APP SETTINGS ============
+  
+  // Obtenir tous les paramètres
+  getSettings: async () => {
+    return await request('/admin/settings');
+  },
+
+  // Obtenir un paramètre spécifique
+  getSetting: async (key) => {
+    return await request(`/admin/settings/${key}`);
+  },
+
+  // Mettre à jour un paramètre
+  updateSetting: async (key, value) => {
+    return await request(`/admin/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    });
+  },
+
+  // Obtenir le taux de conversion (admin)
+  getExchangeRate: async () => {
+    return await request('/admin/exchange-rate');
+  },
+
+  // Mettre à jour le taux de conversion
+  updateExchangeRate: async (rate) => {
+    return await request('/admin/settings/exchange_rate_usd_cdf', {
+      method: 'PUT',
+      body: JSON.stringify({ value: rate.toString() }),
+    });
+  },
 };
 
 // ======================
@@ -479,6 +517,12 @@ export const usersAPI = {
       method: 'POST',
       body: JSON.stringify({ fcm_token: fcmToken }),
     });
+  },
+
+  // Obtenir les achats/transactions d'un utilisateur
+  getPurchases: async (userId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/users/purchases/${userId}${queryString ? `?${queryString}` : ''}`);
   },
 };
 

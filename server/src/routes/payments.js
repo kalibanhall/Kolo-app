@@ -721,23 +721,52 @@ router.post(
         .toUpperCase()}`;
 
       // Create pending purchase record
-      const purchaseResult = await query(
-        `INSERT INTO purchases (
-        user_id, campaign_id, ticket_count, total_amount, 
-        phone_number, payment_provider, payment_status, transaction_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-        [
-          user_id,
-          campaign_id,
-          ticket_count,
-          total_amount,
-          normalizedPhone,
-          `PayDRC-${provider}`,
-          'pending',
-          reference,
-        ]
-      );
+      // Try to insert with currency first, fallback to without if column doesn't exist
+      let purchaseResult;
+      try {
+        purchaseResult = await query(
+          `INSERT INTO purchases (
+          user_id, campaign_id, ticket_count, total_amount, currency,
+          phone_number, payment_provider, payment_status, transaction_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *`,
+          [
+            user_id,
+            campaign_id,
+            ticket_count,
+            total_amount,
+            currency,
+            normalizedPhone,
+            `PayDRC-${provider}`,
+            'pending',
+            reference,
+          ]
+        );
+      } catch (err) {
+        // Fallback: currency column might not exist yet
+        if (err.message && err.message.includes('currency')) {
+          console.log('Currency column not found, inserting without it');
+          purchaseResult = await query(
+            `INSERT INTO purchases (
+            user_id, campaign_id, ticket_count, total_amount,
+            phone_number, payment_provider, payment_status, transaction_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING *`,
+            [
+              user_id,
+              campaign_id,
+              ticket_count,
+              total_amount,
+              normalizedPhone,
+              `PayDRC-${provider}`,
+              'pending',
+              reference,
+            ]
+          );
+        } else {
+          throw err;
+        }
+      }
 
       const purchase = purchaseResult.rows[0];
 
@@ -1000,30 +1029,38 @@ router.post('/paydrc/callback', async (req, res) => {
           [purchase.id]
         );
 
+        // Get campaign total tickets for proper number formatting
+        const campaignInfo = await client.query(
+          'SELECT total_tickets FROM campaigns WHERE id = $1',
+          [purchase.campaign_id]
+        );
+        const totalTickets = campaignInfo.rows[0]?.total_tickets || 1000;
+
         // Generate unique ticket numbers
         const tickets = [];
         for (let i = 0; i < purchase.ticket_count; i++) {
-          let ticketNumber;
-          let isUnique = false;
-
-          while (!isUnique) {
-            ticketNumber = generateTicketNumber();
-            const checkResult = await client.query(
-              'SELECT id FROM tickets WHERE ticket_number = $1',
-              [ticketNumber]
-            );
-            isUnique = checkResult.rows.length === 0;
-          }
-
-          const ticketResult = await client.query(
+          // First insert with temporary number
+          const tempTicketResult = await client.query(
             `INSERT INTO tickets (
               ticket_number, campaign_id, user_id, purchase_id, status
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *`,
-            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+            [`TEMP-${Date.now()}-${i}`, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+          );
+
+          const ticketId = tempTicketResult.rows[0].id;
+          
+          // Generate final ticket number based on ID
+          const finalTicketNumber = generateTicketNumber(ticketId, totalTickets);
+          
+          // Update with final number
+          const ticketResult = await client.query(
+            `UPDATE tickets SET ticket_number = $1 WHERE id = $2 RETURNING *`,
+            [finalTicketNumber, ticketId]
           );
 
           tickets.push(ticketResult.rows[0]);
+          console.log(`✅ Created ticket ${finalTicketNumber} for user ${purchase.user_id}`);
         }
 
         // Update campaign sold_tickets count

@@ -22,7 +22,8 @@ export const UserDashboard = () => {
       
       // Charger les tickets de l'utilisateur
       const ticketsResponse = await ticketsAPI.getUserTickets(user.id);
-      setTickets(ticketsResponse.data);
+      // Backend returns { success: true, data: [...tickets] }
+      setTickets(ticketsResponse.data || ticketsResponse.tickets || []);
 
       // Charger la campagne active
       const campaignResponse = await campaignsAPI.getCurrent();
@@ -30,7 +31,7 @@ export const UserDashboard = () => {
 
       // Charger le portefeuille
       const walletResponse = await walletAPI.getWallet();
-      setWallet(walletResponse.data.wallet);
+      setWallet(walletResponse.data?.wallet);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {

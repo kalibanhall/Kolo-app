@@ -10,6 +10,9 @@ import { LogoKolo } from '../components/LogoKolo';
 // Storage key for cart - now campaign-specific
 const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
 
+// Default exchange rate (fallback)
+const DEFAULT_EXCHANGE_RATE = 2850;
+
 const BuyTicketsPage = () => {
   const { user } = useAuth();
   const { isDarkMode } = useTheme();
@@ -27,6 +30,7 @@ const BuyTicketsPage = () => {
   const [unavailableTickets, setUnavailableTickets] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
   const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal de confirmation
+  const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE); // Taux de conversion USD/CDF
   
   // Code promo
   const [promoCode, setPromoCode] = useState('');
@@ -170,9 +174,23 @@ const BuyTicketsPage = () => {
     }
   };
 
+  // Charger le taux de conversion
+  const loadExchangeRate = async () => {
+    try {
+      const response = await campaignsAPI.getExchangeRate();
+      if (response.success && response.data?.rate) {
+        setExchangeRate(response.data.rate);
+      }
+    } catch (err) {
+      console.error('Error loading exchange rate:', err);
+      // Keep default rate if error
+    }
+  };
+
   useEffect(() => {
     loadCampaign();
     loadWallet();
+    loadExchangeRate();
     if (user?.phone) {
       const cleanPhone = user.phone.replace('+243', '').replace(/\D/g, '');
       setPhoneNumber(cleanPhone);
@@ -329,13 +347,13 @@ const BuyTicketsPage = () => {
         selection_mode: selectionMode,
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
         amount: campaign.currency === 'CDF' ? finalPrice * 2500 : finalPrice,
-        amount_cdf: campaign.currency === 'CDF' ? finalPrice * 2500 : undefined,
+        amount_cdf: campaign.currency === 'CDF' ? finalPrice * exchangeRate : undefined,
         currency: campaign.currency === 'CDF' ? 'CDF' : 'USD'
       };
 
       // Payment with wallet balance (always in CDF)
       if (paymentMethod === 'wallet') {
-        if (!wallet || wallet.balance < finalPrice * 2500) {
+        if (!wallet || wallet.balance < finalPrice * exchangeRate) {
           setError('Solde insuffisant. Veuillez recharger votre portefeuille.');
           setPurchasing(false);
           return;
@@ -343,7 +361,7 @@ const BuyTicketsPage = () => {
 
         const response = await walletAPI.purchase({
           ...purchasePayload,
-          amount: finalPrice * 2500, // Send CDF amount for wallet
+          amount: finalPrice * exchangeRate, // Send CDF amount for wallet
           promo_code_id: promoDiscount?.id || null,
           discount_amount: promoDiscount?.discount_amount || 0
         });
@@ -361,7 +379,7 @@ const BuyTicketsPage = () => {
         }
       } else {
         // Payment via PayDRC (MOKO Afrika) Mobile Money
-        const amountToCharge = selectedCurrency === 'CDF' ? finalPrice * 2850 : finalPrice;
+        const amountToCharge = selectedCurrency === 'CDF' ? finalPrice * exchangeRate : finalPrice;
         
         console.log('Initiating PayDRC payment...', {
           campaign_id: campaign.id,
@@ -1203,7 +1221,7 @@ const BuyTicketsPage = () => {
                       <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                         Montant: {selectedCurrency === 'USD' 
                           ? `$${finalPrice.toLocaleString('en-US')}`
-                          : `${(finalPrice * 2850).toLocaleString('fr-FR')} FC`
+                          : `${(finalPrice * exchangeRate).toLocaleString('fr-FR')} FC`
                         }
                       </p>
                     </div>
@@ -1261,7 +1279,7 @@ const BuyTicketsPage = () => {
                   `Payer avec mon portefeuille`
                 ) : (
                   selectedCurrency === 'CDF'
-                    ? `Payer ${(finalPrice * 2850).toLocaleString('fr-FR')} FC via Mobile Money`
+                    ? `Payer ${(finalPrice * exchangeRate).toLocaleString('fr-FR')} FC via Mobile Money`
                     : `Payer $${finalPrice.toLocaleString('en-US')} via Mobile Money`
                 )}
               </button>

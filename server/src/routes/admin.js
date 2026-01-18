@@ -15,6 +15,17 @@ router.use(verifyToken, verifyAdmin);
 // Get dashboard statistics
 router.get('/stats', async (req, res) => {
   try {
+    // Get exchange rate for normalization (with fallback if table doesn't exist)
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (e) {
+      console.log('app_settings table not found, using default exchange rate');
+    }
+
     const statsQuery = `
       SELECT 
         (SELECT COUNT(*) FROM campaigns WHERE status IN ('open', 'active')) as active_campaigns,
@@ -65,6 +76,7 @@ router.get('/stats', async (req, res) => {
         // Utiliser les recettes de la campagne active si disponible, sinon le total global
         total_revenue: campaign ? parseFloat(campaign.campaign_revenue) : parseFloat(stats.total_revenue),
         total_winners: parseInt(stats.total_winners),
+        exchange_rate: exchangeRate,
         campaign: campaign ? {
           ...campaign,
           sold_tickets: parseInt(campaign.sold_tickets),
@@ -191,12 +203,43 @@ router.get('/participants', async (req, res) => {
     const sortBy = req.query.sortBy || 'tickets';
     const sortOrder = req.query.sortOrder || 'desc';
 
+    // Get exchange rate for normalization (with fallback)
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (e) {
+      console.log('app_settings table not found, using default exchange rate');
+    }
+
+    // Check if currency column exists in purchases table
+    let hasCurrencyColumn = false;
+    try {
+      await query("SELECT currency FROM purchases LIMIT 1");
+      hasCurrencyColumn = true;
+    } catch (e) {
+      console.log('Currency column not found in purchases');
+    }
+
+    // Build query based on available columns
+    // Normalize amounts to USD for consistent display
+    const amountSelect = hasCurrencyColumn 
+      ? `COALESCE(SUM(
+          CASE 
+            WHEN p.currency = 'CDF' THEN p.total_amount / ${exchangeRate}
+            ELSE p.total_amount 
+          END
+        ), 0) as total_spent_usd`
+      : `COALESCE(SUM(p.total_amount), 0) as total_spent_usd`;
+
     const result = await query(
       `SELECT 
         u.id as user_id, u.name, u.email, u.phone, u.created_at as join_date, u.is_active,
         COUNT(DISTINCT t.id) as ticket_count,
         COUNT(DISTINCT p.id) as purchases,
-        COALESCE(SUM(p.total_amount), 0) as total_spent,
+        ${amountSelect},
         MAX(p.created_at) as last_purchase,
         (SELECT COUNT(*) FROM users WHERE is_admin = false) as total_count,
         (SELECT json_agg(json_build_object('campaign_id', sub.campaign_id, 'campaign_title', sub.title, 'tickets', sub.cnt))
@@ -213,7 +256,7 @@ router.get('/participants', async (req, res) => {
        LEFT JOIN tickets t ON u.id = t.user_id
        WHERE u.is_admin = false
        GROUP BY u.id, u.name, u.email, u.phone, u.created_at, u.is_active
-       ORDER BY ${sortBy === 'tickets' ? 'ticket_count' : sortBy === 'amount' ? 'total_spent' : sortBy} ${sortOrder.toUpperCase()}
+       ORDER BY ${sortBy === 'tickets' ? 'ticket_count' : sortBy === 'amount' ? 'total_spent_usd' : sortBy} ${sortOrder.toUpperCase()}
        LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
@@ -230,7 +273,8 @@ router.get('/participants', async (req, res) => {
           phone: p.phone,
           ticket_count: parseInt(p.ticket_count),
           purchases: parseInt(p.purchases),
-          total_spent: parseFloat(p.total_spent),
+          total_spent: parseFloat(p.total_spent_usd), // Now in USD
+          currency: 'USD', // Normalized to USD
           join_date: p.join_date,
           last_purchase: p.last_purchase,
           is_active: p.is_active !== false && parseInt(p.ticket_count) > 0,
@@ -241,7 +285,8 @@ router.get('/participants', async (req, res) => {
           limit,
           totalPages: Math.ceil(totalCount / limit),
           total: parseInt(totalCount)
-        }
+        },
+        exchange_rate: exchangeRate
       }
     });
 
@@ -1261,6 +1306,29 @@ router.get('/transactions', async (req, res) => {
       params.push(status);
     }
 
+    // Get exchange rate for display (with fallback)
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (e) {
+      console.log('app_settings table not found, using default exchange rate');
+    }
+
+    // Check if currency column exists
+    let hasCurrencyColumn = false;
+    try {
+      await query("SELECT currency FROM purchases LIMIT 1");
+      hasCurrencyColumn = true;
+    } catch (e) {
+      console.log('Currency column not found in purchases');
+    }
+
+    // Build SELECT clause based on available columns
+    const currencySelect = hasCurrencyColumn ? 'p.currency' : "'USD' as currency";
+
     const result = await query(`
       SELECT 
         p.id as transaction_id,
@@ -1273,6 +1341,7 @@ router.get('/transactions', async (req, res) => {
         p.campaign_id,
         c.title as campaign_title,
         p.total_amount,
+        ${currencySelect},
         p.ticket_count,
         p.payment_method,
         p.payment_provider,
@@ -1296,17 +1365,27 @@ router.get('/transactions', async (req, res) => {
     res.json({
       success: true,
       data: {
-        transactions: result.rows.map(t => ({
-          ...t,
-          total_amount: parseFloat(t.total_amount),
-          tickets: t.tickets || []
-        })),
+        transactions: result.rows.map(t => {
+          const currency = t.currency || 'USD';
+          const amount = parseFloat(t.total_amount);
+          // Normalize to USD for display if in CDF
+          const amountUsd = currency === 'CDF' ? amount / exchangeRate : amount;
+          
+          return {
+            ...t,
+            total_amount: amount,
+            amount_usd: amountUsd,
+            currency: currency,
+            tickets: t.tickets || []
+          };
+        }),
         pagination: {
           page,
           limit,
           totalPages: Math.ceil(totalCount / limit),
           total: totalCount
-        }
+        },
+        exchange_rate: exchangeRate
       }
     });
 
@@ -1654,6 +1733,311 @@ router.patch('/transactions/:id', [
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// ============ APP SETTINGS MANAGEMENT ============
+
+// Get all settings
+router.get('/settings', async (req, res) => {
+  try {
+    let result;
+    try {
+      result = await query(`
+        SELECT key, value, description, updated_at
+        FROM app_settings
+        ORDER BY key
+      `);
+    } catch (tableError) {
+      // Table doesn't exist, return defaults
+      console.log('app_settings table not found, returning defaults');
+      return res.json({
+        success: true,
+        data: {
+          exchange_rate_usd_cdf: {
+            value: '2850',
+            description: 'Taux de conversion USD vers CDF',
+            updated_at: null
+          },
+          default_currency: {
+            value: 'USD',
+            description: 'Devise par défaut',
+            updated_at: null
+          }
+        }
+      });
+    }
+
+    // Convert to object for easier frontend use
+    const settings = {};
+    result.rows.forEach(row => {
+      settings[row.key] = {
+        value: row.value,
+        description: row.description,
+        updated_at: row.updated_at
+      };
+    });
+
+    // Ensure defaults if not present
+    if (!settings.exchange_rate_usd_cdf) {
+      settings.exchange_rate_usd_cdf = { value: '2850', description: 'Taux de conversion USD vers CDF', updated_at: null };
+    }
+    if (!settings.default_currency) {
+      settings.default_currency = { value: 'USD', description: 'Devise par défaut', updated_at: null };
+    }
+
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des paramètres'
+    });
+  }
+});
+
+// Get specific setting
+router.get('/settings/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    
+    const result = await query(
+      'SELECT key, value, description, updated_at FROM app_settings WHERE key = $1',
+      [key]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Paramètre non trouvé'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Get setting error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
+  }
+});
+
+// Update setting
+router.put('/settings/:key', [
+  body('value').notEmpty().withMessage('La valeur est requise')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: errors.array()[0].msg
+      });
+    }
+
+    const { key } = req.params;
+    const { value } = req.body;
+
+    // Validate exchange rate if applicable
+    if (key === 'exchange_rate_usd_cdf') {
+      const rate = parseFloat(value);
+      if (isNaN(rate) || rate <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le taux de conversion doit être un nombre positif'
+        });
+      }
+    }
+
+    const result = await query(`
+      UPDATE app_settings 
+      SET value = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE key = $3
+      RETURNING *
+    `, [value, req.user.id, key]);
+
+    if (result.rows.length === 0) {
+      // If setting doesn't exist, create it
+      const insertResult = await query(`
+        INSERT INTO app_settings (key, value, updated_by)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `, [key, value, req.user.id]);
+
+      // Log admin action
+      await logAdminAction(
+        req.user.id,
+        'CREATE_SETTING',
+        'setting',
+        key,
+        { value }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Paramètre créé avec succès',
+        data: insertResult.rows[0]
+      });
+    }
+
+    // Log admin action
+    await logAdminAction(
+      req.user.id,
+      'UPDATE_SETTING',
+      'setting',
+      key,
+      { new_value: value }
+    );
+
+    res.json({
+      success: true,
+      message: 'Paramètre mis à jour avec succès',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update setting error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la mise à jour du paramètre'
+    });
+  }
+});
+
+// Get exchange rate specifically (public-ish endpoint, but still admin protected for now)
+router.get('/exchange-rate', async (req, res) => {
+  try {
+    const result = await query(
+      "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'"
+    );
+
+    const rate = result.rows.length > 0 ? parseFloat(result.rows[0].value) : 2850;
+
+    res.json({
+      success: true,
+      data: {
+        rate,
+        currency_from: 'USD',
+        currency_to: 'CDF'
+      }
+    });
+  } catch (error) {
+    console.error('Get exchange rate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
+  }
+});
+
+// Debug route: Get all payment webhooks (for debugging)
+router.get('/debug/webhooks', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const result = await query(
+      `SELECT * FROM payment_webhooks 
+       ORDER BY created_at DESC 
+       LIMIT $1`,
+      [limit]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        count: result.rows.length,
+        webhooks: result.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get webhooks error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: error.message
+    });
+  }
+});
+
+// Debug route: Get raw purchases data
+router.get('/debug/purchases', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const result = await query(
+      `SELECT 
+        p.*,
+        u.name as user_name,
+        u.email as user_email,
+        c.title as campaign_title,
+        (SELECT COUNT(*) FROM tickets t WHERE t.purchase_id = p.id) as ticket_count_actual,
+        (SELECT array_agg(t.ticket_number) FROM tickets t WHERE t.purchase_id = p.id) as ticket_numbers
+       FROM purchases p
+       LEFT JOIN users u ON p.user_id = u.id
+       LEFT JOIN campaigns c ON p.campaign_id = c.id
+       ORDER BY p.created_at DESC 
+       LIMIT $1`,
+      [limit]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        count: result.rows.length,
+        purchases: result.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get purchases error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: error.message
+    });
+  }
+});
+
+// Debug route: Get raw tickets data
+router.get('/debug/tickets', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const result = await query(
+      `SELECT 
+        t.*,
+        u.name as user_name,
+        c.title as campaign_title,
+        p.payment_status,
+        p.total_amount
+       FROM tickets t
+       LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN campaigns c ON t.campaign_id = c.id
+       LEFT JOIN purchases p ON t.purchase_id = p.id
+       ORDER BY t.created_at DESC 
+       LIMIT $1`,
+      [limit]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        count: result.rows.length,
+        tickets: result.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get tickets error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+      error: error.message
     });
   }
 });

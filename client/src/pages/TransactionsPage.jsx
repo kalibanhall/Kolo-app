@@ -52,6 +52,8 @@ const TransactionsPage = () => {
           ticket_count: t.ticket_count,
           quantity: t.ticket_count,
           amount: parseFloat(t.total_amount) || 0,
+          amount_usd: parseFloat(t.amount_usd) || 0,
+          currency: t.currency || 'USD',
           status: t.payment_status || 'pending',
           payment_method: t.payment_method,
           payment_provider: t.payment_provider,
@@ -112,7 +114,10 @@ const TransactionsPage = () => {
     });
   };
 
-  const formatAmount = (amount) => {
+  const formatAmount = (amount, currency = 'USD') => {
+    if (currency === 'CDF') {
+      return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount) + ' FC';
+    }
     return '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   };
 
@@ -126,13 +131,13 @@ const TransactionsPage = () => {
     return matchesFilter && matchesSearch;
   });
 
-  // Stats
+  // Stats - use USD amount for totals
   const stats = {
     total: transactions.length,
     pending: transactions.filter(t => t.status === 'pending').length,
     completed: transactions.filter(t => t.status === 'completed').length,
     failed: transactions.filter(t => t.status === 'failed').length,
-    totalAmount: transactions.filter(t => t.status === 'completed').reduce((sum, t) => sum + (t.amount || 0), 0)
+    totalAmount: transactions.filter(t => t.status === 'completed').reduce((sum, t) => sum + (t.amount_usd || t.amount || 0), 0)
   };
 
   // Sync single transaction with PayDRC
@@ -191,9 +196,9 @@ const TransactionsPage = () => {
           <div className="flex gap-2">
             <button 
               onClick={syncAllTransactions}
-              disabled={syncingAll || stats.pending === 0}
+              disabled={syncingAll}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                syncingAll || stats.pending === 0
+                syncingAll
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
@@ -335,9 +340,14 @@ const TransactionsPage = () => {
                         <span className="font-medium">{transaction.ticket_count || transaction.quantity || 0}</span>
                       </td>
                       <td className="p-4">
-                        <span className="font-semibold text-gray-900">
-                          {formatAmount(transaction.amount || 0)}
-                        </span>
+                        <div>
+                          <span className="font-semibold text-gray-900">
+                            {formatAmount(transaction.amount || 0, transaction.currency)}
+                          </span>
+                          {transaction.currency === 'CDF' && transaction.amount_usd > 0 && (
+                            <p className="text-xs text-gray-400">≈ ${transaction.amount_usd.toFixed(2)}</p>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <div>
@@ -454,7 +464,12 @@ const TransactionsPage = () => {
                     </div>
                     <div className="col-span-2 bg-green-50 p-3 rounded-lg">
                       <p className="text-sm text-green-600">Montant total</p>
-                      <p className="text-2xl font-bold text-green-800">{formatAmount(selectedTransaction.amount)}</p>
+                      <p className="text-2xl font-bold text-green-800">
+                        {formatAmount(selectedTransaction.amount, selectedTransaction.currency)}
+                      </p>
+                      {selectedTransaction.currency === 'CDF' && selectedTransaction.amount_usd > 0 && (
+                        <p className="text-sm text-green-600">≈ ${selectedTransaction.amount_usd.toFixed(2)} USD</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Date de création</p>

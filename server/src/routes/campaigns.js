@@ -471,4 +471,35 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+// Get exchange rate (public endpoint)
+router.get('/exchange-rate', async (req, res) => {
+  try {
+    const result = await query(
+      "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'"
+    );
+
+    const rate = result.rows.length > 0 ? parseFloat(result.rows[0].value) : 2850;
+
+    res.json({
+      success: true,
+      data: {
+        rate,
+        currency_from: 'USD',
+        currency_to: 'CDF'
+      }
+    });
+  } catch (error) {
+    console.error('Get exchange rate error:', error);
+    // Return default if error
+    res.json({
+      success: true,
+      data: {
+        rate: 2850,
+        currency_from: 'USD',
+        currency_to: 'CDF'
+      }
+    });
+  }
+});
+
 module.exports = router;

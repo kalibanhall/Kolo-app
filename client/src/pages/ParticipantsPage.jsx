@@ -220,7 +220,10 @@ export const ParticipantsPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      ${parseFloat(participant.total_spent).toFixed(2)}
+                      {participant.currency === 'CDF' 
+                        ? `${parseFloat(participant.total_spent).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC`
+                        : `$${parseFloat(participant.total_spent).toFixed(2)}`
+                      }
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${

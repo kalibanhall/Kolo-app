@@ -48,8 +48,9 @@ const UserProfilePage = () => {
   const fetchUserTickets = async () => {
     try {
       setLoading(true);
-      const data = await ticketsAPI.getUserTickets(user.id);
-      setTickets(data.tickets || []);
+      const response = await ticketsAPI.getUserTickets(user.id);
+      // Backend returns { success: true, data: [...tickets] }
+      setTickets(response.data || response.tickets || []);
     } catch (error) {
       console.error('Error fetching tickets:', error);
     } finally {

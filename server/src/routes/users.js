@@ -169,4 +169,107 @@ router.delete('/fcm-token', async (req, res) => {
   }
 });
 
+// Get user purchases (transactions)
+router.get('/purchases/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const status = req.query.status; // 'all', 'completed', 'pending', 'failed'
+
+    // Validate authorization - this should be called with auth
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Authentication required' 
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const jwt = require('jsonwebtoken');
+    
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      
+      // User can only see their own purchases unless admin
+      if (decoded.id !== userId && !decoded.is_admin) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied' 
+        });
+      }
+    } catch (jwtError) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+
+    let whereClause = 'WHERE p.user_id = $1';
+    const params = [userId, limit, offset];
+    
+    if (status && status !== 'all') {
+      whereClause += ' AND p.payment_status = $4';
+      params.push(status);
+    }
+
+    const result = await query(`
+      SELECT 
+        p.id,
+        p.transaction_id,
+        p.campaign_id,
+        c.title as campaign_title,
+        c.main_prize,
+        p.ticket_count,
+        p.total_amount,
+        p.phone_number,
+        p.payment_provider,
+        p.payment_method,
+        p.payment_status,
+        p.created_at,
+        p.completed_at,
+        (SELECT COUNT(*) FROM purchases WHERE user_id = $1 ${status && status !== 'all' ? 'AND payment_status = $4' : ''}) as total_count,
+        (SELECT array_agg(json_build_object(
+          'id', t.id, 
+          'ticket_number', t.ticket_number, 
+          'status', t.status,
+          'is_winner', t.is_winner
+        ))
+         FROM tickets t WHERE t.purchase_id = p.id) as tickets
+      FROM purchases p
+      LEFT JOIN campaigns c ON p.campaign_id = c.id
+      ${whereClause}
+      ORDER BY p.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, params);
+
+    const totalCount = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        purchases: result.rows.map(p => ({
+          ...p,
+          total_amount: parseFloat(p.total_amount),
+          tickets: p.tickets || []
+        })),
+        pagination: {
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit),
+          total: totalCount
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get user purchases error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+});
+
 module.exports = router;
