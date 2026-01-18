@@ -1327,14 +1327,6 @@ router.get('/transactions', async (req, res) => {
     const offset = (page - 1) * limit;
     const status = req.query.status; // 'completed', 'pending', 'failed', 'cancelled'
 
-    let whereClause = '';
-    const params = [limit, offset];
-    
-    if (status) {
-      whereClause = 'WHERE p.payment_status = $3';
-      params.push(status);
-    }
-
     // Get exchange rate for display (with fallback)
     let exchangeRate = 2850;
     try {
@@ -1346,68 +1338,115 @@ router.get('/transactions', async (req, res) => {
       console.log('app_settings table not found, using default exchange rate');
     }
 
-    // Check if currency column exists
-    let hasCurrencyColumn = false;
+    // Get total count first
+    let totalCount = 0;
     try {
-      await query("SELECT currency FROM purchases LIMIT 1");
-      hasCurrencyColumn = true;
+      const countQuery = status 
+        ? "SELECT COUNT(*) FROM purchases WHERE payment_status = $1"
+        : "SELECT COUNT(*) FROM purchases";
+      const countResult = await query(countQuery, status ? [status] : []);
+      totalCount = parseInt(countResult.rows[0].count) || 0;
     } catch (e) {
-      console.log('Currency column not found in purchases');
+      console.error('Count query error:', e);
     }
 
-    // Build SELECT clause based on available columns
-    const currencySelect = hasCurrencyColumn ? 'p.currency' : "'USD' as currency";
+    // Build the main query - simpler approach
+    let mainQuery;
+    let params;
+    
+    if (status) {
+      mainQuery = `
+        SELECT 
+          p.id as transaction_id,
+          p.transaction_id as external_transaction_id,
+          p.user_id,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          p.phone_number as payment_phone,
+          p.campaign_id,
+          c.title as campaign_title,
+          p.total_amount,
+          COALESCE(p.currency, 'USD') as currency,
+          p.ticket_count,
+          p.payment_method,
+          p.payment_provider,
+          p.payment_status,
+          p.created_at,
+          p.updated_at
+        FROM purchases p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN campaigns c ON p.campaign_id = c.id
+        WHERE p.payment_status = $1
+        ORDER BY p.created_at DESC
+        LIMIT $2 OFFSET $3
+      `;
+      params = [status, limit, offset];
+    } else {
+      mainQuery = `
+        SELECT 
+          p.id as transaction_id,
+          p.transaction_id as external_transaction_id,
+          p.user_id,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone,
+          p.phone_number as payment_phone,
+          p.campaign_id,
+          c.title as campaign_title,
+          p.total_amount,
+          COALESCE(p.currency, 'USD') as currency,
+          p.ticket_count,
+          p.payment_method,
+          p.payment_provider,
+          p.payment_status,
+          p.created_at,
+          p.updated_at
+        FROM purchases p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN campaigns c ON p.campaign_id = c.id
+        ORDER BY p.created_at DESC
+        LIMIT $1 OFFSET $2
+      `;
+      params = [limit, offset];
+    }
 
-    const result = await query(`
-      SELECT 
-        p.id as transaction_id,
-        p.transaction_id as external_transaction_id,
-        p.user_id,
-        u.name as user_name,
-        u.email as user_email,
-        u.phone as user_phone,
-        p.phone_number as payment_phone,
-        p.campaign_id,
-        c.title as campaign_title,
-        p.total_amount,
-        ${currencySelect},
-        p.ticket_count,
-        p.payment_method,
-        p.payment_provider,
-        p.payment_status,
-        p.error_message,
-        p.created_at,
-        p.updated_at,
-        (SELECT COUNT(*) FROM purchases ${status ? 'WHERE payment_status = $3' : ''}) as total_count,
-        (SELECT array_agg(json_build_object('id', t.id, 'ticket_number', t.ticket_number, 'status', t.status))
-         FROM tickets t WHERE t.purchase_id = p.id) as tickets
-      FROM purchases p
-      JOIN users u ON p.user_id = u.id
-      LEFT JOIN campaigns c ON p.campaign_id = c.id
-      ${whereClause}
-      ORDER BY p.created_at DESC
-      LIMIT $1 OFFSET $2
-    `, params);
+    console.log('Executing transactions query with params:', params);
+    const result = await query(mainQuery, params);
+    console.log('Query returned', result.rows.length, 'transactions');
 
-    const totalCount = result.rows.length > 0 ? parseInt(result.rows[0].total_count) : 0;
+    // Get tickets for each transaction
+    const transactionsWithTickets = await Promise.all(
+      result.rows.map(async (t) => {
+        let tickets = [];
+        try {
+          const ticketsResult = await query(
+            "SELECT id, ticket_number, status FROM tickets WHERE purchase_id = $1",
+            [t.transaction_id]
+          );
+          tickets = ticketsResult.rows;
+        } catch (e) {
+          console.log('Error fetching tickets for purchase', t.transaction_id);
+        }
+        
+        const currency = t.currency || 'USD';
+        const amount = parseFloat(t.total_amount) || 0;
+        const amountUsd = currency === 'CDF' ? amount / exchangeRate : amount;
+        
+        return {
+          ...t,
+          total_amount: amount,
+          amount_usd: amountUsd,
+          currency: currency,
+          tickets: tickets
+        };
+      })
+    );
 
     res.json({
       success: true,
       data: {
-        transactions: result.rows.map(t => {
-          const currency = t.currency || 'USD';
-          const amount = parseFloat(t.total_amount);
-          // Normalize to USD for display if in CDF
-          const amountUsd = currency === 'CDF' ? amount / exchangeRate : amount;
-          
-          return {
-            ...t,
-            total_amount: amount,
-            amount_usd: amountUsd,
-            currency: currency,
-            tickets: t.tickets || []
-          };
-        }),
+        transactions: transactionsWithTickets,
         pagination: {
           page,
           limit,
@@ -1419,10 +1458,10 @@ router.get('/transactions', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get transactions error:', error);
+    console.error('Get transactions error:', error.message, error.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error: ' + error.message
     });
   }
 });
