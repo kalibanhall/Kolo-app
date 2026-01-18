@@ -16,7 +16,7 @@ const apiRequest = async (endpoint, options = {}) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || 'Erreur serveur');
-  return { data };
+  return data; // Return data directly, not wrapped in { data }
 };
 
 const TransactionsPage = () => {

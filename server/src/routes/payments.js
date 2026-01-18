@@ -1018,15 +1018,22 @@ router.post('/paydrc/callback', async (req, res) => {
     const isSuccess = transStatus === 'Successful' || transStatus === 'Success';
     const isFailed = transStatus === 'Failed';
 
+    // Extract currency and amount from callback
+    const callbackCurrency = callbackData.Currency || 'USD';
+    const callbackAmount = callbackData.Amount;
+
     if (isSuccess) {
       // Process successful payment - generate tickets
       await transaction(async (client) => {
-        // Update purchase status
+        // Update purchase status AND currency from callback
         await client.query(
           `UPDATE purchases 
-           SET payment_status = 'completed', completed_at = CURRENT_TIMESTAMP 
+           SET payment_status = 'completed', 
+               completed_at = CURRENT_TIMESTAMP,
+               currency = $2,
+               total_amount = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE total_amount END
            WHERE id = $1`,
-          [purchase.id]
+          [purchase.id, callbackCurrency, callbackAmount || purchase.total_amount]
         );
 
         // Get campaign total tickets for proper number formatting
