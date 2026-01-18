@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
 import { ImageUpload } from '../components/ImageUpload';
+import { translateStatus, getStatusBadgeClasses } from '../utils/translations';
 
 const UserProfilePage = () => {
   const { user, checkAuth } = useAuth();
@@ -547,16 +548,16 @@ const UserProfilePage = () => {
                             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                             Actif
                           </span>
-                        ) : ticket.status === 'won' ? (
+                        ) : ticket.status === 'won' || ticket.status === 'winner' || ticket.is_winner ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-500">
                             <TrophyIcon className="w-3.5 h-3.5" />
                             Gagnant
                           </span>
                         ) : (
                           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
-                            isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {ticket.status}
+                            getStatusBadgeClasses(ticket.status, isDarkMode).bg
+                          } ${getStatusBadgeClasses(ticket.status, isDarkMode).text}`}>
+                            {translateStatus(ticket.status, 'ticket')}
                           </span>
                         )}
                       </td>

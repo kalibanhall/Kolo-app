@@ -948,9 +948,10 @@ router.get('/winners', async (req, res) => {
     } = req.query;
 
     const offset = (page - 1) * limit;
-    let whereConditions = ['t.is_winner = true'];
-    const queryParams = [];
-    let paramCount = 0;
+    // Check for both is_winner = true AND status = 'winner' for compatibility
+    let whereConditions = ['(t.is_winner = true OR t.status = $1)'];
+    const queryParams = ['winner'];
+    let paramCount = 1;
 
     if (delivery_status) {
       paramCount++;
@@ -982,8 +983,10 @@ router.get('/winners', async (req, res) => {
       JOIN campaigns c ON t.campaign_id = c.id
       ${whereClause}
     `;
+    console.log('Winners count query:', countQuery, queryParams);
     const countResult = await query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].total);
+    console.log('Total winners found:', total);
 
     // Get winners with pagination
     const winnersQuery = `
@@ -1046,7 +1049,7 @@ router.get('/winners/stats', async (req, res) => {
     const statsQuery = `
       SELECT 
         COUNT(*) as total_winners,
-        COUNT(CASE WHEN delivery_status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN delivery_status = 'pending' OR delivery_status IS NULL THEN 1 END) as pending,
         COUNT(CASE WHEN delivery_status = 'contacted' THEN 1 END) as contacted,
         COUNT(CASE WHEN delivery_status = 'shipped' THEN 1 END) as shipped,
         COUNT(CASE WHEN delivery_status = 'delivered' THEN 1 END) as delivered,
@@ -1054,11 +1057,12 @@ router.get('/winners/stats', async (req, res) => {
         COUNT(CASE WHEN prize_category = 'main' THEN 1 END) as main_prizes,
         COUNT(CASE WHEN prize_category = 'bonus' THEN 1 END) as bonus_prizes
       FROM tickets
-      WHERE is_winner = true
+      WHERE is_winner = true OR status = 'winner'
     `;
 
     const result = await query(statsQuery);
     const stats = result.rows[0];
+    console.log('Winner stats:', stats);
 
     // Get recent deliveries
     const recentQuery = `
@@ -1072,7 +1076,7 @@ router.get('/winners/stats', async (req, res) => {
       FROM tickets t
       JOIN users u ON t.user_id = u.id
       JOIN campaigns c ON t.campaign_id = c.id
-      WHERE t.is_winner = true AND t.delivery_updated_at IS NOT NULL
+      WHERE (t.is_winner = true OR t.status = 'winner') AND t.delivery_updated_at IS NOT NULL
       ORDER BY t.delivery_updated_at DESC
       LIMIT 5
     `;

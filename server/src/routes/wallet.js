@@ -70,7 +70,7 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
-// Get wallet transactions history
+// Get wallet transactions history (includes wallet transactions AND Mobile Money purchases)
 router.get('/transactions', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -85,26 +85,58 @@ router.get('/transactions', verifyToken, async (req, res) => {
       [userId]
     );
 
-    if (walletResult.rows.length === 0) {
-      return res.json({
-        success: true,
-        data: { transactions: [], total: 0 }
-      });
-    }
+    const walletId = walletResult.rows.length > 0 ? walletResult.rows[0].id : null;
 
-    const walletId = walletResult.rows[0].id;
-
-    // Build query
+    // Combined query: wallet transactions + Mobile Money purchases
     let queryStr = `
+      WITH combined_transactions AS (
+        -- Wallet transactions (deposits, purchases via wallet, refunds, bonuses)
+        SELECT 
+          wt.id,
+          wt.type,
+          wt.amount,
+          wt.balance_before,
+          wt.balance_after,
+          wt.reference,
+          wt.status,
+          wt.description,
+          wt.created_at,
+          'wallet' as source,
+          NULL as campaign_title,
+          NULL as ticket_count
+        FROM wallet_transactions wt
+        WHERE wt.wallet_id = $1
+        
+        UNION ALL
+        
+        -- Mobile Money purchases (PayDRC, etc.)
+        SELECT 
+          p.id,
+          'purchase' as type,
+          p.total_amount as amount,
+          NULL as balance_before,
+          NULL as balance_after,
+          p.transaction_id as reference,
+          p.payment_status as status,
+          CONCAT('Achat de ', p.ticket_count, ' ticket(s) via ', COALESCE(p.payment_provider, 'Mobile Money')) as description,
+          COALESCE(p.completed_at, p.created_at) as created_at,
+          'mobile_money' as source,
+          c.title as campaign_title,
+          p.ticket_count
+        FROM purchases p
+        LEFT JOIN campaigns c ON p.campaign_id = c.id
+        WHERE p.user_id = $2 AND p.payment_provider != 'wallet' AND p.payment_status = 'completed'
+      )
       SELECT *, COUNT(*) OVER() as total_count
-      FROM wallet_transactions 
-      WHERE wallet_id = $1
+      FROM combined_transactions
     `;
-    const params = [walletId];
-    let paramIndex = 2;
+    
+    const params = [walletId, userId];
+    let paramIndex = 3;
 
-    if (type) {
-      queryStr += ` AND type = $${paramIndex}`;
+    // Filter by type if specified
+    if (type && type !== 'all') {
+      queryStr += ` WHERE type = $${paramIndex}`;
       params.push(type);
       paramIndex++;
     }
@@ -121,9 +153,9 @@ router.get('/transactions', verifyToken, async (req, res) => {
       data: {
         transactions: result.rows.map(t => ({
           ...t,
-          amount: parseFloat(t.amount),
-          balance_before: parseFloat(t.balance_before),
-          balance_after: parseFloat(t.balance_after)
+          amount: parseFloat(t.amount) || 0,
+          balance_before: t.balance_before ? parseFloat(t.balance_before) : null,
+          balance_after: t.balance_after ? parseFloat(t.balance_after) : null
         })),
         pagination: {
           page,
@@ -654,14 +686,18 @@ router.post('/callback', async (req, res) => {
 router.post('/purchase', verifyToken, [
   body('campaign_id').isInt({ min: 1 }),
   body('ticket_count').isInt({ min: 1, max: 1000 }),
-  body('selection_mode').optional().isIn(['manual', 'automatic'])
+  body('selection_mode').optional().isString(),
+  body('amount').optional().isNumeric(),
+  body('promo_code_id').optional(),
+  body('discount_amount').optional().isNumeric()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
-        message: 'Données invalides',
+        message: 'Données invalides: ' + errors.array().map(e => e.msg).join(', '),
         errors: errors.array()
       });
     }
@@ -716,10 +752,19 @@ router.post('/purchase', verifyToken, [
     }
 
     // Le prix du ticket est en USD, le portefeuille est en CDF
-    // Taux de conversion: 1 USD = 2500 CDF
-    const USD_TO_CDF_RATE = 2500;
+    // Récupérer le taux de conversion depuis la base de données
+    let exchangeRate = 2850; // Valeur par défaut
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (rateError) {
+      console.log('Using default exchange rate:', exchangeRate);
+    }
+    
     const ticketPriceUSD = parseFloat(campaign.ticket_price);
-    const totalAmountCDF = Math.ceil(ticketPriceUSD * ticket_count * USD_TO_CDF_RATE);
+    const totalAmountCDF = Math.ceil(ticketPriceUSD * ticket_count * exchangeRate);
 
     // Check wallet balance (in CDF)
     if (parseFloat(wallet.balance) < totalAmountCDF) {
@@ -770,10 +815,15 @@ router.post('/purchase', verifyToken, [
 
       const purchase = purchaseResult.rows[0];
 
-      // Generate tickets
+      // Generate tickets with sequential numbering based on campaign
       const tickets = [];
+      const totalTickets = parseInt(campaign.total_tickets) || 100;
+      const padLength = Math.max(2, String(totalTickets).length);
+      
       for (let i = 0; i < ticket_count; i++) {
-        const ticketNumber = `KOLO-${String(campaign.sold_tickets + i + 1).padStart(6, '0')}`;
+        // Use campaign's current sold_tickets + offset for sequential numbering
+        const ticketSequence = parseInt(campaign.sold_tickets) + i + 1;
+        const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
         const ticketResult = await client.query(
           `INSERT INTO tickets 
            (user_id, campaign_id, purchase_id, ticket_number, status)

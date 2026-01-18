@@ -144,12 +144,15 @@ router.post('/webhook', async (req, res) => {
     // If payment successful, generate tickets
     if (payment_status === 'completed') {
       const ticketData = await transaction(async (client) => {
-        // Get campaign info for ticket number format
+        // Get campaign info for ticket number format - lock row for update
         const campaignResult = await client.query(
-          'SELECT total_tickets FROM campaigns WHERE id = $1',
+          'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
           [purchase.campaign_id]
         );
-        const totalTickets = campaignResult.rows[0]?.total_tickets || 1000;
+        const campaign = campaignResult.rows[0];
+        const totalTickets = campaign?.total_tickets || 1000;
+        const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
+        const padLength = Math.max(2, String(totalTickets).length);
         
         // Update purchase status
         await client.query(
@@ -159,29 +162,22 @@ router.post('/webhook', async (req, res) => {
           ['completed', purchase.id]
         );
 
-        // Generate unique ticket numbers
+        // Generate unique ticket numbers using sequential campaign-based numbering
         const tickets = [];
         for (let i = 0; i < purchase.ticket_count; i++) {
-          // Insert ticket with temporary number first to get ID
+          // Use campaign's sold_tickets + offset for sequential numbering
+          const ticketSequence = currentSoldTickets + i + 1;
+          const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+          
           const ticketResult = await client.query(
             `INSERT INTO tickets (
               ticket_number, campaign_id, user_id, purchase_id, status
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *`,
-            ['TEMP', purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
           );
 
-          const ticket = ticketResult.rows[0];
-          
-          // Update with proper ticket number based on ID and campaign total
-          const finalTicketNumber = generateTicketNumber(ticket.id, totalTickets);
-          await client.query(
-            'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
-            [finalTicketNumber, ticket.id]
-          );
-          
-          ticket.ticket_number = finalTicketNumber;
-          tickets.push(ticket);
+          tickets.push(ticketResult.rows[0]);
         }
 
         // Update campaign sold_tickets count
@@ -431,28 +427,25 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
         [transactionId, purchaseId]
       );
 
-      // Generate tickets
+      // Generate tickets using sequential campaign-based numbering
       const tickets = [];
+      const totalTickets = parseInt(purchase.total_tickets) || 100;
+      const currentSoldTickets = parseInt(purchase.sold_tickets);
+      const padLength = Math.max(2, String(totalTickets).length);
+      
       for (let i = 0; i < purchase.ticket_count; i++) {
-        // Insert with temp number first
+        // Use campaign's sold_tickets + offset for sequential numbering
+        const ticketSequence = currentSoldTickets + i + 1;
+        const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+        
         const ticketResult = await client.query(
           `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
            VALUES ($1, $2, $3, $4, 'active')
            RETURNING *`,
-          ['TEMP', purchase.campaign_id, purchase.user_id, purchaseId]
+          [ticketNumber, purchase.campaign_id, purchase.user_id, purchaseId]
         );
 
-        const ticket = ticketResult.rows[0];
-        
-        // Update with proper ticket number based on ID and campaign total
-        const finalTicketNumber = generateTicketNumber(ticket.id, purchase.total_tickets);
-        await client.query(
-          'UPDATE tickets SET ticket_number = $1 WHERE id = $2',
-          [finalTicketNumber, ticket.id]
-        );
-        
-        ticket.ticket_number = finalTicketNumber;
-        tickets.push(ticket);
+        tickets.push(ticketResult.rows[0]);
       }
 
       // Update campaign sold tickets
@@ -1036,38 +1029,33 @@ router.post('/paydrc/callback', async (req, res) => {
           [purchase.id, callbackCurrency, callbackAmount || purchase.total_amount]
         );
 
-        // Get campaign total tickets for proper number formatting
+        // Get campaign info for proper number formatting - lock for update
         const campaignInfo = await client.query(
-          'SELECT total_tickets FROM campaigns WHERE id = $1',
+          'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
           [purchase.campaign_id]
         );
-        const totalTickets = campaignInfo.rows[0]?.total_tickets || 1000;
+        const campaign = campaignInfo.rows[0];
+        const totalTickets = campaign?.total_tickets || 1000;
+        const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
+        const padLength = Math.max(2, String(totalTickets).length);
 
-        // Generate unique ticket numbers
+        // Generate unique ticket numbers using sequential campaign-based numbering
         const tickets = [];
         for (let i = 0; i < purchase.ticket_count; i++) {
-          // First insert with temporary number
-          const tempTicketResult = await client.query(
+          // Use campaign's sold_tickets + offset for sequential numbering
+          const ticketSequence = currentSoldTickets + i + 1;
+          const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+          
+          const ticketResult = await client.query(
             `INSERT INTO tickets (
               ticket_number, campaign_id, user_id, purchase_id, status
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *`,
-            [`TEMP-${Date.now()}-${i}`, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
-          );
-
-          const ticketId = tempTicketResult.rows[0].id;
-          
-          // Generate final ticket number based on ID
-          const finalTicketNumber = generateTicketNumber(ticketId, totalTickets);
-          
-          // Update with final number
-          const ticketResult = await client.query(
-            `UPDATE tickets SET ticket_number = $1 WHERE id = $2 RETURNING *`,
-            [finalTicketNumber, ticketId]
+            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
           );
 
           tickets.push(ticketResult.rows[0]);
-          console.log(`✅ Created ticket ${finalTicketNumber} for user ${purchase.user_id}`);
+          console.log(`✅ Created ticket ${ticketNumber} for user ${purchase.user_id}`);
         }
 
         // Update campaign sold_tickets count
