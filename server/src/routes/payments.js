@@ -833,6 +833,7 @@ router.post(
 router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
   try {
     const { reference } = req.params;
+    console.log('🔍 Status check for reference:', reference, 'user:', req.user.id);
 
     // Check our database first - search by transaction_id OR by LIKE match (in case reference was modified)
     const purchaseResult = await query(
@@ -842,8 +843,11 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
        WHERE (p.transaction_id = $1 OR p.transaction_id LIKE $3) AND p.user_id = $2`,
       [reference, req.user.id, `%${reference}%`]
     );
+    
+    console.log('📊 DB query returned', purchaseResult.rows.length, 'rows');
 
     if (purchaseResult.rows.length === 0) {
+      console.log('❌ Transaction not found in DB for reference:', reference);
       return res.status(404).json({
         success: false,
         message: 'Transaction non trouvée',
@@ -851,6 +855,7 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
     }
 
     const purchase = purchaseResult.rows[0];
+    console.log('✅ Found purchase:', purchase.id, 'status:', purchase.payment_status);
 
     // If already completed or failed, return cached status
     if (purchase.payment_status === 'completed' || purchase.payment_status === 'failed') {
@@ -931,10 +936,11 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('PayDRC status check error:', error);
+    console.error('❌ PayDRC status check error:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la vérification du statut',
+      message: 'Erreur lors de la vérification du statut: ' + error.message,
     });
   }
 });
