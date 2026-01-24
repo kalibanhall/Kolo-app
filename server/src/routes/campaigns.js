@@ -69,6 +69,9 @@ router.get('/current', async (req, res) => {
 router.get('/:id/available-numbers', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     const limit = Math.min(parseInt(req.query.limit) || 10000, 50000); // Default 10000, max 50000
     
     // Get campaign info
@@ -163,6 +166,9 @@ router.post('/:id/reserve', verifyToken, [
     }
 
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     const { ticket_numbers } = req.body;
     const userId = req.user.id;
     
@@ -240,6 +246,9 @@ router.post('/:id/reserve', verifyToken, [
 router.delete('/:id/reserve', verifyToken, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     const userId = req.user.id;
     const { ticket_numbers } = req.body;
     
@@ -319,6 +328,14 @@ router.get('/', verifyToken, verifyAdmin, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
+    
+    // Validate campaign ID is a valid number
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid campaign ID'
+      });
+    }
     
     const result = await query(
       `SELECT c.*, u.name as created_by_name
@@ -440,6 +457,9 @@ router.patch('/:id/status', verifyToken, verifyAdmin, [
     }
 
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     const { status } = req.body;
     
     const result = await query(
@@ -507,6 +527,9 @@ router.put('/:id', verifyToken, verifyAdmin, [
     }
 
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     const { 
       title, description, total_tickets, ticket_price, 
       main_prize, image_url, prize_image_url, start_date, 
@@ -577,6 +600,9 @@ router.put('/:id', verifyToken, verifyAdmin, [
 router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
+    if (isNaN(campaignId) || campaignId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
+    }
     
     // Check if campaign exists
     const checkResult = await query(

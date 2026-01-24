@@ -54,6 +54,9 @@ router.get('/', verifyToken, async (req, res) => {
 router.patch('/:id/read', verifyToken, async (req, res) => {
   try {
     const notificationId = parseInt(req.params.id);
+    if (isNaN(notificationId) || notificationId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid notification ID' });
+    }
     const userId = req.user.id;
 
     const result = await query(
@@ -113,6 +116,9 @@ router.patch('/read-all', verifyToken, async (req, res) => {
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const notificationId = parseInt(req.params.id);
+    if (isNaN(notificationId) || notificationId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid notification ID' });
+    }
     const userId = req.user.id;
 
     const result = await query(

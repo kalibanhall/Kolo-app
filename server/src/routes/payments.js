@@ -893,9 +893,11 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
       // Update our database if status changed
       if (newStatus !== purchase.payment_status) {
         console.log('📝 Updating purchase status from', purchase.payment_status, 'to', newStatus);
+        // Ensure purchase.id is an integer to avoid type mismatch
+        const purchaseId = parseInt(purchase.id, 10);
         await query(
-          `UPDATE purchases SET payment_status = $1, completed_at = CASE WHEN $1 = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = $2`,
-          [newStatus, purchase.id]
+          `UPDATE purchases SET payment_status = $1::text, completed_at = CASE WHEN $1::text = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = $2::integer`,
+          [newStatus, purchaseId]
         );
 
         // If completed, trigger ticket generation
