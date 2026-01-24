@@ -529,9 +529,9 @@ async function checkTransactionStatus(reference) {
 
 /**
  * Normalize PayDRC transaction status to our internal status
- * PayDRC Status values: Successful, Failed, Pending, Cancelled, etc.
+ * PayDRC Status values: Successful, Failed, Pending, Cancelled, Submitted, etc.
  * @param {string} transStatus - PayDRC Trans_Status value
- * @returns {string} - 'completed', 'failed', or 'pending'
+ * @returns {string} - 'completed', 'failed', 'submitted', or 'pending'
  */
 function normalizeTransactionStatus(transStatus) {
   const status = (transStatus || '').toLowerCase().trim();
@@ -544,6 +544,11 @@ function normalizeTransactionStatus(transStatus) {
   // Failure states  
   if (['failed', 'rejected', 'declined', 'error', 'cancelled', 'expired', 'timeout'].includes(status)) {
     return 'failed';
+  }
+  
+  // Submitted = waiting for user to validate on phone
+  if (['submitted', 'processing', 'initiated'].includes(status)) {
+    return 'submitted';
   }
   
   // Pending states

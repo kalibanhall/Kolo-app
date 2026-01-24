@@ -45,13 +45,22 @@ export const PaymentPendingPage = () => {
       
       if (response && response.success && response.data) {
         const newStatus = response.data.status;
+        const paydrcStatus = response.data.paydrc_normalized;
+        const userMessage = response.data.user_message;
+        
         setStatus(newStatus);
         
         if (newStatus === 'completed') {
           setStatusMessage('Paiement confirmé ! Vos tickets ont été générés.');
         } else if (newStatus === 'failed') {
           setStatusMessage('Le paiement a échoué. Veuillez réessayer.');
+        } else if (userMessage) {
+          // Use server-provided message (e.g., for 'submitted' status)
+          setStatusMessage(userMessage);
+        } else if (paydrcStatus === 'submitted') {
+          setStatusMessage('📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.');
         }
+        
         return newStatus;
       }
     } catch (err) {

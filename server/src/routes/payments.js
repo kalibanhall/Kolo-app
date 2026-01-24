@@ -888,6 +888,7 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
       } else if (normalizedStatus === 'failed') {
         newStatus = 'failed';
       }
+      // 'submitted' means waiting for user validation - keep as pending but inform frontend
 
       // Update our database if status changed
       if (newStatus !== purchase.payment_status) {
@@ -904,6 +905,7 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
         }
       }
 
+      // Return detailed status to frontend
       return res.json({
         success: true,
         data: {
@@ -912,6 +914,12 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
           paydrc_status: statusResponse.transStatus,
           paydrc_normalized: normalizedStatus,
           paydrc_description: statusResponse.transStatusDescription,
+          // Add helpful message for user
+          user_message: normalizedStatus === 'submitted' 
+            ? 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.'
+            : normalizedStatus === 'pending'
+            ? 'Transaction en cours de traitement...'
+            : null,
           amount: purchase.total_amount,
           ticket_count: purchase.ticket_count,
           campaign_title: purchase.campaign_title,
