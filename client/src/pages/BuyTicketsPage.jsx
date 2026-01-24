@@ -706,6 +706,115 @@ const BuyTicketsPage = () => {
 
       {/* Purchase Form */}
       <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Campaign Card - Affichage de la campagne */}
+        <div className={`rounded-2xl overflow-hidden mb-6 ${
+          isDarkMode 
+            ? 'bg-gray-800/50 border border-gray-700' 
+            : 'bg-white shadow-xl'
+        }`}>
+          {/* Image de la campagne */}
+          <div className="relative h-48 sm:h-64 overflow-hidden">
+            {campaign.image_url ? (
+              <img 
+                src={campaign.image_url} 
+                alt={campaign.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-indigo-900 to-purple-900' 
+                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+              }`}>
+                <TicketIcon className="w-20 h-20 text-white/30" />
+              </div>
+            )}
+            {/* Overlay gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            
+            {/* Campaign info overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
+                    {campaign.title}
+                  </h2>
+                  <p className="text-white/80 text-sm sm:text-base line-clamp-2">
+                    {campaign.description}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2">
+                    <p className="text-white/70 text-xs">Prix du ticket</p>
+                    <p className="text-white font-bold text-lg">
+                      ${parseFloat(campaign.ticket_price || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Prix à gagner */}
+          <div className={`p-4 border-t ${isDarkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6">
+              {/* Prix principal */}
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🥇</span>
+                <div>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>1er Prix</p>
+                  <p className={`font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                    {campaign.main_prize || 'À définir'}
+                  </p>
+                </div>
+              </div>
+              
+              {/* 2ème prix */}
+              {campaign.second_prize && (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🥈</span>
+                  <div>
+                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>2ème Prix</p>
+                    <p className={`font-semibold text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {campaign.second_prize}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* 3ème prix */}
+              {campaign.third_prize && (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🥉</span>
+                  <div>
+                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>3ème Prix</p>
+                    <p className={`font-semibold text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {campaign.third_prize}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Date de fin */}
+            {campaign.end_date && (
+              <div className={`mt-3 pt-3 border-t text-center ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  ⏰ Tirage prévu le{' '}
+                  <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date(campaign.end_date).toLocaleDateString('fr-FR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className={`rounded-2xl overflow-hidden ${
           isDarkMode 
             ? 'bg-gray-800/50 border border-gray-700 backdrop-blur-sm' 

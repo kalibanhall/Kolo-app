@@ -705,14 +705,26 @@ router.post('/draw', drawLimiter, [
 // Get draw results
 router.get('/draws', async (req, res) => {
   try {
+    // First check if second_prize and third_prize columns exist
+    const columnCheck = await query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'campaigns' AND column_name IN ('second_prize', 'third_prize')
+    `);
+    const hasSecondPrize = columnCheck.rows.some(r => r.column_name === 'second_prize');
+    const hasThirdPrize = columnCheck.rows.some(r => r.column_name === 'third_prize');
+
+    // Build dynamic query based on available columns
+    const prizeColumns = [];
+    if (hasSecondPrize) prizeColumns.push('c.second_prize');
+    if (hasThirdPrize) prizeColumns.push('c.third_prize');
+    const extraColumns = prizeColumns.length > 0 ? ', ' + prizeColumns.join(', ') : '';
+
     // Get main draw results
     const drawsResult = await query(
       `SELECT 
         dr.*,
         c.title as campaign_title,
-        c.main_prize,
-        c.second_prize,
-        c.third_prize,
+        c.main_prize${extraColumns},
         c.image_url as campaign_image,
         t.ticket_number as winning_ticket,
         u.name as winner_name,

@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
     sold_tickets INTEGER DEFAULT 0,
     ticket_price DECIMAL(10, 2) NOT NULL,
     main_prize VARCHAR(200) NOT NULL,
+    second_prize VARCHAR(255),
+    third_prize VARCHAR(255),
     secondary_prizes TEXT,
     rules TEXT,
     image_url TEXT,
