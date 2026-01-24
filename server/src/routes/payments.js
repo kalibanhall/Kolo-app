@@ -10,6 +10,124 @@ const { sendPurchaseConfirmationSMS } = require('../services/africasTalking');
 const { uploadPDF } = require('../services/cloudinaryService');
 const router = express.Router();
 
+// Helper function to generate tickets for a completed purchase
+async function generateTicketsForPurchase(purchaseId) {
+  console.log(`🎫 generateTicketsForPurchase called for purchase ${purchaseId}`);
+  
+  // First check if tickets already exist for this purchase
+  const existingTickets = await query(
+    'SELECT COUNT(*) as count FROM tickets WHERE purchase_id = $1',
+    [purchaseId]
+  );
+  
+  if (parseInt(existingTickets.rows[0].count) > 0) {
+    console.log(`⚠️ Tickets already exist for purchase ${purchaseId}, skipping generation`);
+    return { alreadyExists: true };
+  }
+  
+  // Get purchase details
+  const purchaseResult = await query(
+    `SELECT p.*, c.total_tickets, c.sold_tickets 
+     FROM purchases p
+     JOIN campaigns c ON p.campaign_id = c.id
+     WHERE p.id = $1`,
+    [purchaseId]
+  );
+  
+  if (purchaseResult.rows.length === 0) {
+    throw new Error(`Purchase ${purchaseId} not found`);
+  }
+  
+  const purchase = purchaseResult.rows[0];
+  
+  return await transaction(async (client) => {
+    // Lock campaign row for update
+    const campaignResult = await client.query(
+      'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
+      [purchase.campaign_id]
+    );
+    const campaign = campaignResult.rows[0];
+    const totalTickets = campaign?.total_tickets || 1000;
+    const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
+    const padLength = Math.max(2, String(totalTickets).length);
+    
+    // Generate unique ticket numbers using sequential campaign-based numbering
+    const tickets = [];
+    for (let i = 0; i < purchase.ticket_count; i++) {
+      const ticketSequence = currentSoldTickets + i + 1;
+      const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+      
+      const ticketResult = await client.query(
+        `INSERT INTO tickets (
+          ticket_number, campaign_id, user_id, purchase_id, status
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING *`,
+        [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+      );
+      tickets.push(ticketResult.rows[0]);
+    }
+    
+    // Update campaign sold_tickets count
+    await client.query(
+      `UPDATE campaigns 
+       SET sold_tickets = sold_tickets + $1 
+       WHERE id = $2`,
+      [purchase.ticket_count, purchase.campaign_id]
+    );
+    
+    // Check if campaign is now sold out
+    const campaignCheck = await client.query(
+      `SELECT id, sold_tickets, total_tickets, status 
+       FROM campaigns WHERE id = $1`,
+      [purchase.campaign_id]
+    );
+    
+    const currentCampaign = campaignCheck.rows[0];
+    if (currentCampaign && 
+        currentCampaign.sold_tickets >= currentCampaign.total_tickets &&
+        currentCampaign.status === 'open') {
+      await client.query(
+        `UPDATE campaigns 
+         SET status = 'closed', updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $1`,
+        [purchase.campaign_id]
+      );
+      console.log(`🎯 Campaign ${purchase.campaign_id} automatically closed - sold out!`);
+    }
+    
+    // Generate invoice
+    const invoiceNumber = generateInvoiceNumber();
+    await client.query(
+      `INSERT INTO invoices (
+        purchase_id, user_id, invoice_number, amount, sent_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [purchase.id, purchase.user_id, invoiceNumber, purchase.total_amount]
+    );
+    
+    // Create notification for user
+    await client.query(
+      `INSERT INTO notifications (
+        user_id, type, title, message, data
+      ) VALUES ($1, $2, $3, $4, $5)`,
+      [
+        purchase.user_id,
+        'purchase_confirmation',
+        'Achat confirmé !',
+        `Vos ${purchase.ticket_count} ticket(s) ont été générés avec succès.`,
+        JSON.stringify({
+          purchase_id: purchase.id,
+          ticket_numbers: tickets.map(t => t.ticket_number),
+        }),
+      ]
+    );
+    
+    console.log(`✅ Generated ${tickets.length} tickets for purchase ${purchaseId}:`, 
+      tickets.map(t => t.ticket_number));
+    
+    return { tickets, invoiceNumber };
+  });
+}
+
 // Get payment status
 router.get('/status/:purchaseId', verifyToken, async (req, res) => {
   try {
@@ -903,7 +1021,17 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
         // If completed, trigger ticket generation
         if (newStatus === 'completed') {
           console.log(`🎫 Purchase ${purchase.id} marked completed via status check - generating tickets...`);
-          // TODO: Trigger ticket generation if not already done
+          try {
+            const result = await generateTicketsForPurchase(purchaseId);
+            if (result.alreadyExists) {
+              console.log(`ℹ️ Tickets already existed for purchase ${purchaseId}`);
+            } else {
+              console.log(`✅ Tickets generated successfully for purchase ${purchaseId}`);
+            }
+          } catch (ticketError) {
+            console.error(`❌ Error generating tickets for purchase ${purchaseId}:`, ticketError);
+            // Don't fail the request, just log the error
+          }
         }
       }
 
