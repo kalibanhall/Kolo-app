@@ -867,12 +867,16 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
     }
 
     // Query PayDRC for latest status
+    console.log('🔍 Checking PayDRC status for reference:', reference);
     const statusResponse = await paydrc.checkTransactionStatus(reference);
+    console.log('📥 PayDRC status response:', JSON.stringify(statusResponse, null, 2));
 
     if (statusResponse.success && statusResponse.found) {
       // Use normalized status for cleaner handling
       let newStatus = purchase.payment_status;
       const normalizedStatus = statusResponse.normalizedStatus || 'pending';
+      
+      console.log('📊 PayDRC Trans_Status:', statusResponse.transStatus, '-> Normalized:', normalizedStatus);
       
       if (normalizedStatus === 'completed') {
         newStatus = 'completed';
@@ -882,6 +886,7 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
 
       // Update our database if status changed
       if (newStatus !== purchase.payment_status) {
+        console.log('📝 Updating purchase status from', purchase.payment_status, 'to', newStatus);
         await query(
           `UPDATE purchases SET payment_status = $1, completed_at = CASE WHEN $1 = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = $2`,
           [newStatus, purchase.id]
@@ -889,8 +894,8 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
 
         // If completed, trigger ticket generation
         if (newStatus === 'completed') {
-          // This would normally be handled by callback, but just in case
-          console.log(`🎫 Purchase ${purchase.id} marked completed via status check`);
+          console.log(`🎫 Purchase ${purchase.id} marked completed via status check - generating tickets...`);
+          // TODO: Trigger ticket generation if not already done
         }
       }
 
@@ -909,6 +914,10 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
         },
       });
     }
+    
+    // PayDRC didn't find the transaction or returned an error
+    console.log('⚠️ PayDRC did not return valid status, returning DB status:', purchase.payment_status);
+    console.log('PayDRC response details:', statusResponse.error || 'No error, but found=false');
 
     // Return current status from database
     res.json({

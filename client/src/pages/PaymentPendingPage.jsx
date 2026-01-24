@@ -302,20 +302,55 @@ export const PaymentPendingPage = () => {
         {checking && (
           <p className={`text-sm mb-4 flex items-center justify-center gap-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
             <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-            Vérification du statut...
+            Vérification du statut... (tentative {pollCount}/24)
           </p>
         )}
 
-        <div className="flex justify-center">
+        {/* Manual verify button */}
+        {status === 'pending' && !checking && (
+          <button
+            onClick={checkPaymentStatus}
+            className={`w-full mb-4 px-6 py-3 rounded-xl font-medium transition-all ${
+              isDarkMode 
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+            }`}
+          >
+            🔄 Vérifier manuellement
+          </button>
+        )}
+
+        {/* Warning if taking too long */}
+        {status === 'pending' && pollCount > 12 && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            isDarkMode ? 'bg-amber-900/30 border border-amber-700 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'
+          }`}>
+            <p className="font-medium mb-1">⏳ Le paiement prend plus de temps que prévu</p>
+            <p className="text-xs">Si vous avez validé sur votre téléphone, attendez quelques instants. Sinon, vérifiez que vous avez suffisamment de solde.</p>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => navigate('/buy', { replace: true })}
-            className={`w-full max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
+            className={`flex-1 max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
               isDarkMode 
                 ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
                 : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
             }`}
           >
             Retour à l'achat
+          </button>
+          
+          <button
+            onClick={() => navigate('/dashboard', { replace: true })}
+            className={`flex-1 max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
+              isDarkMode 
+                ? 'bg-gray-600 hover:bg-gray-500 text-gray-300' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+            }`}
+          >
+            Voir mes tickets
           </button>
         </div>
       </div>
