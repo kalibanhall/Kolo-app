@@ -252,9 +252,15 @@ const BuyTicketsPage = () => {
     );
   }, [availableNumbers, numberSearchTerm]);
 
-  // Valider le code promo
+  // Valider le code promo (minimum 3 tickets requis)
   const validatePromoCode = async () => {
     if (!promoCode.trim()) return;
+    
+    // Vérifier le minimum de 3 tickets
+    if (ticketCount < 3) {
+      setPromoError('Le code promo est valable à partir de 3 tickets');
+      return;
+    }
     
     setPromoLoading(true);
     setPromoError('');
@@ -728,6 +734,45 @@ const BuyTicketsPage = () => {
                     {availableTickets.toLocaleString('fr-FR')}
                   </p>
                 </div>
+                
+                {/* Warning: Derniers tickets */}
+                {availableTickets <= 10 && availableTickets > 0 && (
+                  <div className={`mt-4 p-3 rounded-lg flex items-center gap-3 ${
+                    isDarkMode 
+                      ? 'bg-amber-900/40 border border-amber-700' 
+                      : 'bg-amber-50 border border-amber-200'
+                  }`}>
+                    <span className="text-2xl">🔥</span>
+                    <div>
+                      <p className={`text-sm font-semibold ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                        {availableTickets === 1 
+                          ? 'Dernier ticket disponible !' 
+                          : `Plus que ${availableTickets} tickets restants !`}
+                      </p>
+                      <p className={`text-xs ${isDarkMode ? 'text-amber-400/80' : 'text-amber-600'}`}>
+                        D'autres utilisateurs sont peut-être en train d'acheter. Finalisez votre achat rapidement !
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {availableTickets === 0 && (
+                  <div className={`mt-4 p-3 rounded-lg flex items-center gap-3 ${
+                    isDarkMode 
+                      ? 'bg-red-900/40 border border-red-700' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <span className="text-2xl">❌</span>
+                    <div>
+                      <p className={`text-sm font-semibold ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>
+                        Tous les tickets sont vendus !
+                      </p>
+                      <p className={`text-xs ${isDarkMode ? 'text-red-400/80' : 'text-red-600'}`}>
+                        Cette campagne est complète. Consultez nos autres campagnes actives.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Ticket Count */}
@@ -965,8 +1010,11 @@ const BuyTicketsPage = () => {
               }`}>
                 {/* Code Promo - En haut */}
                 <div className={`pb-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Avez-vous un code promo ?
+                    <span className={`text-xs ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      (valable à partir de 3 tickets)
+                    </span>
                   </label>
                   {!promoDiscount ? (
                     <div className="flex gap-2">
@@ -984,7 +1032,7 @@ const BuyTicketsPage = () => {
                       <button
                         type="button"
                         onClick={validatePromoCode}
-                        disabled={promoLoading || !promoCode.trim()}
+                        disabled={promoLoading || !promoCode.trim() || ticketCount < 3}
                         className={`px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap flex-shrink-0 transition-all ${
                           isDarkMode
                             ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'

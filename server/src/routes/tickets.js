@@ -161,7 +161,10 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       `SELECT t.*, 
               c.title as campaign_title, 
               c.main_prize,
-              p.total_amount, 
+              c.ticket_price,
+              c.image_url as campaign_image,
+              p.total_amount as purchase_total, 
+              p.ticket_count,
               p.payment_status, 
               p.created_at as purchase_date
        FROM tickets t

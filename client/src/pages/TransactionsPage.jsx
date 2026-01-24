@@ -23,6 +23,7 @@ const TransactionsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [currencyFilter, setCurrencyFilter] = useState('all'); // Currency filter
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState(null);
   const [syncingId, setSyncingId] = useState(null);
@@ -131,12 +132,13 @@ const TransactionsPage = () => {
 
   const filteredTransactions = transactions.filter(t => {
     const matchesFilter = filter === 'all' || t.status === filter;
+    const matchesCurrency = currencyFilter === 'all' || t.currency === currencyFilter;
     const matchesSearch = searchTerm === '' || 
       t.transaction_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.phone_number?.includes(searchTerm);
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesCurrency && matchesSearch;
   });
 
   // Stats - use USD amount for totals
@@ -288,6 +290,27 @@ const TransactionsPage = () => {
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   filter === f.value
                     ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {/* Currency Filter */}
+          <div className="flex gap-2 border-l pl-4 ml-2">
+            <span className="text-sm text-gray-500 self-center">Devise:</span>
+            {[
+              { value: 'all', label: 'Toutes' },
+              { value: 'USD', label: '$ USD' },
+              { value: 'CDF', label: 'FC CDF' }
+            ].map(f => (
+              <button
+                key={f.value}
+                onClick={() => setCurrencyFilter(f.value)}
+                className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                  currencyFilter === f.value
+                    ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >

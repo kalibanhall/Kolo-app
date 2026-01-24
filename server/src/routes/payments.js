@@ -870,11 +870,13 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
     const statusResponse = await paydrc.checkTransactionStatus(reference);
 
     if (statusResponse.success && statusResponse.found) {
-      // Map PayDRC status to our status
+      // Use normalized status for cleaner handling
       let newStatus = purchase.payment_status;
-      if (statusResponse.transStatus === 'Successful') {
+      const normalizedStatus = statusResponse.normalizedStatus || 'pending';
+      
+      if (normalizedStatus === 'completed') {
         newStatus = 'completed';
-      } else if (statusResponse.transStatus === 'Failed') {
+      } else if (normalizedStatus === 'failed') {
         newStatus = 'failed';
       }
 
@@ -898,10 +900,12 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
           reference,
           status: newStatus,
           paydrc_status: statusResponse.transStatus,
+          paydrc_normalized: normalizedStatus,
           paydrc_description: statusResponse.transStatusDescription,
           amount: purchase.total_amount,
           ticket_count: purchase.ticket_count,
           campaign_title: purchase.campaign_title,
+          financial_institution: statusResponse.financialInstitutionId,
         },
       });
     }

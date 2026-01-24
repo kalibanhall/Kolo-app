@@ -48,6 +48,31 @@ router.get('/me', verifyToken, async (req, res) => {
       [wallet.id]
     );
 
+    // Get spending statistics by currency
+    const spendingStatsResult = await query(
+      `SELECT 
+        COALESCE(currency, 'USD') as currency,
+        COALESCE(SUM(total_amount), 0) as total_spent,
+        COUNT(*) as purchase_count
+       FROM purchases 
+       WHERE user_id = $1 AND payment_status = 'completed'
+       GROUP BY COALESCE(currency, 'USD')`,
+      [userId]
+    );
+
+    // Parse spending stats into a map
+    const spendingStats = {
+      USD: { total_spent: 0, purchase_count: 0 },
+      CDF: { total_spent: 0, purchase_count: 0 }
+    };
+    spendingStatsResult.rows.forEach(row => {
+      const currency = row.currency || 'USD';
+      spendingStats[currency] = {
+        total_spent: parseFloat(row.total_spent) || 0,
+        purchase_count: parseInt(row.purchase_count) || 0
+      };
+    });
+
     res.json({
       success: true,
       data: {
@@ -57,7 +82,8 @@ router.get('/me', verifyToken, async (req, res) => {
           currency: wallet.currency,
           is_active: wallet.is_active
         },
-        recent_transactions: transactionsResult.rows
+        recent_transactions: transactionsResult.rows,
+        spending_stats: spendingStats
       }
     });
 

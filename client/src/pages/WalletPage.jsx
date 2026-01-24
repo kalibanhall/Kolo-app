@@ -46,12 +46,15 @@ const WalletPage = () => {
     }
   }, [user]);
 
+  const [spendingStats, setSpendingStats] = useState({ USD: { total_spent: 0 }, CDF: { total_spent: 0 } });
+
   const loadWallet = async () => {
     try {
       setLoading(true);
       const response = await walletAPI.getWallet();
       setWallet(response.data.wallet);
       setTransactions(response.data.recent_transactions || []);
+      setSpendingStats(response.data.spending_stats || { USD: { total_spent: 0 }, CDF: { total_spent: 0 } });
     } catch (error) {
       console.error('Error loading wallet:', error);
     } finally {
@@ -332,7 +335,7 @@ const WalletPage = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           <div className={`rounded-2xl p-5 ${
             isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
           }`}>
@@ -348,13 +351,25 @@ const WalletPage = () => {
           <div className={`rounded-2xl p-5 ${
             isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
           }`}>
-            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total dépensé</p>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Dépensé (FC)</p>
             <p className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-              {formatCurrency(
-                transactions
-                  .filter(t => t.type === 'purchase' && t.status === 'completed')
-                  .reduce((sum, t) => sum + parseFloat(t.amount), 0)
-              )}
+              {formatCurrency(spendingStats.CDF?.total_spent || 0)}
+            </p>
+          </div>
+          <div className={`rounded-2xl p-5 ${
+            isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
+          }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Dépensé ($)</p>
+            <p className={`text-2xl font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+              ${(spendingStats.USD?.total_spent || 0).toFixed(2)}
+            </p>
+          </div>
+          <div className={`rounded-2xl p-5 ${
+            isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-white shadow-lg'
+          }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total achats</p>
+            <p className={`text-2xl font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+              {(spendingStats.USD?.purchase_count || 0) + (spendingStats.CDF?.purchase_count || 0)}
             </p>
           </div>
         </div>

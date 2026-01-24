@@ -12,6 +12,20 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
     deleteNotification,
     fetchNotifications,
   } = useNotifications();
+  
+  const [expandedNotifications, setExpandedNotifications] = useState(new Set());
+
+  const toggleExpanded = (notificationId) => {
+    setExpandedNotifications(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(notificationId)) {
+        newSet.delete(notificationId);
+      } else {
+        newSet.add(notificationId);
+      }
+      return newSet;
+    });
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -114,8 +128,46 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
                       {notification.message}
                     </p>
 
-                    {/* Additional Data */}
-                    {notification.data && (
+                    {/* Additional Data / Expandable Details for Winners */}
+                    {notification.type === 'winner' && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => toggleExpanded(notification.id)}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                        >
+                          {expandedNotifications.has(notification.id) ? '▼' : '▶'} 
+                          {expandedNotifications.has(notification.id) ? 'Masquer les détails' : 'Voir les détails'}
+                        </button>
+                        
+                        {expandedNotifications.has(notification.id) && (
+                          <div className="mt-3 p-3 bg-white border border-yellow-200 rounded-lg text-sm">
+                            <p className="font-bold text-yellow-700 mb-2">📍 Instructions pour retirer votre prix</p>
+                            <div className="space-y-2 text-gray-700">
+                              <p>Merci de vous présenter à nos bureaux munie de votre pièce d'identité afin de retirer votre prix.</p>
+                              <div className="mt-3 pt-2 border-t border-yellow-100">
+                                <p className="font-medium text-gray-800">📍 Adresse:</p>
+                                <p className="text-gray-600">Avenue de la Révolution, Kinshasa, RDC</p>
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-800">⏰ Horaires:</p>
+                                <p className="text-gray-600">Lundi - Vendredi: 9h00 - 17h00</p>
+                                <p className="text-gray-600">Samedi: 9h00 - 13h00</p>
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-800">📞 Contact:</p>
+                                <p className="text-gray-600">+243 XX XXX XXXX</p>
+                              </div>
+                              <div className="mt-3 p-2 bg-amber-50 rounded text-amber-700 text-xs">
+                                ⚠️ N'oubliez pas de vous munir de votre pièce d'identité et de ce message de notification.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Additional Data for other types */}
+                    {notification.data && notification.type !== 'winner' && (
                       <div className="text-xs text-gray-600 mt-2 space-y-1">
                         {typeof notification.data === 'string' && (
                           <p>{JSON.parse(notification.data).toString()}</p>

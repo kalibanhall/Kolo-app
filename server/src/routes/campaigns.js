@@ -95,7 +95,21 @@ router.get('/:id/available-numbers', async (req, res) => {
       [campaignId]
     );
     
-    const usedNumbers = new Set(usedResult.rows.map(r => r.ticket_number));
+    // Get reserved tickets (not expired) excluding current user's reservations
+    const userId = req.user?.id;
+    const reservedResult = await query(
+      `SELECT ticket_number FROM ticket_reservations 
+       WHERE campaign_id = $1 
+         AND status = 'reserved' 
+         AND expires_at > CURRENT_TIMESTAMP
+         ${userId ? 'AND user_id != $2' : ''}`,
+      userId ? [campaignId, userId] : [campaignId]
+    );
+    
+    const usedNumbers = new Set([
+      ...usedResult.rows.map(r => r.ticket_number),
+      ...reservedResult.rows.map(r => r.ticket_number)
+    ]);
     
     // Generate available numbers with limit for performance
     const availableNumbers = [];
@@ -109,13 +123,20 @@ router.get('/:id/available-numbers', async (req, res) => {
       }
     }
     
+    // Get count of reserved tickets for "last ticket" warning
+    const reservedCount = reservedResult.rows.length;
+    const remainingAvailable = campaign.total_tickets - campaign.sold_tickets - reservedCount;
+    
     res.json({
       success: true,
       numbers: availableNumbers,
       total_available: campaign.total_tickets - campaign.sold_tickets,
+      reserved_count: reservedCount,
+      actual_available: remainingAvailable,
       total_tickets: campaign.total_tickets,
       padLength: padLength,
-      limited: availableNumbers.length >= limit
+      limited: availableNumbers.length >= limit,
+      is_last_tickets: remainingAvailable <= 3 && remainingAvailable > 0
     });
 
   } catch (error) {
@@ -123,6 +144,134 @@ router.get('/:id/available-numbers', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// Reserve ticket numbers (add to cart)
+router.post('/:id/reserve', verifyToken, [
+  body('ticket_numbers').isArray({ min: 1, max: 10 }).withMessage('1 à 10 numéros maximum')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const campaignId = parseInt(req.params.id);
+    const { ticket_numbers } = req.body;
+    const userId = req.user.id;
+    
+    // Reservation expires in 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    
+    // Clean up expired reservations first
+    await query(
+      `DELETE FROM ticket_reservations 
+       WHERE campaign_id = $1 AND status = 'reserved' AND expires_at < CURRENT_TIMESTAMP`,
+      [campaignId]
+    );
+    
+    // Cancel existing reservations from this user for this campaign
+    await query(
+      `UPDATE ticket_reservations 
+       SET status = 'cancelled' 
+       WHERE campaign_id = $1 AND user_id = $2 AND status = 'reserved'`,
+      [campaignId, userId]
+    );
+    
+    // Check which numbers are already taken
+    const existingResult = await query(
+      `SELECT ticket_number FROM (
+        SELECT ticket_number FROM tickets WHERE campaign_id = $1
+        UNION
+        SELECT ticket_number FROM ticket_reservations 
+        WHERE campaign_id = $1 AND status = 'reserved' AND expires_at > CURRENT_TIMESTAMP
+       ) AS taken`,
+      [campaignId]
+    );
+    
+    const takenNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
+    const unavailable = ticket_numbers.filter(tn => takenNumbers.has(tn));
+    
+    if (unavailable.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Certains numéros ne sont plus disponibles',
+        unavailable: unavailable
+      });
+    }
+    
+    // Reserve the numbers
+    const reservations = [];
+    for (const ticketNumber of ticket_numbers) {
+      const result = await query(
+        `INSERT INTO ticket_reservations (campaign_id, user_id, ticket_number, expires_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (campaign_id, ticket_number) DO UPDATE
+         SET user_id = $2, expires_at = $4, status = 'reserved', reserved_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [campaignId, userId, ticketNumber, expiresAt]
+      );
+      reservations.push(result.rows[0]);
+    }
+    
+    res.json({
+      success: true,
+      message: `${ticket_numbers.length} numéro(s) réservé(s) pour 10 minutes`,
+      reservations,
+      expires_at: expiresAt
+    });
+
+  } catch (error) {
+    console.error('Reserve tickets error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la réservation'
+    });
+  }
+});
+
+// Release ticket reservations (remove from cart)
+router.delete('/:id/reserve', verifyToken, async (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const userId = req.user.id;
+    const { ticket_numbers } = req.body;
+    
+    if (ticket_numbers && Array.isArray(ticket_numbers)) {
+      // Cancel specific reservations
+      await query(
+        `UPDATE ticket_reservations 
+         SET status = 'cancelled' 
+         WHERE campaign_id = $1 AND user_id = $2 AND status = 'reserved'
+           AND ticket_number = ANY($3)`,
+        [campaignId, userId, ticket_numbers]
+      );
+    } else {
+      // Cancel all reservations for this campaign
+      await query(
+        `UPDATE ticket_reservations 
+         SET status = 'cancelled' 
+         WHERE campaign_id = $1 AND user_id = $2 AND status = 'reserved'`,
+        [campaignId, userId]
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: 'Réservations annulées'
+    });
+
+  } catch (error) {
+    console.error('Release reservations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'annulation'
     });
   }
 });

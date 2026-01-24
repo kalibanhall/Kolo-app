@@ -496,12 +496,17 @@ async function checkTransactionStatus(reference) {
     console.log('📥 PayDRC Status response:', result);
 
     if (result.success && result.data) {
+      // Normalize transaction status for easier handling
+      const transStatus = result.data.Trans_Status || '';
+      const normalizedStatus = normalizeTransactionStatus(transStatus);
+      
       return {
         success: result.data.Status === 'Success',
         found: result.data.Comment === 'Transaction Found',
         transactionId: result.data.Transaction_id,
         reference: result.data.Reference,
         transStatus: result.data.Trans_Status,
+        normalizedStatus: normalizedStatus,
         transStatusDescription: result.data.Trans_Status_Description,
         action: result.data.Action,
         amount: result.data.Amount,
@@ -520,6 +525,29 @@ async function checkTransactionStatus(reference) {
     console.error('❌ PayDRC Status Check error:', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Normalize PayDRC transaction status to our internal status
+ * PayDRC Status values: Successful, Failed, Pending, Cancelled, etc.
+ * @param {string} transStatus - PayDRC Trans_Status value
+ * @returns {string} - 'completed', 'failed', or 'pending'
+ */
+function normalizeTransactionStatus(transStatus) {
+  const status = (transStatus || '').toLowerCase().trim();
+  
+  // Success states
+  if (['successful', 'success', 'completed', 'approved'].includes(status)) {
+    return 'completed';
+  }
+  
+  // Failure states  
+  if (['failed', 'rejected', 'declined', 'error', 'cancelled', 'expired', 'timeout'].includes(status)) {
+    return 'failed';
+  }
+  
+  // Pending states
+  return 'pending';
 }
 
 /**
@@ -577,6 +605,7 @@ module.exports = {
   // Utilities
   detectMobileProvider,
   normalizePhoneNumber,
+  normalizeTransactionStatus,
 
   // Constants for external use
   PAYDRC_BASE_URL,

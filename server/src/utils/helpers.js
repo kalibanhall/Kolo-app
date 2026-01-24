@@ -87,10 +87,24 @@ const detectProvider = (phone) => {
   return 'Mobile Money';
 };
 
-// Generate random winners
-const selectRandomWinners = (tickets, count = 1) => {
-  const shuffled = [...tickets].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+// Generate random winners - excludes tickets from same user if excludeUserId is provided
+// Also excludes bonus tickets if excludeBonus is true
+const selectRandomWinners = (tickets, count = 1, excludeUserId = null, excludeBonus = true) => {
+  // Filter out bonus tickets and tickets from excluded user
+  let eligibleTickets = tickets.filter(t => {
+    // Exclude bonus tickets (those with prize_category = 'bonus')
+    if (excludeBonus && t.prize_category === 'bonus') {
+      return false;
+    }
+    // Exclude tickets from the same user
+    if (excludeUserId && t.user_id === excludeUserId) {
+      return false;
+    }
+    return true;
+  });
+  
+  const shuffled = [...eligibleTickets].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, Math.min(count, shuffled.length));
 };
 
 module.exports = {

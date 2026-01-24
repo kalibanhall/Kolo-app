@@ -518,8 +518,12 @@ router.post('/draw', drawLimiter, [
           throw new Error(`Le ticket ${manual_ticket_number} n'existe pas ou n'est pas valide pour cette campagne`);
         }
       } else {
-        // Automatic random selection
-        [mainWinner] = selectRandomWinners(allTickets, 1);
+        // Automatic random selection - exclude bonus tickets
+        [mainWinner] = selectRandomWinners(allTickets, 1, null, true);
+        
+        if (!mainWinner) {
+          throw new Error('Aucun ticket éligible trouvé pour le tirage');
+        }
       }
 
       // Update main winner ticket
@@ -545,10 +549,11 @@ router.post('/draw', drawLimiter, [
 
       const draw = drawResult.rows[0];
 
-      // Select bonus winners if requested (always automatic)
+      // Select bonus winners if requested (always automatic, exclude main winner's user)
       if (bonus_winners_count > 0) {
         const remainingTickets = allTickets.filter(t => t.id !== mainWinner.id);
-        const bonusWinners = selectRandomWinners(remainingTickets, bonus_winners_count);
+        // Use selectRandomWinners with exclusion of main winner's user ID to avoid same client
+        const bonusWinners = selectRandomWinners(remainingTickets, bonus_winners_count, mainWinner.user_id, true);
 
         for (const ticket of bonusWinners) {
           // Update ticket
@@ -700,14 +705,19 @@ router.post('/draw', drawLimiter, [
 // Get draw results
 router.get('/draws', async (req, res) => {
   try {
-    const result = await query(
+    // Get main draw results
+    const drawsResult = await query(
       `SELECT 
         dr.*,
         c.title as campaign_title,
         c.main_prize,
+        c.second_prize,
+        c.third_prize,
+        c.image_url as campaign_image,
         t.ticket_number as winning_ticket,
         u.name as winner_name,
         u.email as winner_email,
+        u.phone as winner_phone,
         (SELECT COUNT(*) FROM bonus_winners WHERE draw_result_id = dr.id) as bonus_winners_count
        FROM draw_results dr
        JOIN campaigns c ON dr.campaign_id = c.id
@@ -716,9 +726,42 @@ router.get('/draws', async (req, res) => {
        ORDER BY dr.draw_date DESC`
     );
 
+    // Get bonus winners for each draw
+    const draws = [];
+    for (const draw of drawsResult.rows) {
+      // Fetch bonus winners for this draw
+      const bonusWinnersResult = await query(
+        `SELECT 
+          bw.*,
+          t.ticket_number,
+          u.name as user_name,
+          u.email as user_email,
+          u.phone as user_phone
+         FROM bonus_winners bw
+         JOIN tickets t ON bw.ticket_id = t.id
+         JOIN users u ON t.user_id = u.id
+         WHERE bw.draw_result_id = $1
+         ORDER BY bw.prize_position`,
+        [draw.id]
+      );
+
+      draws.push({
+        ...draw,
+        bonus_winners: bonusWinnersResult.rows.map(bw => ({
+          id: bw.id,
+          position: bw.prize_position,
+          prize: bw.prize_description,
+          ticket_number: bw.ticket_number,
+          user_name: bw.user_name,
+          user_email: bw.user_email,
+          user_phone: bw.user_phone
+        }))
+      });
+    }
+
     res.json({
       success: true,
-      data: result.rows
+      data: draws
     });
 
   } catch (error) {

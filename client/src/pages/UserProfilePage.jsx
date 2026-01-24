@@ -7,6 +7,7 @@ import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icon
 import { LogoKolo } from '../components/LogoKolo';
 import { ImageUpload } from '../components/ImageUpload';
 import { translateStatus, getStatusBadgeClasses } from '../utils/translations';
+import TicketCard, { TicketCardMini } from '../components/TicketCard';
 
 const UserProfilePage = () => {
   const { user, checkAuth } = useAuth();
@@ -103,11 +104,18 @@ const UserProfilePage = () => {
 
   const calculateStats = () => {
     const totalTickets = tickets.length;
+    // Calculer le total dépensé à partir du prix du ticket de chaque campagne
     const totalSpent = tickets.reduce((sum, ticket) => {
-      return sum + (ticket.purchase_total || 0);
+      // Utiliser le prix du ticket s'il est disponible, sinon estimer basé sur le total de l'achat
+      const ticketPrice = ticket.ticket_price || ticket.purchase_total / (ticket.ticket_count || 1) || 0;
+      return sum + ticketPrice;
     }, 0);
     const campaignsEntered = new Set(tickets.map(t => t.campaign_id)).size;
-    const activeTickets = tickets.filter(t => t.status === 'active').length;
+    // Compter les tickets actifs (non winner et non expired)
+    const activeTickets = tickets.filter(t => 
+      t.status === 'active' || 
+      (t.status !== 'winner' && t.status !== 'expired' && t.status !== 'cancelled')
+    ).length;
 
     return { totalTickets, totalSpent, campaignsEntered, activeTickets };
   };
@@ -462,6 +470,12 @@ const UserProfilePage = () => {
             ? 'bg-gray-800/50 border border-gray-700 backdrop-blur-sm' 
             : 'bg-white shadow-xl'
         }`}>
+          <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Mes Tickets ({tickets.length})
+            </h3>
+          </div>
+          
           {loading ? (
             <div className="p-12 text-center">
               <div className="inline-block">
@@ -493,78 +507,23 @@ const UserProfilePage = () => {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50'}>
-                  <tr>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      N° Ticket
-                    </th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      Campagne
-                    </th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      Date d'achat
-                    </th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      Statut
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
-                  {tickets.map((ticket) => (
-                    <tr 
-                      key={ticket.id} 
-                      className={`transition-colors ${
-                        isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-blue-50/50'
-                      }`}
-                    >
-                      <td className="px-6 py-4">
-                        <span className={`font-mono text-sm font-bold px-3 py-1.5 rounded-lg ${
-                          isDarkMode 
-                            ? 'bg-cyan-500/20 text-cyan-400' 
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {ticket.ticket_number}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-                        {ticket.campaign_title || 'N/A'}
-                      </td>
-                      <td className={`px-6 py-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {formatDate(ticket.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {ticket.status === 'active' ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-500/20 text-green-500">
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                            Actif
-                          </span>
-                        ) : ticket.status === 'won' || ticket.status === 'winner' || ticket.is_winner ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-500">
-                            <TrophyIcon className="w-3.5 h-3.5" />
-                            Gagnant
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
-                            getStatusBadgeClasses(ticket.status, isDarkMode).bg
-                          } ${getStatusBadgeClasses(ticket.status, isDarkMode).text}`}>
-                            {translateStatus(ticket.status, 'ticket')}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-6">
+              {/* Affichage des tickets sous forme de cartes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tickets.map((ticket) => (
+                  <TicketCardMini
+                    key={ticket.id}
+                    ticketNumber={ticket.ticket_number}
+                    campaignTitle={ticket.campaign_title}
+                    campaignImage={ticket.campaign_image}
+                    type={ticket.prize_category === 'main' ? 'winner' : 
+                          ticket.prize_category === 'bonus' ? 'bonus' : 'standard'}
+                    prizeCategory={ticket.prize_category}
+                    isWinner={ticket.is_winner || ticket.status === 'winner'}
+                    isDarkMode={isDarkMode}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
