@@ -453,6 +453,13 @@ export const adminAPI = {
       body: JSON.stringify({ value: rate.toString() }),
     });
   },
+
+  // Corriger les tickets manquants pour les achats complétés
+  fixMissingTickets: async () => {
+    return await request('/admin/fix-missing-tickets', {
+      method: 'POST',
+    });
+  },
 };
 
 // ======================

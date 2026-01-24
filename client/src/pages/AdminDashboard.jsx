@@ -145,6 +145,98 @@ const ExchangeRateManager = () => {
   );
 };
 
+// Composant pour corriger les tickets manquants
+const FixMissingTickets = () => {
+  const [fixing, setFixing] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handleFix = async () => {
+    if (!confirm('Voulez-vous générer les tickets manquants pour les achats complétés ?')) {
+      return;
+    }
+
+    try {
+      setFixing(true);
+      setResult(null);
+      const response = await adminAPI.fixMissingTickets();
+      setResult(response);
+    } catch (error) {
+      setResult({ success: false, message: error.message });
+    } finally {
+      setFixing(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+        <svg className="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+        Maintenance - Tickets manquants
+      </h3>
+      
+      <p className="text-sm text-gray-600 mb-4">
+        Vérifie et génère les tickets pour les achats marqués "complétés" mais sans tickets créés.
+      </p>
+
+      <button
+        onClick={handleFix}
+        disabled={fixing}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          fixing
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-orange-600 hover:bg-orange-700 text-white'
+        }`}
+      >
+        {fixing ? (
+          <span className="flex items-center">
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Correction en cours...
+          </span>
+        ) : (
+          '🔧 Corriger les tickets manquants'
+        )}
+      </button>
+
+      {result && (
+        <div className={`mt-4 p-4 rounded-lg ${
+          result.success 
+            ? 'bg-green-50 border border-green-200' 
+            : 'bg-red-50 border border-red-200'
+        }`}>
+          <p className={`font-medium ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+            {result.message}
+          </p>
+          {result.fixed > 0 && (
+            <p className="text-sm text-green-600 mt-2">
+              ✅ {result.fixed} achat(s) corrigé(s)
+            </p>
+          )}
+          {result.details && result.details.length > 0 && (
+            <div className="mt-3 text-sm">
+              <p className="font-medium text-gray-700 mb-2">Détails :</p>
+              <ul className="space-y-1">
+                {result.details.map((d, i) => (
+                  <li key={i} className={d.error ? 'text-red-600' : 'text-green-600'}>
+                    {d.error 
+                      ? `❌ Achat #${d.purchase_id}: ${d.error}`
+                      : `✅ Achat #${d.purchase_id} (${d.user_email}): ${d.tickets_created} tickets créés`
+                    }
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -346,9 +438,10 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Exchange Rate Manager */}
-      <div className="mt-6">
+      {/* Exchange Rate Manager & Fix Missing Tickets */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ExchangeRateManager />
+        <FixMissingTickets />
       </div>
 
       {/* Informations de la campagne */}
