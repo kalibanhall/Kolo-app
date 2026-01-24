@@ -741,28 +741,36 @@ router.get('/draws', async (req, res) => {
     // Get bonus winners for each draw
     const draws = [];
     for (const draw of drawsResult.rows) {
-      // Fetch bonus winners for this draw
-      const bonusWinnersResult = await query(
-        `SELECT 
-          bw.*,
-          t.ticket_number,
-          u.name as user_name,
-          u.email as user_email,
-          u.phone as user_phone
-         FROM bonus_winners bw
-         JOIN tickets t ON bw.ticket_id = t.id
-         JOIN users u ON t.user_id = u.id
-         WHERE bw.draw_result_id = $1
-         ORDER BY bw.prize_position`,
-        [draw.id]
-      );
+      // Fetch bonus winners for this draw (with backward compatibility)
+      let bonusWinnersResult;
+      try {
+        bonusWinnersResult = await query(
+          `SELECT 
+            bw.id,
+            bw.ticket_id,
+            bw.draw_result_id,
+            t.ticket_number,
+            u.name as user_name,
+            u.email as user_email,
+            u.phone as user_phone
+           FROM bonus_winners bw
+           JOIN tickets t ON bw.ticket_id = t.id
+           JOIN users u ON t.user_id = u.id
+           WHERE bw.draw_result_id = $1
+           ORDER BY bw.id`,
+          [draw.id]
+        );
+      } catch (err) {
+        console.error('Error fetching bonus winners:', err);
+        bonusWinnersResult = { rows: [] };
+      }
 
       draws.push({
         ...draw,
-        bonus_winners: bonusWinnersResult.rows.map(bw => ({
+        bonus_winners: bonusWinnersResult.rows.map((bw, index) => ({
           id: bw.id,
-          position: bw.prize_position,
-          prize: bw.prize_description,
+          position: index + 2, // Position 2, 3, 4... (1 is main winner)
+          prize: null,
           ticket_number: bw.ticket_number,
           user_name: bw.user_name,
           user_email: bw.user_email,
