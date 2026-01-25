@@ -831,13 +831,20 @@ router.post('/purchase', verifyToken, [
       );
 
       // Create purchase record (store USD amount for reporting)
-      const purchaseResult = await client.query(
-        `INSERT INTO purchases 
-         (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider)
-         VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet')
-         RETURNING *`,
-        [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId]
-      );
+        // Fetch user's phone number from users table
+        const userPhoneResult = await query(
+          'SELECT phone_number FROM users WHERE id = $1',
+          [userId]
+        );
+        const userPhone = userPhoneResult.rows.length > 0 ? userPhoneResult.rows[0].phone_number : null;
+
+        const purchaseResult = await client.query(
+          `INSERT INTO purchases 
+           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider, phone_number)
+           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet', $6)
+           RETURNING *`,
+          [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId, userPhone]
+        );
 
       const purchase = purchaseResult.rows[0];
 
