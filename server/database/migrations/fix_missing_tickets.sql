@@ -89,7 +89,7 @@ BEGIN
     -- Generate invoice if not exists
     INSERT INTO invoices (purchase_id, user_id, invoice_number, amount, sent_at)
     SELECT rec.id, rec.user_id, 'INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || rec.id, rec.total_amount, NOW()
-    WHERE NOT EXISTS (SELECT 1 FROM invoices WHERE purchase_id = rec.id);
+    WHERE NOT EXISTS (SELECT 1 FROM invoices inv WHERE inv.purchase_id = rec.id);
     
     purchase_id := rec.id;
     tickets_created := created_count;

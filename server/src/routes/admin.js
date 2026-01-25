@@ -2270,12 +2270,12 @@ router.post('/fix-missing-tickets', async (req, res) => {
           const tickets = [];
           for (let i = 0; i < purchase.ticket_count; i++) {
             const ticketSequence = currentSoldTickets + i + 1;
-            const ticketNumber = \`K-\${String(ticketSequence).padStart(padLength, '0')}\`;
+            const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
             
             const ticketResult = await client.query(
-              \`INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status, created_at)
+              `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status, created_at)
                VALUES ($1, $2, $3, $4, 'active', NOW())
-               RETURNING *\`,
+               RETURNING *`,
               [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.purchase_id]
             );
             tickets.push(ticketResult.rows[0]);
@@ -2289,11 +2289,11 @@ router.post('/fix-missing-tickets', async (req, res) => {
           
           // Create notification
           await client.query(
-            \`INSERT INTO notifications (user_id, type, title, message, data, created_at)
-             VALUES ($1, 'purchase_confirmation', 'Tickets générés !', $2, $3, NOW())\`,
+            `INSERT INTO notifications (user_id, type, title, message, data, created_at)
+             VALUES ($1, 'purchase_confirmation', 'Tickets générés !', $2, $3, NOW())`,
             [
               purchase.user_id,
-              \`Vos \${purchase.ticket_count} ticket(s) pour "\${purchase.campaign_title}" ont été générés.\`,
+              `Vos ${purchase.ticket_count} ticket(s) pour "${purchase.campaign_title}" ont été générés.`,
               JSON.stringify({ purchase_id: purchase.purchase_id, ticket_numbers: tickets.map(t => t.ticket_number) })
             ]
           );
@@ -2306,10 +2306,10 @@ router.post('/fix-missing-tickets', async (req, res) => {
             ticket_numbers: tickets.map(t => t.ticket_number)
           });
           
-          console.log(\`✅ Fixed purchase \${purchase.purchase_id}: created \${tickets.length} tickets\`);
+          console.log(`✅ Fixed purchase ${purchase.purchase_id}: created ${tickets.length} tickets`);
         });
       } catch (purchaseError) {
-        console.error(\`❌ Error fixing purchase \${purchase.purchase_id}:\`, purchaseError);
+        console.error(`❌ Error fixing purchase ${purchase.purchase_id}:`, purchaseError);
         results.push({
           purchase_id: purchase.purchase_id,
           error: purchaseError.message
@@ -2321,13 +2321,13 @@ router.post('/fix-missing-tickets', async (req, res) => {
     await logAdminAction(
       req.user.id,
       'FIX_MISSING_TICKETS',
-      \`Fixed \${results.filter(r => !r.error).length} purchases with missing tickets\`,
+      `Fixed ${results.filter(r => !r.error).length} purchases with missing tickets`,
       { results }
     );
     
     res.json({
       success: true,
-      message: \`Corrigé \${results.filter(r => !r.error).length} achat(s) sans tickets\`,
+      message: `Corrigé ${results.filter(r => !r.error).length} achat(s) sans tickets`,
       fixed: results.filter(r => !r.error).length,
       errors: results.filter(r => r.error).length,
       details: results
