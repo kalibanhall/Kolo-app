@@ -831,19 +831,12 @@ router.post('/purchase', verifyToken, [
       );
 
       // Create purchase record (store USD amount for reporting)
-        // Fetch user's phone number from users table
-        const userPhoneResult = await query(
-          'SELECT phone_number FROM users WHERE id = $1',
-          [userId]
-        );
-        const userPhone = userPhoneResult.rows.length > 0 ? userPhoneResult.rows[0].phone_number : null;
-
         const purchaseResult = await client.query(
           `INSERT INTO purchases 
-           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider, phone_number)
-           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet', $6)
+           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider)
+           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet')
            RETURNING *`,
-          [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId, userPhone]
+          [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId]
         );
 
       const purchase = purchaseResult.rows[0];
@@ -853,9 +846,22 @@ router.post('/purchase', verifyToken, [
       const totalTickets = parseInt(campaign.total_tickets) || 100;
       const padLength = Math.max(2, String(totalTickets).length);
       
+      // Get the highest existing ticket number for this campaign to avoid duplicates
+      const maxTicketResult = await client.query(
+        `SELECT MAX(CAST(REPLACE(ticket_number, 'K-', '') AS INTEGER)) as max_num 
+         FROM tickets 
+         WHERE campaign_id = $1 AND ticket_number LIKE 'K-%'`,
+        [campaign_id]
+      );
+      const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
+      
+      // Start from the highest of: existing max ticket number or sold_tickets count
+      const startingNumber = Math.max(maxExistingNumber, parseInt(campaign.sold_tickets) || 0);
+      console.log(`🎫 Wallet purchase - Starting ticket generation from number ${startingNumber + 1}`);
+      
       for (let i = 0; i < ticket_count; i++) {
-        // Use campaign's current sold_tickets + offset for sequential numbering
-        const ticketSequence = parseInt(campaign.sold_tickets) + i + 1;
+        // Use the calculated starting number + offset for sequential numbering
+        const ticketSequence = startingNumber + i + 1;
         const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
         const ticketResult = await client.query(
           `INSERT INTO tickets 

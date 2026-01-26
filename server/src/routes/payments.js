@@ -48,13 +48,25 @@ async function generateTicketsForPurchase(purchaseId) {
     );
     const campaign = campaignResult.rows[0];
     const totalTickets = campaign?.total_tickets || 1000;
-    const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
     const padLength = Math.max(2, String(totalTickets).length);
+    
+    // Get the highest existing ticket number for this campaign to avoid duplicates
+    const maxTicketResult = await client.query(
+      `SELECT MAX(CAST(REPLACE(ticket_number, 'K-', '') AS INTEGER)) as max_num 
+       FROM tickets 
+       WHERE campaign_id = $1 AND ticket_number LIKE 'K-%'`,
+      [purchase.campaign_id]
+    );
+    const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
+    
+    // Start from the highest of: existing max ticket number or sold_tickets count
+    const startingNumber = Math.max(maxExistingNumber, parseInt(campaign?.sold_tickets || 0));
+    console.log(`🎫 Starting ticket generation from number ${startingNumber + 1} (maxExisting: ${maxExistingNumber}, soldTickets: ${campaign?.sold_tickets})`);
     
     // Generate unique ticket numbers using sequential campaign-based numbering
     const tickets = [];
     for (let i = 0; i < purchase.ticket_count; i++) {
-      const ticketSequence = currentSoldTickets + i + 1;
+      const ticketSequence = startingNumber + i + 1;
       const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
       
       const ticketResult = await client.query(

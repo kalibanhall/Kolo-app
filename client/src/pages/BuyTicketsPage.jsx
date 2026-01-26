@@ -1179,11 +1179,14 @@ const BuyTicketsPage = () => {
                         type="text"
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                        placeholder="Entrez votre code"
+                        placeholder={(selectionMode === 'manual' ? selectedNumbers.length < 3 : ticketCount < 3) 
+                          ? `Sélectionnez ${selectionMode === 'manual' ? `encore ${3 - selectedNumbers.length}` : `${3 - ticketCount}`} ticket(s)` 
+                          : 'Entrez votre code'}
+                        disabled={(selectionMode === 'manual' ? selectedNumbers.length < 3 : ticketCount < 3)}
                         className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm ${
                           isDarkMode 
-                            ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500' 
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                            ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500 disabled:bg-gray-900 disabled:text-gray-600' 
+                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-400'
                         }`}
                       />
                       <button
