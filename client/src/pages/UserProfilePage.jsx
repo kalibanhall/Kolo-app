@@ -8,6 +8,7 @@ import { LogoKolo } from '../components/LogoKolo';
 import { ImageUpload } from '../components/ImageUpload';
 import { translateStatus, getStatusBadgeClasses } from '../utils/translations';
 import TicketCard, { TicketCardMini } from '../components/TicketCard';
+import TicketPreviewModal from '../components/TicketPreviewModal';
 
 const UserProfilePage = () => {
   const { user, checkAuth } = useAuth();
@@ -19,6 +20,7 @@ const UserProfilePage = () => {
   const [editMode, setEditMode] = useState(false);
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [activeTab, setActiveTab] = useState('tickets');
+  const [selectedTicket, setSelectedTicket] = useState(null); // Ticket sélectionné pour la prévisualisation
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -521,6 +523,7 @@ const UserProfilePage = () => {
                     prizeCategory={ticket.prize_category}
                     isWinner={ticket.is_winner || ticket.status === 'winner'}
                     isDarkMode={isDarkMode}
+                    onClick={() => setSelectedTicket(ticket)}
                   />
                 ))}
               </div>
@@ -584,6 +587,18 @@ const UserProfilePage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de prévisualisation du ticket */}
+      <TicketPreviewModal
+        isOpen={!!selectedTicket}
+        onClose={() => setSelectedTicket(null)}
+        ticketNumber={selectedTicket?.ticket_number}
+        ownerName={user?.name}
+        campaignTitle={selectedTicket?.campaign_title}
+        isWinner={selectedTicket?.is_winner || selectedTicket?.status === 'winner' || selectedTicket?.prize_category === 'main'}
+        prize={selectedTicket?.prize_name}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

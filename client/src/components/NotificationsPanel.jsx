@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNotifications } from '../context/NotificationsContext';
 import { LoadingSpinner } from './LoadingSpinner';
+import TicketPreviewModal from './TicketPreviewModal';
 
 export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]' }) => {
   const {
@@ -14,6 +15,7 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
   } = useNotifications();
   
   const [expandedNotifications, setExpandedNotifications] = useState(new Set());
+  const [selectedWinnerTicket, setSelectedWinnerTicket] = useState(null); // Pour la prévisualisation du ticket gagnant
 
   const toggleExpanded = (notificationId) => {
     setExpandedNotifications(prev => {
@@ -131,6 +133,23 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
                     {/* Additional Data / Expandable Details for Winners */}
                     {notification.type === 'winner' && (
                       <div className="mt-2">
+                        {/* Bouton voir le ticket gagnant */}
+                        <button
+                          onClick={() => {
+                            const data = typeof notification.data === 'string' 
+                              ? JSON.parse(notification.data) 
+                              : notification.data;
+                            setSelectedWinnerTicket({
+                              ticketNumber: data?.ticket_number || data?.ticket_numbers?.[0] || 'N/A',
+                              campaignTitle: data?.campaign_title || 'KOMA',
+                              prizeName: data?.prize_name || notification.title,
+                            });
+                          }}
+                          className="mb-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-lg text-sm font-semibold hover:from-amber-600 hover:to-yellow-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                        >
+                          <span>🎟️</span> Voir mon ticket gagnant
+                        </button>
+
                         <button
                           onClick={() => toggleExpanded(notification.id)}
                           className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
@@ -222,6 +241,16 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
           Rafraîchir
         </button>
       </div>
+
+      {/* Modal de prévisualisation du ticket gagnant */}
+      <TicketPreviewModal
+        isOpen={!!selectedWinnerTicket}
+        onClose={() => setSelectedWinnerTicket(null)}
+        ticketNumber={selectedWinnerTicket?.ticketNumber}
+        campaignTitle={selectedWinnerTicket?.campaignTitle}
+        isWinner={true}
+        prize={selectedWinnerTicket?.prizeName}
+      />
     </div>
   );
 };
