@@ -146,6 +146,8 @@ router.post('/initiate-purchase', verifyToken, paymentLimiter, [
 router.get('/user/:userId', verifyToken, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
+    const limit = parseInt(req.query.limit) || 100; // Default 100 tickets max
+    const offset = parseInt(req.query.offset) || 0;
     
     // Users can only see their own tickets unless they're admin
     if (req.user.id !== userId && !req.user.is_admin) {
@@ -155,28 +157,20 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       });
     }
 
-    console.log(`📋 Fetching tickets for user ${userId}`);
-
     const result = await query(
-      `SELECT t.*, 
-              c.title as campaign_title, 
-              c.main_prize,
-              c.ticket_price,
+      `SELECT t.id, t.ticket_number, t.status, t.created_at, t.is_winner, t.prize_category,
+              c.id as campaign_id, c.title as campaign_title, c.main_prize, c.ticket_price,
               c.image_url as campaign_image,
-              p.total_amount as purchase_total, 
-              p.ticket_count,
-              p.payment_status, 
-              p.created_at as purchase_date
+              p.total_amount as purchase_total, p.ticket_count, p.payment_status, p.created_at as purchase_date
        FROM tickets t
        LEFT JOIN campaigns c ON t.campaign_id = c.id
        LEFT JOIN purchases p ON t.purchase_id = p.id
        WHERE t.user_id = $1 
          AND t.ticket_number NOT LIKE 'TEMP%'
-       ORDER BY t.created_at DESC`,
-      [userId]
+       ORDER BY t.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
     );
-
-    console.log(`✅ Found ${result.rows.length} tickets for user ${userId}`);
 
     res.json({
       success: true,

@@ -255,6 +255,7 @@ router.get('/verify', async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        photo_url: user.photo_url,
         is_admin: user.is_admin
       }
     });

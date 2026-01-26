@@ -772,6 +772,8 @@ router.post(
     body('phone_number').notEmpty().trim(),
     body('currency').optional().isIn(['USD', 'CDF']),
     body('amount').optional().isFloat({ min: 0 }),
+    body('promo_code_id').optional().isInt(),
+    body('discount_amount').optional().isFloat({ min: 0 }),
   ],
   async (req, res) => {
     try {
@@ -784,7 +786,7 @@ router.post(
         });
       }
 
-      const { campaign_id, ticket_count, phone_number, currency: requestedCurrency, amount: requestedAmount } = req.body;
+      const { campaign_id, ticket_count, phone_number, currency: requestedCurrency, amount: requestedAmount, promo_code_id, discount_amount } = req.body;
       const user_id = req.user.id;
 
       // Get user details
@@ -844,15 +846,15 @@ router.post(
         .substring(2, 8)
         .toUpperCase()}`;
 
-      // Create pending purchase record
-      // Try to insert with currency first, fallback to without if column doesn't exist
+      // Create pending purchase record with promo code support
       let purchaseResult;
       try {
         purchaseResult = await query(
           `INSERT INTO purchases (
           user_id, campaign_id, ticket_count, total_amount, currency,
-          phone_number, payment_provider, payment_status, transaction_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          phone_number, payment_provider, payment_status, transaction_id,
+          promo_code_id, discount_amount
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
           [
             user_id,
@@ -864,11 +866,58 @@ router.post(
             `PayDRC-${provider}`,
             'pending',
             reference,
+            promo_code_id || null,
+            discount_amount || 0,
           ]
         );
       } catch (err) {
-        // Fallback: currency column might not exist yet
-        if (err.message && err.message.includes('currency')) {
+        // Fallback: promo columns might not exist yet
+        if (err.message && (err.message.includes('promo_code_id') || err.message.includes('discount_amount'))) {
+          console.log('Promo columns not found, trying without them');
+          try {
+            purchaseResult = await query(
+              `INSERT INTO purchases (
+              user_id, campaign_id, ticket_count, total_amount, currency,
+              phone_number, payment_provider, payment_status, transaction_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *`,
+              [
+                user_id,
+                campaign_id,
+                ticket_count,
+                total_amount,
+                currency,
+                normalizedPhone,
+                `PayDRC-${provider}`,
+                'pending',
+                reference,
+              ]
+            );
+          } catch (err2) {
+            // Fallback: currency column might not exist
+            if (err2.message && err2.message.includes('currency')) {
+              purchaseResult = await query(
+                `INSERT INTO purchases (
+                user_id, campaign_id, ticket_count, total_amount,
+                phone_number, payment_provider, payment_status, transaction_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              RETURNING *`,
+                [
+                  user_id,
+                  campaign_id,
+                  ticket_count,
+                  total_amount,
+                  normalizedPhone,
+                  `PayDRC-${provider}`,
+                  'pending',
+                  reference,
+                ]
+              );
+            } else {
+              throw err2;
+            }
+          }
+        } else if (err.message && err.message.includes('currency')) {
           console.log('Currency column not found, inserting without it');
           purchaseResult = await query(
             `INSERT INTO purchases (

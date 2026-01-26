@@ -433,7 +433,9 @@ const BuyTicketsPage = () => {
           ticket_count: ticketCount,
           phone_number: phoneNumber,
           currency: selectedCurrency,
-          amount: amountToCharge
+          amount: amountToCharge,
+          promo_code_id: promoDiscount?.id || null,
+          discount_amount: promoDiscount?.discount_amount || 0
         });
         
         console.log('PayDRC response:', response);
