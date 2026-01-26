@@ -338,7 +338,7 @@ const BuyTicketsPage = () => {
     }
 
     if (ticketCount < 1 || ticketCount > 10) {
-      setError('Vous pouvez sélectionner entre 1 et 5 tickets à la fois par campagne');
+      setError('Vous pouvez sélectionner entre 1 et 10 tickets à la fois par campagne');
       return;
     }
 
@@ -963,7 +963,7 @@ const BuyTicketsPage = () => {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  {[1, 2, 3, 5, 10].filter(num => num <= availableTickets).map(num => (
+                  {[1, 2, 3, 4, 5, 10].filter(num => num <= availableTickets).map(num => (
                     <button
                       key={num}
                       type="button"
@@ -979,7 +979,7 @@ const BuyTicketsPage = () => {
                       {num}
                     </button>
                   ))}
-                  {availableTickets < 10 && availableTickets > 0 && ![1, 2, 3, 5, 10].includes(availableTickets) && (
+                  {availableTickets < 10 && availableTickets > 0 && ![1, 2, 3, 4, 5, 10].includes(availableTickets) && (
                     <button
                       type="button"
                       onClick={() => setTicketCount(availableTickets)}
