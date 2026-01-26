@@ -10,12 +10,16 @@ const DrawManagementPage = () => {
   const [success, setSuccess] = useState('');
   
   // Modal states
-  const [showModal, setShowModal] = useState(false);
+  const [showDrawModal, setShowDrawModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [selectedDraw, setSelectedDraw] = useState(null);
   const [drawing, setDrawing] = useState(false);
+  
+  // Draw process states - 2 steps
+  const [drawStep, setDrawStep] = useState(1); // 1: Config, 2: Confirm
   const [drawMethod, setDrawMethod] = useState('automatic');
-  const [bonusWinners, setBonusWinners] = useState(3);
-  const [confirmationStep, setConfirmationStep] = useState(1); // Double validation: 1 = first confirm, 2 = final confirm
+  const [bonusWinnersCount, setBonusWinnersCount] = useState(3);
   const [confirmationCode, setConfirmationCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
 
@@ -43,15 +47,7 @@ const DrawManagementPage = () => {
     }
   };
 
-  // Générer un ID de transaction unique (16 caractères alphanumériques)
-  const generateTransactionId = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let transactionId = '';
-    for (let i = 0; i < 16; i++) {
-      transactionId += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return transactionId;
-  };
+  const generateCode = () => String(Math.floor(1000 + Math.random() * 9000));
 
   const getCampaignDrawStatus = (campaign) => {
     const hasDraw = draws.some(d => d.campaign_id === campaign.id);
@@ -69,41 +65,35 @@ const DrawManagementPage = () => {
 
   const openDrawModal = (campaign) => {
     setSelectedCampaign(campaign);
-    setShowModal(true);
+    setShowDrawModal(true);
+    setDrawStep(1);
     setDrawMethod('automatic');
-    setBonusWinners(3);
-    setConfirmationStep(1);
+    setBonusWinnersCount(3);
     setConfirmationCode('');
-    // Generate a 4-digit confirmation code
-    setGeneratedCode(String(Math.floor(1000 + Math.random() * 9000)));
+    setGeneratedCode(generateCode());
   };
 
-  const closeModal = () => {
-    setShowModal(false);
+  const closeDrawModal = () => {
+    setShowDrawModal(false);
     setSelectedCampaign(null);
-    setConfirmationStep(1);
-    setConfirmationCode('');
+    setDrawStep(1);
   };
 
-  const handleFirstConfirm = () => {
-    if (!window.confirm(`⚠️ PREMIÈRE VALIDATION\n\nVoulez-vous vraiment lancer le tirage pour:\n"${selectedCampaign.title}"\n\nCette action est IRRÉVERSIBLE.`)) {
-      return;
-    }
-    setConfirmationStep(2);
+  const openResultModal = (draw) => {
+    setSelectedDraw(draw);
+    setShowResultModal(true);
+  };
+
+  const closeResultModal = () => {
+    setShowResultModal(false);
+    setSelectedDraw(null);
   };
 
   const handleDraw = async () => {
     if (!selectedCampaign) return;
 
-    // Verify confirmation code
     if (confirmationCode !== generatedCode) {
       setError('Code de confirmation incorrect');
-      return;
-    }
-
-    const transactionId = generateTransactionId();
-    
-    if (!window.confirm(`⚠️ VALIDATION FINALE\n\nConfirmez le tirage pour "${selectedCampaign.title}"\n\nID Transaction: ${transactionId}\n\nCette action ne peut PAS être annulée !`)) {
       return;
     }
 
@@ -113,13 +103,12 @@ const DrawManagementPage = () => {
     try {
       await adminAPI.performDraw({
         campaign_id: selectedCampaign.id,
-        bonus_winners_count: parseInt(bonusWinners),
-        draw_method: drawMethod,
-        transaction_id: transactionId
+        bonus_winners_count: parseInt(bonusWinnersCount),
+        draw_method: drawMethod
       });
       
-      setSuccess(`Tirage effectué avec succès !\nID Transaction: ${transactionId}`);
-      closeModal();
+      setSuccess(`🎉 Tirage effectué avec succès pour "${selectedCampaign.title}" !`);
+      closeDrawModal();
       await loadData();
       
       setTimeout(() => setSuccess(''), 8000);
@@ -153,7 +142,7 @@ const DrawManagementPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Gestion des Tirages</h1>
+          <h1 className="text-3xl font-bold text-gray-900">🎯 Gestion des Tirages</h1>
           <p className="text-gray-600 mt-1">Lancez les tirages pour les campagnes clôturées</p>
         </div>
 
@@ -167,42 +156,42 @@ const DrawManagementPage = () => {
         
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-            <span className="whitespace-pre-line">{success}</span>
+            <span>{success}</span>
             <button onClick={() => setSuccess('')} className="text-green-700 hover:text-green-900 text-xl font-bold">×</button>
           </div>
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-500">Total Campagnes</p>
-            <p className="text-2xl font-bold text-gray-900">{campaigns.length}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="bg-white rounded-lg shadow p-3">
+            <p className="text-xs text-gray-500">Total Campagnes</p>
+            <p className="text-xl font-bold text-gray-900">{campaigns.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-500">En cours</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white rounded-lg shadow p-3">
+            <p className="text-xs text-gray-500">En cours</p>
+            <p className="text-xl font-bold text-blue-600">
               {campaigns.filter(c => c.status === 'open').length}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-500">Prêtes pour tirage</p>
-            <p className="text-2xl font-bold text-yellow-600">
+          <div className="bg-white rounded-lg shadow p-3">
+            <p className="text-xs text-gray-500">Prêtes</p>
+            <p className="text-xl font-bold text-yellow-600">
               {campaigns.filter(c => c.status === 'closed' && !draws.some(d => d.campaign_id === c.id)).length}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-500">Tirages effectués</p>
-            <p className="text-2xl font-bold text-green-600">{draws.length}</p>
+          <div className="bg-white rounded-lg shadow p-3">
+            <p className="text-xs text-gray-500">Tirages</p>
+            <p className="text-xl font-bold text-green-600">{draws.length}</p>
           </div>
         </div>
 
         {/* Campaigns Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Liste des Campagnes</h2>
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+          <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-900">Campagnes</h2>
             <button
               onClick={loadData}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
             >
               Actualiser
             </button>
@@ -217,12 +206,11 @@ const DrawManagementPage = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campagne</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix Principal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tickets</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campagne</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tickets</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -232,33 +220,22 @@ const DrawManagementPage = () => {
                     
                     return (
                       <tr key={campaign.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-mono text-gray-500">#{campaign.id}</span>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900 text-sm">{campaign.title}</div>
+                          <div className="text-xs text-gray-500">#{campaign.id}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{campaign.title}</div>
-                          <div className="text-sm text-gray-500">
-                            {campaign.description?.substring(0, 50)}...
-                          </div>
+                        <td className="px-4 py-3">
+                          <span className="text-sm font-medium text-gray-900">{campaign.main_prize}</span>
                         </td>
-                        <td className="px-6 py-4 text-gray-900 font-medium">
-                          {campaign.main_prize}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900">{campaign.sold_tickets || 0}</span>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 text-sm">
+                            <span className="font-semibold">{campaign.sold_tickets || 0}</span>
                             <span className="text-gray-400">/</span>
                             <span className="text-gray-500">{campaign.total_tickets}</span>
                           </div>
-                          <div className="w-20 bg-gray-200 rounded-full h-1.5 mt-1">
-                            <div
-                              className="bg-indigo-600 h-1.5 rounded-full"
-                              style={{ width: `${Math.min(100, ((campaign.sold_tickets || 0) / campaign.total_tickets) * 100)}%` }}
-                            />
-                          </div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                             drawStatus.status === 'drawn' ? 'bg-green-100 text-green-800' :
                             drawStatus.status === 'ready' ? 'bg-yellow-100 text-yellow-800' :
                             drawStatus.status === 'open' ? 'bg-blue-100 text-blue-800' :
@@ -267,36 +244,23 @@ const DrawManagementPage = () => {
                             {drawStatus.label}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
                           {drawStatus.status === 'drawn' ? (
-                            <div className="text-sm">
-                              <p className="text-green-600 font-medium">Tirage effectué</p>
-                              <p className="text-gray-500 text-xs">
-                                Gagnant: {draw?.winner_name || 'N/A'}
-                              </p>
-                              <p className="text-gray-400 text-xs font-mono">
-                                Ticket: {draw?.winning_ticket || 'N/A'}
-                              </p>
-                            </div>
+                            <button
+                              onClick={() => openResultModal(draw)}
+                              className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-medium transition-colors text-sm"
+                            >
+                              👁 Voir résultat
+                            </button>
                           ) : drawStatus.canDraw ? (
                             <button
                               onClick={() => openDrawModal(campaign)}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
                             >
-                              Lancer le tirage
+                              🎯 Lancer
                             </button>
                           ) : (
-                            <div className="flex flex-col gap-1">
-                              <button
-                                disabled
-                                className="px-4 py-2 bg-gray-200 text-gray-400 rounded-lg font-medium cursor-not-allowed text-sm"
-                              >
-                                Lancer le tirage
-                              </button>
-                              <span className="text-xs text-gray-400">
-                                Clôturez la campagne d'abord
-                              </span>
-                            </div>
+                            <span className="text-xs text-gray-400">En attente</span>
                           )}
                         </td>
                       </tr>
@@ -308,143 +272,48 @@ const DrawManagementPage = () => {
           )}
         </div>
 
-        {/* Résultats des tirages */}
+        {/* Résultats des tirages - Cards */}
         {draws.length > 0 && (
-          <div className="mt-8">
+          <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">🏆 Résultats des Tirages</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {draws.map((draw) => (
-                <div key={draw.id} className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-                  {/* Header avec image de campagne */}
-                  <div className="relative">
-                    {draw.campaign_image && (
-                      <img 
-                        src={draw.campaign_image} 
-                        alt={draw.campaign_title}
-                        className="w-full h-32 object-cover"
-                      />
-                    )}
-                    <div className={`${draw.campaign_image ? 'absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent' : 'bg-gradient-to-r from-indigo-600 to-purple-600'} p-4 flex flex-col justify-end`}>
-                      <h3 className="text-xl font-bold text-white">{draw.campaign_title}</h3>
-                      <p className="text-white/80 text-sm">
-                        🗓 {new Date(draw.draw_date).toLocaleDateString('fr-FR', {
-                          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                          hour: '2-digit', minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
+                <div 
+                  key={draw.id} 
+                  onClick={() => openResultModal(draw)}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
+                >
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white">
+                    <h3 className="font-bold text-lg truncate">{draw.campaign_title}</h3>
+                    <p className="text-white/70 text-xs">
+                      {new Date(draw.draw_date).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                      })}
+                    </p>
                   </div>
                   
-                  <div className="p-5 space-y-4">
-                    {/* Gagnant Principal - 1er Prix */}
-                    <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-2xl">🥇</span>
-                        <span className="text-xs font-bold text-yellow-700 uppercase tracking-wider">1er Prix - Gagnant Principal</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-lg font-bold text-gray-900">{draw.winner_name || 'N/A'}</p>
-                          <p className="text-sm text-gray-600">{draw.winner_email || 'N/A'}</p>
-                          {draw.winner_phone && (
-                            <p className="text-sm text-gray-500">📞 {draw.winner_phone}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-mono font-bold text-sm">
-                            #{draw.winning_ticket}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-yellow-200">
-                        <span className="text-xs text-gray-500">Prix:</span>
-                        <span className="ml-2 text-lg font-bold text-green-600">{draw.main_prize}</span>
+                  <div className="p-4">
+                    {/* Main Winner */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl">🥇</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 truncate">{draw.winner_name}</p>
+                        <p className="text-xs text-gray-500 font-mono">#{draw.winning_ticket}</p>
                       </div>
                     </div>
 
-                    {/* 2ème et 3ème Prix si disponibles */}
-                    {(draw.second_prize || draw.third_prize) && draw.bonus_winners && draw.bonus_winners.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* 2ème Prix */}
-                        {draw.second_prize && draw.bonus_winners.find(bw => bw.position === 2) && (
-                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xl">🥈</span>
-                              <span className="text-xs font-bold text-gray-600 uppercase">2ème Prix</span>
-                            </div>
-                            {(() => {
-                              const winner = draw.bonus_winners.find(bw => bw.position === 2);
-                              return winner ? (
-                                <>
-                                  <p className="font-semibold text-gray-900 text-sm">{winner.user_name}</p>
-                                  <p className="text-xs text-gray-500">{winner.user_email}</p>
-                                  <div className="mt-2 flex justify-between items-center">
-                                    <span className="font-mono text-xs bg-gray-200 px-2 py-0.5 rounded">#{winner.ticket_number}</span>
-                                    <span className="text-green-600 font-medium text-sm">{draw.second_prize}</span>
-                                  </div>
-                                </>
-                              ) : null;
-                            })()}
-                          </div>
-                        )}
-                        
-                        {/* 3ème Prix */}
-                        {draw.third_prize && draw.bonus_winners.find(bw => bw.position === 3) && (
-                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xl">🥉</span>
-                              <span className="text-xs font-bold text-orange-700 uppercase">3ème Prix</span>
-                            </div>
-                            {(() => {
-                              const winner = draw.bonus_winners.find(bw => bw.position === 3);
-                              return winner ? (
-                                <>
-                                  <p className="font-semibold text-gray-900 text-sm">{winner.user_name}</p>
-                                  <p className="text-xs text-gray-500">{winner.user_email}</p>
-                                  <div className="mt-2 flex justify-between items-center">
-                                    <span className="font-mono text-xs bg-orange-100 px-2 py-0.5 rounded">#{winner.ticket_number}</span>
-                                    <span className="text-green-600 font-medium text-sm">{draw.third_prize}</span>
-                                  </div>
-                                </>
-                              ) : null;
-                            })()}
-                          </div>
-                        )}
+                    {/* Bonus Winners Count */}
+                    {(draw.bonus_winners?.length > 0 || draw.bonus_winners_count > 0) && (
+                      <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-50 px-3 py-2 rounded-lg">
+                        <span>🎁</span>
+                        <span>+{draw.bonus_winners?.length || draw.bonus_winners_count} gagnant(s) bonus</span>
                       </div>
                     )}
 
-                    {/* Gagnants Bonus supplémentaires */}
-                    {draw.bonus_winners && draw.bonus_winners.filter(bw => bw.position > 3).length > 0 && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-lg">🎁</span>
-                          <span className="text-xs font-bold text-purple-700 uppercase">
-                            Gagnants Bonus ({draw.bonus_winners.filter(bw => bw.position > 3).length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {draw.bonus_winners.filter(bw => bw.position > 3).map((bw, idx) => (
-                            <div key={bw.id || idx} className="flex justify-between items-center text-sm py-1 border-b border-purple-100 last:border-0">
-                              <div>
-                                <span className="font-medium text-gray-900">{bw.user_name}</span>
-                                <span className="text-xs text-gray-500 ml-2">({bw.user_email})</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs bg-purple-100 px-2 py-0.5 rounded">#{bw.ticket_number}</span>
-                                {bw.prize && <span className="text-green-600 text-xs">{bw.prize}</span>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Pas de bonus winners */}
-                    {(!draw.bonus_winners || draw.bonus_winners.length === 0) && draw.bonus_winners_count > 0 && (
-                      <div className="text-sm text-gray-500 text-center py-2">
-                        + {draw.bonus_winners_count} gagnant(s) bonus
-                      </div>
-                    )}
+                    <p className="text-center text-xs text-gray-400 mt-3">
+                      Cliquez pour voir les détails →
+                    </p>
                   </div>
                 </div>
               ))}
@@ -452,145 +321,297 @@ const DrawManagementPage = () => {
           </div>
         )}
 
-        {/* Modal de Tirage */}
-        {showModal && selectedCampaign && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-lg w-full">
+        {/* Modal de Tirage - 2 étapes compact */}
+        {showDrawModal && selectedCampaign && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
               {/* Header */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white rounded-t-xl">
-                <div className="flex justify-between items-start">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white rounded-t-2xl">
+                <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-2xl font-bold">Lancer le Tirage</h3>
-                    <p className="text-indigo-200 mt-1">{selectedCampaign.title}</p>
+                    <h3 className="text-lg font-bold">🎯 Lancer le Tirage</h3>
+                    <p className="text-indigo-200 text-sm truncate">{selectedCampaign.title}</p>
                   </div>
-                  <button onClick={closeModal} className="text-white/80 hover:text-white text-2xl font-bold">×</button>
+                  <button onClick={closeDrawModal} className="text-white/80 hover:text-white text-xl">×</button>
+                </div>
+                
+                {/* Steps indicator */}
+                <div className="flex items-center gap-2 mt-3">
+                  <div className={`flex-1 h-1 rounded-full ${drawStep >= 1 ? 'bg-white' : 'bg-white/30'}`} />
+                  <div className={`flex-1 h-1 rounded-full ${drawStep >= 2 ? 'bg-white' : 'bg-white/30'}`} />
+                </div>
+                <div className="flex justify-between text-xs mt-1 text-white/70">
+                  <span>Configuration</span>
+                  <span>Confirmation</span>
                 </div>
               </div>
               
-              <div className="p-6 space-y-4">
-                {/* Infos campagne */}
-                <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase">Prix Principal</p>
-                    <p className="font-bold text-gray-900">{selectedCampaign.main_prize}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase">Tickets Vendus</p>
-                    <p className="font-bold text-gray-900">
-                      {selectedCampaign.sold_tickets || 0} / {selectedCampaign.total_tickets}
-                    </p>
-                  </div>
-                </div>
+              <div className="p-4">
+                {/* Step 1: Configuration */}
+                {drawStep === 1 && (
+                  <div className="space-y-3">
+                    {/* Campaign Info */}
+                    <div className="bg-gray-50 rounded-lg p-3 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-500">Prix Principal</p>
+                        <p className="font-bold text-gray-900 text-sm">{selectedCampaign.main_prize}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Tickets Vendus</p>
+                        <p className="font-bold text-gray-900 text-sm">
+                          {selectedCampaign.sold_tickets || 0} / {selectedCampaign.total_tickets}
+                        </p>
+                      </div>
+                    </div>
 
-                {/* ID Transaction Preview */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-xs text-blue-600 uppercase mb-1">ID Transaction (prévisualisation)</p>
-                  <p className="font-mono text-lg text-blue-800">{generateTransactionId()}</p>
-                  <p className="text-xs text-blue-500 mt-1">Un nouvel ID sera généré lors du tirage</p>
-                </div>
+                    {/* Draw Method */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        1️⃣ Tirage du Gagnant Principal
+                      </label>
+                      <select
+                        value={drawMethod}
+                        onChange={(e) => setDrawMethod(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                      >
+                        <option value="automatic">🎲 Automatique (aléatoire)</option>
+                        <option value="manual">✍️ Manuel (sélection)</option>
+                      </select>
+                    </div>
 
-                {/* Méthode de tirage */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Méthode de tirage
-                  </label>
-                  <select
-                    value={drawMethod}
-                    onChange={(e) => setDrawMethod(e.target.value)}
-                    disabled={confirmationStep === 2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
-                  >
-                    <option value="automatic">Automatique (aléatoire)</option>
-                    <option value="manual">Manuel (sélection)</option>
-                  </select>
-                </div>
-
-                {/* Gagnants bonus */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre de gagnants bonus
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={bonusWinners}
-                    onChange={(e) => setBonusWinners(e.target.value)}
-                    disabled={confirmationStep === 2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
-                  />
-                </div>
-
-                {/* Step 2: Confirmation Code */}
-                {confirmationStep === 2 && (
-                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                    <div className="text-center mb-4">
-                      <p className="text-red-700 font-bold text-lg">⚠️ VALIDATION FINALE</p>
-                      <p className="text-red-600 text-sm mt-1">
-                        Pour confirmer le tirage, entrez le code suivant :
-                      </p>
-                      <p className="text-3xl font-mono font-bold text-red-800 mt-2 tracking-widest">
-                        {generatedCode}
+                    {/* Bonus Winners */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        2️⃣ Tirage des Gagnants Bonus
+                      </label>
+                      <div className="flex items-center gap-3 bg-purple-50 p-3 rounded-lg">
+                        <input
+                          type="range"
+                          min="0"
+                          max="10"
+                          value={bonusWinnersCount}
+                          onChange={(e) => setBonusWinnersCount(e.target.value)}
+                          className="flex-1"
+                        />
+                        <span className="w-10 h-10 bg-purple-600 text-white rounded-lg flex items-center justify-center font-bold">
+                          {bonusWinnersCount}
+                        </span>
+                      </div>
+                      <p className="text-xs text-purple-600 mt-1">
+                        ⚠️ Différents du gagnant principal
                       </p>
                     </div>
-                    <input
-                      type="text"
-                      value={confirmationCode}
-                      onChange={(e) => setConfirmationCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      placeholder="Entrez le code"
-                      maxLength="4"
-                      className="w-full px-4 py-3 text-center text-2xl font-mono border-2 border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
+
+                    {/* Summary */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-xs font-medium text-blue-800 mb-1">📋 Résumé :</p>
+                      <ul className="text-blue-700 text-xs space-y-0.5">
+                        <li>🥇 1 gagnant principal ({selectedCampaign.main_prize})</li>
+                        <li>🎁 {bonusWinnersCount} gagnant(s) bonus</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={() => setDrawStep(2)}
+                      disabled={(selectedCampaign.sold_tickets || 0) === 0}
+                      className={`w-full py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                        (selectedCampaign.sold_tickets || 0) === 0
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      }`}
+                    >
+                      Continuer →
+                    </button>
+
+                    {(selectedCampaign.sold_tickets || 0) === 0 && (
+                      <p className="text-center text-red-500 text-xs">Aucun ticket vendu</p>
+                    )}
                   </div>
                 )}
 
-                {/* Boutons */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={closeModal}
-                    className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  {confirmationStep === 1 ? (
-                    <button
-                      onClick={handleFirstConfirm}
-                      disabled={(selectedCampaign.sold_tickets || 0) === 0}
-                      className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${
-                        (selectedCampaign.sold_tickets || 0) === 0
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-orange-500 hover:bg-orange-600 text-white'
-                      }`}
-                    >
-                      Étape 1: Valider
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleDraw}
-                      disabled={drawing || confirmationCode !== generatedCode}
-                      className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${
-                        drawing || confirmationCode !== generatedCode
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-red-600 hover:bg-red-700 text-white'
-                      }`}
-                    >
-                      {drawing ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                          Tirage en cours...
-                        </span>
-                      ) : (
-                        '🎯 CONFIRMER LE TIRAGE'
-                      )}
-                    </button>
-                  )}
+                {/* Step 2: Confirmation */}
+                {drawStep === 2 && (
+                  <div className="space-y-3">
+                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 text-center">
+                      <p className="text-red-700 font-bold text-sm">⚠️ ACTION IRRÉVERSIBLE</p>
+                      <p className="text-red-600 text-xs">Le tirage ne peut pas être annulé</p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-3 text-xs">
+                      <p className="font-medium text-gray-700 mb-1">Récapitulatif :</p>
+                      <p>🏆 {selectedCampaign.title}</p>
+                      <p>🎁 1 principal + {bonusWinnersCount} bonus</p>
+                    </div>
+
+                    <div>
+                      <p className="text-center text-xs text-gray-600 mb-1">
+                        Entrez le code :
+                      </p>
+                      <p className="text-center text-2xl font-mono font-bold text-red-600 tracking-widest">
+                        {generatedCode}
+                      </p>
+                      <input
+                        type="text"
+                        value={confirmationCode}
+                        onChange={(e) => setConfirmationCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="____"
+                        maxLength="4"
+                        className="w-full mt-2 px-4 py-2.5 text-center text-xl font-mono border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDrawStep(1)}
+                        className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium text-sm"
+                      >
+                        ← Retour
+                      </button>
+                      <button
+                        onClick={handleDraw}
+                        disabled={drawing || confirmationCode !== generatedCode}
+                        className={`flex-1 py-2 rounded-lg font-medium text-sm ${
+                          drawing || confirmationCode !== generatedCode
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-red-600 hover:bg-red-700 text-white'
+                        }`}
+                      >
+                        {drawing ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                          </span>
+                        ) : (
+                          '🎯 LANCER'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Résultat Détaillé */}
+        {showResultModal && selectedDraw && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 text-white rounded-t-2xl sticky top-0">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-bold">🏆 Résultat du Tirage</h3>
+                    <p className="text-green-200 text-sm">{selectedDraw.campaign_title}</p>
+                    <p className="text-white/60 text-xs mt-1">
+                      {new Date(selectedDraw.draw_date).toLocaleDateString('fr-FR', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <button onClick={closeResultModal} className="text-white/80 hover:text-white text-xl">×</button>
+                </div>
+              </div>
+              
+              <div className="p-4 space-y-4">
+                {/* Main Winner - Grand Prix */}
+                <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">🥇</span>
+                    <div>
+                      <span className="text-xs font-bold text-yellow-700 uppercase tracking-wider block">
+                        GRAND GAGNANT
+                      </span>
+                      <span className="text-sm text-yellow-600">1er Prix</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-lg font-bold text-gray-900">{selectedDraw.winner_name}</p>
+                        <p className="text-sm text-gray-600">{selectedDraw.winner_email}</p>
+                        {selectedDraw.winner_phone && (
+                          <p className="text-sm text-gray-500">📞 {selectedDraw.winner_phone}</p>
+                        )}
+                      </div>
+                      <span className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg font-mono font-bold text-sm">
+                        #{selectedDraw.winning_ticket}
+                      </span>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500">Prix remporté :</p>
+                      <p className="text-lg font-bold text-green-600">{selectedDraw.main_prize}</p>
+                    </div>
+                  </div>
                 </div>
 
-                {(selectedCampaign.sold_tickets || 0) === 0 && (
-                  <p className="text-center text-red-500 text-sm">
-                    Impossible de lancer le tirage : aucun ticket vendu
-                  </p>
+                {/* Bonus Winners */}
+                {selectedDraw.bonus_winners && selectedDraw.bonus_winners.length > 0 && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🎁</span>
+                      <span className="text-sm font-bold text-purple-700 uppercase tracking-wider">
+                        Gagnants Bonus ({selectedDraw.bonus_winners.length})
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {selectedDraw.bonus_winners.map((bw, index) => (
+                        <div 
+                          key={bw.id || index} 
+                          className="bg-white rounded-lg p-3 shadow-sm flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold text-sm">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <p className="font-medium text-gray-900">{bw.user_name}</p>
+                              <p className="text-xs text-gray-500">{bw.user_email}</p>
+                              {bw.user_phone && (
+                                <p className="text-xs text-gray-400">📞 {bw.user_phone}</p>
+                              )}
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-mono text-xs">
+                            #{bw.ticket_number}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <p className="text-xs text-purple-600 text-center mt-3">
+                      ✓ Tous différents du gagnant principal
+                    </p>
+                  </div>
                 )}
+
+                {/* No bonus winners */}
+                {(!selectedDraw.bonus_winners || selectedDraw.bonus_winners.length === 0) && (
+                  <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+                    <p className="text-sm">Pas de gagnants bonus pour ce tirage</p>
+                  </div>
+                )}
+
+                {/* Draw Info */}
+                <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
+                  <div className="flex justify-between">
+                    <span>ID du tirage :</span>
+                    <span className="font-mono">#{selectedDraw.id}</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span>Méthode :</span>
+                    <span>{selectedDraw.draw_method === 'manual_selection' ? 'Manuelle' : 'Aléatoire'}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeResultModal}
+                  className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium text-sm"
+                >
+                  Fermer
+                </button>
               </div>
             </div>
           </div>
