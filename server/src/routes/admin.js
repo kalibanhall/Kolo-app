@@ -550,12 +550,24 @@ router.post('/draw', drawLimiter, [
       const draw = drawResult.rows[0];
 
       // Select bonus winners if requested (always automatic, exclude main winner's user)
+      // IMPORTANT: Le gagnant bonus ne doit JAMAIS être le même utilisateur que le gagnant principal
       if (bonus_winners_count > 0) {
-        const remainingTickets = allTickets.filter(t => t.id !== mainWinner.id);
-        // Use selectRandomWinners with exclusion of main winner's user ID to avoid same client
+        // Exclude BOTH the main winner ticket AND all tickets from the same user
+        const remainingTickets = allTickets.filter(t => 
+          t.id !== mainWinner.id && t.user_id !== mainWinner.user_id
+        );
+        
+        // Double-check with selectRandomWinners (belt and suspenders approach)
         const bonusWinners = selectRandomWinners(remainingTickets, bonus_winners_count, mainWinner.user_id, true);
 
-        for (const ticket of bonusWinners) {
+        // Verify no bonus winner is the main winner's user (extra safety check)
+        const validBonusWinners = bonusWinners.filter(ticket => ticket.user_id !== mainWinner.user_id);
+        
+        if (validBonusWinners.length < bonusWinners.length) {
+          console.warn('⚠️ Some bonus tickets were filtered out because they belonged to main winner user');
+        }
+
+        for (const ticket of validBonusWinners) {
           // Update ticket
           await client.query(
             `UPDATE tickets 
@@ -570,6 +582,24 @@ router.post('/draw', drawLimiter, [
              VALUES ($1, $2, $3, $4)`,
             [draw.id, ticket.id, 'Bon d\'achat', 100]
           );
+        }
+        
+        // Update actual bonus winners count in draw result if some were filtered
+        if (validBonusWinners.length > 0) {
+          // Create notifications for bonus winners
+          for (const ticket of validBonusWinners) {
+            await client.query(
+              `INSERT INTO notifications (user_id, type, title, message, data)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                ticket.user_id,
+                'bonus_winner',
+                '🎁 FÉLICITATIONS ! Vous avez gagné un prix bonus !',
+                `Vous avez gagné un prix bonus de la tombola ! Ticket: ${ticket.ticket_number}`,
+                JSON.stringify({ draw_id: draw.id, prize: 'Prix Bonus' })
+              ]
+            );
+          }
         }
       }
 
