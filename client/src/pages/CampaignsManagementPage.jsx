@@ -625,7 +625,6 @@ export const CampaignsManagementPage = () => {
                     Exemple: K{formData.ticket_prefix || 'X'}-01 à K{formData.ticket_prefix || 'X'}-{String(formData.total_tickets || 100).padStart(2, '0')}
                   </p>
                 </div>
-                </div>
               </div>
 
               {/* Dates */}
