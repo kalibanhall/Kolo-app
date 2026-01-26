@@ -50,20 +50,22 @@ async function generateTicketsForPurchase(purchaseId) {
     const totalTickets = campaign?.total_tickets || 1000;
     const padLength = Math.max(2, String(totalTickets).length);
     
-    // Get the highest existing ticket number for this campaign to avoid duplicates
+    // Get the highest existing ticket number GLOBALLY (not per campaign) to avoid duplicates
+    // The constraint tickets_ticket_number_key is global
     const maxTicketResult = await client.query(
-      `SELECT MAX(CAST(REPLACE(ticket_number, 'K-', '') AS INTEGER)) as max_num 
+      `SELECT MAX(CAST(REGEXP_REPLACE(ticket_number, '[^0-9]', '', 'g') AS INTEGER)) as max_num 
        FROM tickets 
-       WHERE campaign_id = $1 AND ticket_number LIKE 'K-%'`,
-      [purchase.campaign_id]
+       WHERE ticket_number ~ '^K-[0-9]+$'`
     );
     const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
     
-    // Start from the highest of: existing max ticket number or sold_tickets count
-    const startingNumber = Math.max(maxExistingNumber, parseInt(campaign?.sold_tickets || 0));
-    console.log(`🎫 Starting ticket generation from number ${startingNumber + 1} (maxExisting: ${maxExistingNumber}, soldTickets: ${campaign?.sold_tickets})`);
+    console.log(`🎫 Global max ticket number found: ${maxExistingNumber}`);
     
-    // Generate unique ticket numbers using sequential campaign-based numbering
+    // Start from the global max + 1
+    const startingNumber = maxExistingNumber;
+    console.log(`🎫 Starting ticket generation from number ${startingNumber + 1}`);
+    
+    // Generate unique ticket numbers using sequential global numbering
     const tickets = [];
     for (let i = 0; i < purchase.ticket_count; i++) {
       const ticketSequence = startingNumber + i + 1;
