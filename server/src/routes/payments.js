@@ -41,35 +41,34 @@ async function generateTicketsForPurchase(purchaseId) {
   const purchase = purchaseResult.rows[0];
   
   return await transaction(async (client) => {
-    // Lock campaign row for update
+    // Lock campaign row for update and get ticket_prefix
     const campaignResult = await client.query(
-      'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
+      'SELECT total_tickets, sold_tickets, ticket_prefix FROM campaigns WHERE id = $1 FOR UPDATE',
       [purchase.campaign_id]
     );
     const campaign = campaignResult.rows[0];
     const totalTickets = campaign?.total_tickets || 1000;
     const padLength = Math.max(2, String(totalTickets).length);
+    const ticketPrefix = campaign?.ticket_prefix || 'X'; // Default to 'X' if no prefix
     
-    // Get the highest existing ticket number GLOBALLY (not per campaign) to avoid duplicates
-    // The constraint tickets_ticket_number_key is global
+    // Get the highest existing ticket number for THIS campaign (using prefix)
     const maxTicketResult = await client.query(
       `SELECT MAX(CAST(REGEXP_REPLACE(ticket_number, '[^0-9]', '', 'g') AS INTEGER)) as max_num 
        FROM tickets 
-       WHERE ticket_number ~ '^K-[0-9]+$'`
+       WHERE campaign_id = $1`,
+      [purchase.campaign_id]
     );
     const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
     
-    console.log(`🎫 Global max ticket number found: ${maxExistingNumber}`);
+    // Start from highest of: max existing or sold_tickets
+    const startingNumber = Math.max(maxExistingNumber, parseInt(campaign?.sold_tickets) || 0);
+    console.log(`🎫 Campaign ${purchase.campaign_id} (prefix: K${ticketPrefix}) - Starting from ${startingNumber + 1}`);
     
-    // Start from the global max + 1
-    const startingNumber = maxExistingNumber;
-    console.log(`🎫 Starting ticket generation from number ${startingNumber + 1}`);
-    
-    // Generate unique ticket numbers using sequential global numbering
+    // Generate unique ticket numbers using campaign prefix
     const tickets = [];
     for (let i = 0; i < purchase.ticket_count; i++) {
       const ticketSequence = startingNumber + i + 1;
-      const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+      const ticketNumber = `K${ticketPrefix}-${String(ticketSequence).padStart(padLength, '0')}`;
       
       const ticketResult = await client.query(
         `INSERT INTO tickets (

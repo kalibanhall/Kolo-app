@@ -748,7 +748,7 @@ router.post('/purchase', verifyToken, [
 
     // Get campaign
     const campaignResult = await query(
-      `SELECT id, status, total_tickets, sold_tickets, ticket_price
+      `SELECT id, status, total_tickets, sold_tickets, ticket_price, ticket_prefix
        FROM campaigns WHERE id = $1`,
       [campaign_id]
     );
@@ -841,30 +841,29 @@ router.post('/purchase', verifyToken, [
 
       const purchase = purchaseResult.rows[0];
 
-      // Generate tickets with sequential numbering
+      // Generate tickets with sequential numbering using campaign prefix
       const tickets = [];
       const totalTickets = parseInt(campaign.total_tickets) || 100;
       const padLength = Math.max(2, String(totalTickets).length);
+      const ticketPrefix = campaign.ticket_prefix || 'X'; // Default to 'X' if no prefix
       
-      // Get the highest existing ticket number GLOBALLY (not per campaign) to avoid duplicates
-      // The constraint tickets_ticket_number_key is global
+      // Get the highest existing ticket number for THIS campaign
       const maxTicketResult = await client.query(
         `SELECT MAX(CAST(REGEXP_REPLACE(ticket_number, '[^0-9]', '', 'g') AS INTEGER)) as max_num 
          FROM tickets 
-         WHERE ticket_number ~ '^K-[0-9]+$'`
+         WHERE campaign_id = $1`,
+        [campaign_id]
       );
       const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
       
-      console.log(`🎫 Wallet purchase - Global max ticket number: ${maxExistingNumber}`);
-      
-      // Start from the global max + 1
-      const startingNumber = maxExistingNumber;
-      console.log(`🎫 Wallet purchase - Starting ticket generation from number ${startingNumber + 1}`);
+      // Start from highest of: max existing or sold_tickets
+      const startingNumber = Math.max(maxExistingNumber, parseInt(campaign.sold_tickets) || 0);
+      console.log(`🎫 Wallet purchase - Campaign ${campaign_id} (prefix: K${ticketPrefix}) - Starting from ${startingNumber + 1}`);
       
       for (let i = 0; i < ticket_count; i++) {
         // Use the calculated starting number + offset for sequential numbering
         const ticketSequence = startingNumber + i + 1;
-        const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+        const ticketNumber = `K${ticketPrefix}-${String(ticketSequence).padStart(padLength, '0')}`;
         const ticketResult = await client.query(
           `INSERT INTO tickets 
            (user_id, campaign_id, purchase_id, ticket_number, status)

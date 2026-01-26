@@ -49,6 +49,7 @@ export const CampaignsManagementPage = () => {
     description: '',
     total_tickets: 15200,
     ticket_price: 1,
+    ticket_prefix: '',
     main_prize: '',
     secondary_prizes: '',
     third_prize: '',
@@ -201,6 +202,7 @@ export const CampaignsManagementPage = () => {
       description: campaign.description || '',
       total_tickets: campaign.total_tickets || 15200,
       ticket_price: campaign.ticket_price || 1,
+      ticket_prefix: campaign.ticket_prefix || '',
       main_prize: campaign.main_prize || '',
       secondary_prizes: campaign.secondary_prizes || '',
       third_prize: campaign.third_prize || '',
@@ -245,6 +247,7 @@ export const CampaignsManagementPage = () => {
       description: '',
       total_tickets: 15200,
       ticket_price: 1,
+      ticket_prefix: '',
       main_prize: '',
       secondary_prizes: '',
       third_prize: '',
@@ -568,7 +571,7 @@ export const CampaignsManagementPage = () => {
               </div>
 
               {/* Tickets et prix */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nombre total de tickets *
@@ -598,6 +601,30 @@ export const CampaignsManagementPage = () => {
                     step="0.01"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Préfixe tickets (1-2 lettres) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-mono text-lg">K</span>
+                    <input
+                      type="text"
+                      name="ticket_prefix"
+                      value={formData.ticket_prefix}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ticket_prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) }))}
+                      required
+                      maxLength="2"
+                      placeholder="Ex: B, V, M"
+                      className="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono text-lg uppercase"
+                    />
+                    <span className="text-gray-500 font-mono text-lg">-01</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exemple: K{formData.ticket_prefix || 'X'}-01 à K{formData.ticket_prefix || 'X'}-{String(formData.total_tickets || 100).padStart(2, '0')}
+                  </p>
+                </div>
                 </div>
               </div>
 

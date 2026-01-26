@@ -372,6 +372,7 @@ router.post('/', verifyToken, verifyAdmin, [
   body('description').notEmpty().withMessage('La description est requise').trim(),
   body('total_tickets').isInt({ min: 1 }).withMessage('Le nombre de tickets doit être au moins 1'),
   body('ticket_price').isFloat({ min: 0.01 }).withMessage('Le prix du ticket doit être au moins 0.01'),
+  body('ticket_prefix').notEmpty().withMessage('Le préfixe de ticket est requis').trim().isLength({ min: 1, max: 2 }).withMessage('Le préfixe doit avoir 1 ou 2 caractères').matches(/^[A-Z]{1,2}$/).withMessage('Le préfixe doit contenir uniquement des lettres majuscules'),
   body('main_prize').notEmpty().withMessage('Le prix principal est requis').trim(),
   body('start_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de début doit être au format valide'),
   body('end_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de fin doit être au format valide'),
@@ -394,21 +395,33 @@ router.post('/', verifyToken, verifyAdmin, [
     }
 
     const { 
-      title, description, total_tickets, ticket_price, 
+      title, description, total_tickets, ticket_price, ticket_prefix,
       main_prize, image_url, start_date, end_date,
       status, draw_date, secondary_prizes, third_prize, rules,
       display_order, is_featured
     } = req.body;
 
+    // Vérifier que le préfixe n'est pas déjà utilisé
+    const existingPrefix = await query(
+      'SELECT id, title FROM campaigns WHERE ticket_prefix = $1',
+      [ticket_prefix.toUpperCase()]
+    );
+    if (existingPrefix.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Le préfixe "${ticket_prefix}" est déjà utilisé par la campagne "${existingPrefix.rows[0].title}"`
+      });
+    }
+
     const result = await query(
       `INSERT INTO campaigns (
-        title, description, status, total_tickets, ticket_price, 
+        title, description, status, total_tickets, ticket_price, ticket_prefix,
         main_prize, image_url, start_date, end_date, draw_date,
         secondary_prizes, third_prize, rules, display_order, is_featured, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
-        title, description, status || 'draft', total_tickets, ticket_price,
+        title, description, status || 'draft', total_tickets, ticket_price, ticket_prefix.toUpperCase(),
         main_prize, image_url || null, start_date, end_date || null, draw_date || null,
         secondary_prizes || null, third_prize || null, rules || null, 
         display_order || 0, is_featured || false, req.user.id
