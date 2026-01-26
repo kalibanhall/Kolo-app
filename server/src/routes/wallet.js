@@ -880,6 +880,44 @@ router.post('/purchase', verifyToken, [
         [ticket_count, campaign_id]
       );
 
+      // Check if campaign is now sold out and auto-close
+      const campaignCheck = await client.query(
+        `SELECT id, sold_tickets, total_tickets, status 
+         FROM campaigns WHERE id = $1`,
+        [campaign_id]
+      );
+      
+      const currentCampaign = campaignCheck.rows[0];
+      if (currentCampaign && 
+          currentCampaign.sold_tickets >= currentCampaign.total_tickets &&
+          currentCampaign.status === 'open') {
+        await client.query(
+          `UPDATE campaigns 
+           SET status = 'closed', updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $1`,
+          [campaign_id]
+        );
+        console.log(`🎯 Campaign ${campaign_id} automatically closed - sold out!`);
+      }
+
+      // Create success notification for user
+      await client.query(
+        `INSERT INTO notifications (
+          user_id, type, title, message, data
+        ) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          userId,
+          'purchase_confirmation',
+          'Achat confirmé !',
+          `Vos ${ticket_count} ticket(s) ont été achetés avec succès via votre portefeuille.`,
+          JSON.stringify({
+            purchase_id: purchase.id,
+            ticket_numbers: tickets.map(t => t.ticket_number),
+            payment_method: 'wallet'
+          })
+        ]
+      );
+
       await client.query('COMMIT');
 
       res.json({
