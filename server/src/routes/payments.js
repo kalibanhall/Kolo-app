@@ -772,8 +772,8 @@ router.post(
     body('phone_number').notEmpty().trim(),
     body('currency').optional().isIn(['USD', 'CDF']),
     body('amount').optional().isFloat({ min: 0 }),
-    body('promo_code_id').optional().isInt(),
-    body('discount_amount').optional().isFloat({ min: 0 }),
+    body('promo_code_id').optional({ nullable: true }),
+    body('discount_amount').optional({ nullable: true }),
   ],
   async (req, res) => {
     try {

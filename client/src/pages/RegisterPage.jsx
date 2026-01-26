@@ -25,6 +25,7 @@ export const RegisterPage = () => {
     confirmPassword: '',
     phone: '', // Will store only the number part without +243
     city: '', // Ville de résidence
+    date_of_birth: '', // Date de naissance pour vérifier l'âge
   });
   
   const [localError, setLocalError] = useState('');
@@ -150,6 +151,26 @@ export const RegisterPage = () => {
       return;
     }
 
+    // Vérifier que la date de naissance est fournie
+    if (!formData.date_of_birth) {
+      setLocalError('Veuillez entrer votre date de naissance');
+      return;
+    }
+
+    // Vérifier l'âge (minimum 18 ans)
+    const birthDate = new Date(formData.date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      setLocalError('Vous devez avoir au moins 18 ans pour participer à la tombola');
+      return;
+    }
+
     try {
       // Send full phone number with +243 prefix
       await register({
@@ -157,7 +178,8 @@ export const RegisterPage = () => {
         email: formData.email,
         password: formData.password,
         phone: `+243${formData.phone}`,
-        city: formData.city
+        city: formData.city,
+        date_of_birth: formData.date_of_birth
       });
       // Effacer les données persistées après inscription réussie
       clearFormData();
@@ -303,6 +325,24 @@ export const RegisterPage = () => {
               )}
               <p className="text-xs text-gray-500 mt-1">
                 Principales villes de la RDC • Cliquez 📍 pour détecter
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date de naissance *
+              </label>
+              <input
+                type="date"
+                name="date_of_birth"
+                value={formData.date_of_birth}
+                onChange={handleChange}
+                required
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Vous devez avoir au moins 18 ans pour participer
               </p>
             </div>
 

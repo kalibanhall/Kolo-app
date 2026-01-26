@@ -15,7 +15,8 @@ router.post('/register', registrationLimiter, [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
   body('phone').notEmpty().trim(),
-  body('city').optional().trim().isLength({ max: 100 })
+  body('city').optional().trim().isLength({ max: 100 }),
+  body('date_of_birth').notEmpty().isISO8601().withMessage('Date de naissance invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -27,7 +28,23 @@ router.post('/register', registrationLimiter, [
       });
     }
 
-    const { name, email, password, phone, city } = req.body;
+    const { name, email, password, phone, city, date_of_birth } = req.body;
+
+    // Verify user is at least 18 years old
+    const birthDate = new Date(date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vous devez avoir au moins 18 ans pour participer à la tombola'
+      });
+    }
 
     // Validate phone number
     if (!validatePhoneNumber(phone)) {
@@ -58,10 +75,10 @@ router.post('/register', registrationLimiter, [
 
     // Insert new user
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, phone, city, is_admin, is_active, email_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, name, email, phone, city, is_admin, is_active, created_at`,
-      [name, email, passwordHash, normalizedPhone, city || null, false, true, false]
+      `INSERT INTO users (name, email, password_hash, phone, city, date_of_birth, is_admin, is_active, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, name, email, phone, city, date_of_birth, is_admin, is_active, created_at`,
+      [name, email, passwordHash, normalizedPhone, city || null, date_of_birth, false, true, false]
     );
 
     const user = result.rows[0];
