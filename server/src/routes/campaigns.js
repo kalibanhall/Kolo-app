@@ -11,7 +11,7 @@ router.get('/active', async (req, res) => {
     const result = await query(
       `SELECT id, title, description, status, total_tickets, sold_tickets, 
               ticket_price, main_prize, secondary_prizes, third_prize,
-              image_url, start_date, end_date, draw_date, display_order, is_featured
+              image_url, start_date, end_date, draw_date, display_order, is_featured, ticket_prefix
        FROM campaigns 
        WHERE status IN ('open', 'active')
        ORDER BY is_featured DESC, display_order ASC, created_at DESC`
@@ -37,7 +37,7 @@ router.get('/current', async (req, res) => {
     const result = await query(
       `SELECT id, title, description, status, total_tickets, sold_tickets, 
               ticket_price, main_prize, secondary_prizes, third_prize,
-              image_url, start_date, end_date, draw_date
+              image_url, start_date, end_date, draw_date, ticket_prefix
        FROM campaigns 
        WHERE status IN ('open', 'active')
        ORDER BY is_featured DESC, display_order ASC, created_at DESC 
@@ -74,9 +74,9 @@ router.get('/:id/available-numbers', async (req, res) => {
     }
     const limit = Math.min(parseInt(req.query.limit) || 10000, 50000); // Default 10000, max 50000
     
-    // Get campaign info
+    // Get campaign info with ticket_prefix
     const campaignResult = await query(
-      'SELECT id, total_tickets, sold_tickets FROM campaigns WHERE id = $1',
+      'SELECT id, total_tickets, sold_tickets, ticket_prefix FROM campaigns WHERE id = $1',
       [campaignId]
     );
     
@@ -88,6 +88,7 @@ router.get('/:id/available-numbers', async (req, res) => {
     }
     
     const campaign = campaignResult.rows[0];
+    const ticketPrefix = campaign.ticket_prefix || 'X'; // Default prefix if not set
     
     // Calculate padding based on total tickets (e.g., 1000 -> 4 digits, 100 -> 3 digits)
     const padLength = Math.max(2, String(campaign.total_tickets).length);
@@ -117,7 +118,7 @@ router.get('/:id/available-numbers', async (req, res) => {
     // Generate available numbers with limit for performance
     const availableNumbers = [];
     for (let i = 1; i <= campaign.total_tickets && availableNumbers.length < limit; i++) {
-      const ticketNumber = `K-${String(i).padStart(padLength, '0')}`;
+      const ticketNumber = `K${ticketPrefix}-${String(i).padStart(padLength, '0')}`;
       if (!usedNumbers.has(ticketNumber)) {
         availableNumbers.push({
           number: i,
@@ -138,6 +139,7 @@ router.get('/:id/available-numbers', async (req, res) => {
       actual_available: remainingAvailable,
       total_tickets: campaign.total_tickets,
       padLength: padLength,
+      ticket_prefix: ticketPrefix,
       limited: availableNumbers.length >= limit,
       is_last_tickets: remainingAvailable <= 3 && remainingAvailable > 0
     });
@@ -544,10 +546,24 @@ router.put('/:id', verifyToken, verifyAdmin, [
       return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
     }
     const { 
-      title, description, total_tickets, ticket_price, 
+      title, description, total_tickets, ticket_price, ticket_prefix,
       main_prize, image_url, prize_image_url, start_date, 
       end_date, draw_date, status 
     } = req.body;
+
+    // Vérifier que le préfixe n'est pas déjà utilisé par une autre campagne
+    if (ticket_prefix) {
+      const existingPrefix = await query(
+        'SELECT id, title FROM campaigns WHERE ticket_prefix = $1 AND id != $2',
+        [ticket_prefix.toUpperCase(), campaignId]
+      );
+      if (existingPrefix.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Le préfixe "${ticket_prefix}" est déjà utilisé par la campagne "${existingPrefix.rows[0].title}"`
+        });
+      }
+    }
 
     // Convert empty strings to null for timestamp fields
     const cleanStartDate = start_date === '' ? null : start_date;
@@ -566,12 +582,14 @@ router.put('/:id', verifyToken, verifyAdmin, [
            end_date = COALESCE($8, end_date),
            draw_date = COALESCE($9, draw_date),
            status = COALESCE($10, status),
+           ticket_prefix = COALESCE($11, ticket_prefix),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $11
+       WHERE id = $12
        RETURNING *`,
       [
         title, description, total_tickets, ticket_price, main_prize,
-        image_url, cleanStartDate, cleanEndDate, cleanDrawDate, status, campaignId
+        image_url, cleanStartDate, cleanEndDate, cleanDrawDate, status,
+        ticket_prefix ? ticket_prefix.toUpperCase() : null, campaignId
       ]
     );
     
