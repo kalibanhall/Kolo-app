@@ -157,11 +157,15 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       });
     }
 
+    // Get tickets with campaign and purchase info
     const result = await query(
       `SELECT t.id, t.ticket_number, t.status, t.created_at, t.is_winner, t.prize_category,
-              c.id as campaign_id, c.title as campaign_title, c.main_prize, c.ticket_price,
+              c.id as campaign_id, c.title as campaign_title, c.main_prize, 
+              COALESCE(c.ticket_price, 0) as ticket_price,
               c.image_url as campaign_image,
-              p.total_amount as purchase_total, p.ticket_count, p.payment_status, p.created_at as purchase_date
+              COALESCE(p.total_amount, 0) as purchase_total, 
+              COALESCE(p.ticket_count, 1) as ticket_count, 
+              p.payment_status, p.created_at as purchase_date
        FROM tickets t
        LEFT JOIN campaigns c ON t.campaign_id = c.id
        LEFT JOIN purchases p ON t.purchase_id = p.id
@@ -172,9 +176,38 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       [userId, limit, offset]
     );
 
+    // Get aggregated stats
+    const statsResult = await query(
+      `SELECT 
+        COUNT(t.id) as total_tickets,
+        COUNT(DISTINCT t.campaign_id) as campaigns_count,
+        COUNT(CASE WHEN t.status = 'active' THEN 1 END) as active_tickets,
+        COUNT(CASE WHEN t.is_winner = true THEN 1 END) as winning_tickets,
+        COALESCE(SUM(c.ticket_price), 0) as total_spent_usd
+       FROM tickets t
+       LEFT JOIN campaigns c ON t.campaign_id = c.id
+       WHERE t.user_id = $1 
+         AND t.ticket_number NOT LIKE 'TEMP%'`,
+      [userId]
+    );
+
+    const stats = statsResult.rows[0] || {};
+
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
+      stats: {
+        total_tickets: parseInt(stats.total_tickets) || 0,
+        campaigns_count: parseInt(stats.campaigns_count) || 0,
+        active_tickets: parseInt(stats.active_tickets) || 0,
+        winning_tickets: parseInt(stats.winning_tickets) || 0,
+        total_spent_usd: parseFloat(stats.total_spent_usd) || 0
+      },
+      pagination: {
+        limit,
+        offset,
+        has_more: result.rows.length === limit
+      }
     });
 
   } catch (error) {

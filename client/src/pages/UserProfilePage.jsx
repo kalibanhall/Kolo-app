@@ -15,6 +15,7 @@ const UserProfilePage = () => {
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
+  const [ticketStats, setTicketStats] = useState(null); // Stats from API
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -53,8 +54,9 @@ const UserProfilePage = () => {
     try {
       setLoading(true);
       const response = await ticketsAPI.getUserTickets(user.id);
-      // Backend returns { success: true, data: [...tickets] }
+      // Backend returns { success: true, data: [...tickets], stats: {...} }
       setTickets(response.data || response.tickets || []);
+      setTicketStats(response.stats || null);
     } catch (error) {
       console.error('Error fetching tickets:', error);
     } finally {
@@ -105,21 +107,34 @@ const UserProfilePage = () => {
   };
 
   const calculateStats = () => {
+    // Use API stats if available, otherwise calculate from tickets
+    if (ticketStats) {
+      return {
+        totalTickets: ticketStats.total_tickets || 0,
+        totalSpentUSD: ticketStats.total_spent_usd || 0,
+        campaignsEntered: ticketStats.campaigns_count || 0,
+        activeTickets: ticketStats.active_tickets || 0,
+        winningTickets: ticketStats.winning_tickets || 0
+      };
+    }
+    
+    // Fallback: calculate from tickets array
     const totalTickets = tickets.length;
-    // Calculer le total dépensé à partir du prix du ticket de chaque campagne
-    const totalSpent = tickets.reduce((sum, ticket) => {
-      // Utiliser le prix du ticket s'il est disponible, sinon estimer basé sur le total de l'achat
-      const ticketPrice = ticket.ticket_price || ticket.purchase_total / (ticket.ticket_count || 1) || 0;
+    
+    // Calculer le total dépensé en USD à partir du prix du ticket de chaque campagne
+    const totalSpentUSD = tickets.reduce((sum, ticket) => {
+      const ticketPrice = parseFloat(ticket.ticket_price) || 0;
       return sum + ticketPrice;
     }, 0);
+    
     const campaignsEntered = new Set(tickets.map(t => t.campaign_id)).size;
-    // Compter les tickets actifs (non winner et non expired)
+    
     const activeTickets = tickets.filter(t => 
       t.status === 'active' || 
       (t.status !== 'winner' && t.status !== 'expired' && t.status !== 'cancelled')
     ).length;
 
-    return { totalTickets, totalSpent, campaignsEntered, activeTickets };
+    return { totalTickets, totalSpentUSD, campaignsEntered, activeTickets, winningTickets: 0 };
   };
 
   const stats = calculateStats();
@@ -133,8 +148,14 @@ const UserProfilePage = () => {
     });
   };
 
+  const formatCurrencyUSD = (amount) => {
+    const num = parseFloat(amount) || 0;
+    return '$' + num.toFixed(2);
+  };
+
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
+    const num = parseFloat(amount) || 0;
+    return new Intl.NumberFormat('fr-FR').format(num) + ' FC';
   };
 
   return (
@@ -281,7 +302,7 @@ const UserProfilePage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total Tickets', value: stats.totalTickets, icon: TicketIcon, color: 'blue' },
-            { label: 'Total Dépensé', value: formatCurrency(stats.totalSpent), icon: MoneyIcon, color: 'green' },
+            { label: 'Total Dépensé', value: formatCurrencyUSD(stats.totalSpentUSD), icon: MoneyIcon, color: 'green' },
             { label: 'Campagnes', value: stats.campaignsEntered, icon: ChartIcon, color: 'purple' },
             { label: 'Tickets Actifs', value: stats.activeTickets, icon: TrophyIcon, color: 'amber' },
           ].map((stat, index) => (
