@@ -42,7 +42,7 @@ const BuyTicketsPage = () => {
   const [ticketCount, setTicketCount] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('USD'); // 'USD' or 'CDF'
-  const [selectionMode, setSelectionMode] = useState('auto'); // 'auto' or 'manual'
+  const [selectionMode, setSelectionMode] = useState('automatic'); // 'automatic' or 'manual'
   const [selectedNumbers, setSelectedNumbers] = useState([]);
   const [availableNumbers, setAvailableNumbers] = useState([]);
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
@@ -392,9 +392,9 @@ const BuyTicketsPage = () => {
         ticket_count: ticketCount,
         selection_mode: selectionMode,
         selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
-        amount: campaign.currency === 'CDF' ? finalPrice * 2500 : finalPrice,
-        amount_cdf: campaign.currency === 'CDF' ? finalPrice * exchangeRate : undefined,
-        currency: campaign.currency === 'CDF' ? 'CDF' : 'USD'
+        amount: finalPrice,
+        amount_cdf: Math.ceil(finalPrice * exchangeRate),
+        currency: 'USD'
       };
 
       // Payment with wallet balance (always in CDF)
@@ -417,6 +417,14 @@ const BuyTicketsPage = () => {
           setSuccess(true);
           clearPurchaseData();
           setWallet(prev => ({ ...prev, balance: response.data.new_balance }));
+          
+          // Recharger la campagne pour mettre à jour les tickets disponibles
+          await loadCampaign();
+          
+          // Réinitialiser le formulaire
+          setTicketCount(1);
+          setSelectedNumbers([]);
+          setNumbersPage(1);
           
           // Show success message with ticket numbers
           const ticketNumbers = response.data.tickets.map(t => t.ticket_number).join(', ');
@@ -1483,7 +1491,7 @@ const BuyTicketsPage = () => {
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * 2500))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate))
                     ? 'bg-gray-500 cursor-not-allowed' 
                     : paymentMethod === 'wallet'
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
