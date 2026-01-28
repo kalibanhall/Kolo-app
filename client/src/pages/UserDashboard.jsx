@@ -180,24 +180,47 @@ export const UserDashboard = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {tickets.map((ticket) => (
-                <div
-                  key={ticket.id}
-                  className={`relative p-4 rounded-lg border-2 text-center transition-all ${
-                    ticket.is_winner
-                      ? 'bg-yellow-50 border-yellow-400 shadow-lg'
-                      : 'bg-gray-50 border-gray-200 hover:border-blue-400'
-                  }`}
-                >
-                  {ticket.is_winner && (
-                    <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                      ★
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mb-1">Ticket</p>
-                  <p className="text-lg font-bold text-gray-900">{ticket.ticket_number}</p>
-                </div>
-              ))}
+              {tickets.map((ticket) => {
+                const isCampaignEnded = ticket.campaign_status === 'completed' || ticket.campaign_status === 'closed' || ticket.campaign_status === 'drawn';
+                const isLost = isCampaignEnded && !ticket.is_winner && ticket.prize_category !== 'main' && ticket.prize_category !== 'bonus';
+                
+                return (
+                  <div
+                    key={ticket.id}
+                    className={`relative p-4 rounded-lg border-2 text-center transition-all ${
+                      ticket.is_winner || ticket.prize_category === 'main'
+                        ? 'bg-yellow-50 border-yellow-400 shadow-lg'
+                        : ticket.prize_category === 'bonus'
+                          ? 'bg-purple-50 border-purple-400 shadow-lg'
+                          : isLost
+                            ? 'bg-gray-100 border-gray-300'
+                            : 'bg-gray-50 border-gray-200 hover:border-blue-400'
+                    }`}
+                  >
+                    {ticket.is_winner && (
+                      <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                        ★
+                      </div>
+                    )}
+                    {isLost && (
+                      <div className="absolute -top-2 -right-2 bg-gray-400 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                        ✗
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mb-1">Ticket</p>
+                    <p className={`text-lg font-bold ${isLost ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.ticket_number}</p>
+                    <p className={`text-xs mt-1 font-medium ${
+                      ticket.is_winner || ticket.prize_category === 'main' ? 'text-yellow-600' :
+                      ticket.prize_category === 'bonus' ? 'text-purple-600' :
+                      isLost ? 'text-gray-500' : 'text-green-600'
+                    }`}>
+                      {ticket.is_winner || ticket.prize_category === 'main' ? 'Gagnant' :
+                       ticket.prize_category === 'bonus' ? 'Bonus' :
+                       isLost ? 'Perdu' : 'Actif'}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

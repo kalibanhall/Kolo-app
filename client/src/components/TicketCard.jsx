@@ -232,15 +232,22 @@ export const TicketCardMini = ({
   ticketNumber,
   campaignTitle,
   campaignImage,
+  campaignStatus,
   type = 'standard',
   prizeCategory,
   isWinner = false,
   onClick,
   isDarkMode = false,
 }) => {
+  // Déterminer le statut réel du ticket
+  const isTicketWinner = isWinner || prizeCategory === 'main' || prizeCategory === 'bonus';
+  const isCampaignEnded = campaignStatus === 'completed' || campaignStatus === 'closed' || campaignStatus === 'drawn';
+  const isLost = isCampaignEnded && !isTicketWinner;
+  
   const ticketType = prizeCategory === 'main' ? 'winner' : 
                      prizeCategory === 'bonus' ? 'bonus' : 
-                     isWinner ? 'winner' : type;
+                     isWinner ? 'winner' : 
+                     isLost ? 'lost' : type;
 
   const getBgColor = () => {
     switch (ticketType) {
@@ -252,6 +259,10 @@ export const TicketCardMini = ({
         return isDarkMode 
           ? 'bg-gradient-to-r from-purple-900/50 to-violet-900/50 border-purple-500/50' 
           : 'bg-gradient-to-r from-purple-50 to-violet-50 border-purple-300';
+      case 'lost':
+        return isDarkMode 
+          ? 'bg-gradient-to-r from-gray-800/50 to-gray-900/50 border-gray-600/50' 
+          : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300';
       default:
         return isDarkMode 
           ? 'bg-gradient-to-r from-indigo-900/50 to-blue-900/50 border-indigo-500/50' 
@@ -265,6 +276,8 @@ export const TicketCardMini = ({
         return <TrophyIcon className="w-5 h-5 text-yellow-500" />;
       case 'bonus':
         return <span className="text-lg">🎁</span>;
+      case 'lost':
+        return <span className="text-lg">😔</span>;
       default:
         return <TicketIcon className="w-5 h-5 text-indigo-500" />;
     }
@@ -276,6 +289,8 @@ export const TicketCardMini = ({
         return 'Gagnant';
       case 'bonus':
         return 'Bonus';
+      case 'lost':
+        return 'Perdu';
       default:
         return 'Actif';
     }
@@ -317,7 +332,9 @@ export const TicketCardMini = ({
           ? 'bg-yellow-500/20 text-yellow-500' 
           : ticketType === 'bonus'
             ? 'bg-purple-500/20 text-purple-500'
-            : 'bg-green-500/20 text-green-500'
+            : ticketType === 'lost'
+              ? 'bg-gray-500/20 text-gray-500'
+              : 'bg-green-500/20 text-green-500'
         }
       `}>
         {getLabel()}

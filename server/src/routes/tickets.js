@@ -161,6 +161,7 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
     const result = await query(
       `SELECT t.id, t.ticket_number, t.status, t.created_at, t.is_winner, t.prize_category,
               c.id as campaign_id, c.title as campaign_title, c.main_prize, 
+              c.status as campaign_status,
               COALESCE(c.ticket_price, 0) as ticket_price,
               c.image_url as campaign_image,
               COALESCE(p.total_amount, 0) as purchase_total, 
