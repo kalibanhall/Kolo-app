@@ -250,9 +250,16 @@ const BuyTicketsPage = () => {
   const loadWallet = async () => {
     try {
       const response = await walletAPI.getWallet();
-      setWallet(response.data.wallet);
+      if (response.success && response.data?.wallet) {
+        setWallet(response.data.wallet);
+      } else {
+        // Initialiser avec un wallet vide si pas de données
+        setWallet({ balance: 0, currency: 'CDF' });
+      }
     } catch (err) {
       console.error('Failed to load wallet:', err);
+      // En cas d'erreur, initialiser avec un wallet vide
+      setWallet({ balance: 0, currency: 'CDF' });
     }
   };
 
@@ -392,15 +399,16 @@ const BuyTicketsPage = () => {
 
       // Payment with wallet balance (always in CDF)
       if (paymentMethod === 'wallet') {
-        if (!wallet || wallet.balance < finalPrice * exchangeRate) {
-          setError('Solde insuffisant. Veuillez recharger votre portefeuille.');
+        const requiredAmountCDF = Math.ceil(finalPrice * exchangeRate);
+        if (!wallet || wallet.balance < requiredAmountCDF) {
+          setError(`Solde insuffisant. Vous avez ${formatCurrencyCDF(wallet?.balance || 0)} mais il faut ${formatCurrencyCDF(requiredAmountCDF)}. Veuillez recharger votre portefeuille.`);
           setPurchasing(false);
           return;
         }
 
         const response = await walletAPI.purchase({
           ...purchasePayload,
-          amount: finalPrice * exchangeRate, // Send CDF amount for wallet
+          amount: requiredAmountCDF, // Send CDF amount for wallet
           promo_code_id: promoDiscount?.id || null,
           discount_amount: promoDiscount?.discount_amount || 0
         });
@@ -1308,13 +1316,13 @@ const BuyTicketsPage = () => {
                     </div>
                     <div className="text-right">
                       <p className={`font-bold ${
-                        wallet && wallet.balance >= finalPrice * 2500
+                        wallet && wallet.balance >= finalPrice * exchangeRate
                           ? 'text-green-500'
                           : 'text-red-500'
                       }`}>
                         {wallet ? formatCurrencyCDF(wallet.balance) : '0 FC'}
                       </p>
-                      {wallet && wallet.balance < finalPrice * 2500 && (
+                      {wallet && wallet.balance < finalPrice * exchangeRate && (
                         <Link 
                           to="/wallet"
                           className="text-xs text-blue-500 hover:underline"
@@ -1324,9 +1332,9 @@ const BuyTicketsPage = () => {
                       )}
                     </div>
                   </div>
-                  {wallet && wallet.balance < finalPrice * 2500 && (
+                  {wallet && wallet.balance < finalPrice * exchangeRate && (
                     <p className="mt-2 text-sm text-red-500">
-                      Solde insuffisant (manque {formatCurrencyCDF(finalPrice * 2500 - wallet.balance)})
+                      Solde insuffisant (manque {formatCurrencyCDF(finalPrice * exchangeRate - wallet.balance)})
                     </p>
                   )}
                 </div>
@@ -1467,9 +1475,11 @@ const BuyTicketsPage = () => {
                 type="submit"
                 disabled={
                   purchasing || 
-                  availableTickets === 0 || 
+                  availableTickets === 0 ||
+                  ticketCount < 1 ||
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * 2500))
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate)) ||
+                  (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9))
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||

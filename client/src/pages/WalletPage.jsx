@@ -52,11 +52,22 @@ const WalletPage = () => {
     try {
       setLoading(true);
       const response = await walletAPI.getWallet();
-      setWallet(response.data.wallet);
-      setTransactions(response.data.recent_transactions || []);
-      setSpendingStats(response.data.spending_stats || { USD: { total_spent: 0 }, CDF: { total_spent: 0 } });
+      if (response.success && response.data?.wallet) {
+        setWallet(response.data.wallet);
+        setTransactions(response.data.recent_transactions || []);
+        setSpendingStats(response.data.spending_stats || { USD: { total_spent: 0 }, CDF: { total_spent: 0 } });
+      } else {
+        // Initialiser avec des valeurs par défaut si pas de données
+        setWallet({ balance: 0, currency: 'CDF' });
+        setTransactions([]);
+        console.warn('Wallet data incomplete:', response);
+      }
     } catch (error) {
       console.error('Error loading wallet:', error);
+      // En cas d'erreur, initialiser avec un wallet vide
+      setWallet({ balance: 0, currency: 'CDF' });
+      setTransactions([]);
+      setMessage({ type: 'error', text: 'Erreur lors du chargement du portefeuille. Veuillez rafraîchir la page.' });
     } finally {
       setLoading(false);
     }

@@ -65,6 +65,37 @@ router.get('/current', async (req, res) => {
   }
 });
 
+// Get exchange rate (public endpoint) - MUST be BEFORE /:id routes
+router.get('/exchange-rate', async (req, res) => {
+  try {
+    const result = await query(
+      "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'"
+    );
+
+    const rate = result.rows.length > 0 ? parseFloat(result.rows[0].value) : 2850;
+
+    res.json({
+      success: true,
+      data: {
+        rate,
+        currency_from: 'USD',
+        currency_to: 'CDF'
+      }
+    });
+  } catch (error) {
+    console.error('Get exchange rate error:', error);
+    // Return default if error
+    res.json({
+      success: true,
+      data: {
+        rate: 2850,
+        currency_from: 'USD',
+        currency_to: 'CDF'
+      }
+    });
+  }
+});
+
 // Get available ticket numbers for a campaign (for manual selection)
 router.get('/:id/available-numbers', async (req, res) => {
   try {
@@ -673,37 +704,6 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
-    });
-  }
-});
-
-// Get exchange rate (public endpoint)
-router.get('/exchange-rate', async (req, res) => {
-  try {
-    const result = await query(
-      "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'"
-    );
-
-    const rate = result.rows.length > 0 ? parseFloat(result.rows[0].value) : 2850;
-
-    res.json({
-      success: true,
-      data: {
-        rate,
-        currency_from: 'USD',
-        currency_to: 'CDF'
-      }
-    });
-  } catch (error) {
-    console.error('Get exchange rate error:', error);
-    // Return default if error
-    res.json({
-      success: true,
-      data: {
-        rate: 2850,
-        currency_from: 'USD',
-        currency_to: 'CDF'
-      }
     });
   }
 });
