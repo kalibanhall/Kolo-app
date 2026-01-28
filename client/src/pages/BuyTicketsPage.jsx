@@ -369,9 +369,9 @@ const BuyTicketsPage = () => {
       
       // Validate phone number prefix (DRC operators)
       const prefix = phoneNumber.substring(0, 2);
-      const validPrefixes = ['81', '82', '83', '84', '85', '89', '90', '97', '99', '91'];
+      const validPrefixes = ['81', '82', '83', '84', '85', '89', '97', '98', '99', '90', '91'];
       if (!validPrefixes.includes(prefix)) {
-        setError(`Numéro invalide. Préfixes acceptés: 081-083 (Vodacom), 084-085/089 (Orange), 097/099 (Airtel), 091 (Afrimoney)`);
+        setError(`Numéro invalide. Préfixes acceptés: 081-083 (Vodacom), 084-085/089 (Orange), 097/098/099 (Airtel), 090/091 (Africell)`);
         return;
       }
     }
@@ -1403,7 +1403,7 @@ const BuyTicketsPage = () => {
                         />
                       </div>
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Ex: 097 (Airtel), 081 (Vodacom), 084 (Orange), 099 (Afrimoney)
+                        Ex: 097/098/099 (Airtel), 081/082/083 (Vodacom), 084/085/089 (Orange), 090/091 (Africell)
                       </p>
                       
                       {/* Currency Selection */}

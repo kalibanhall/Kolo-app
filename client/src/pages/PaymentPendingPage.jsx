@@ -14,7 +14,7 @@ export const PaymentPendingPage = () => {
   const [checking, setChecking] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const [error, setError] = useState(null);
-  const [timeRemaining, setTimeRemaining] = useState(120); // 2 minutes countdown
+  const [timeRemaining, setTimeRemaining] = useState(90); // 1.5 minutes countdown
   
   // Safely extract state with defaults
   const { 
@@ -90,7 +90,8 @@ export const PaymentPendingPage = () => {
         
         if (attempts >= maxAttempts) {
           clearInterval(intervalId);
-          setStatusMessage('Délai d\'attente dépassé. Vérifiez votre historique de transactions.');
+          setStatusMessage('Délai d\'attente dépassé. Le paiement n\'a pas été confirmé à temps. Vérifiez votre téléphone ou votre historique de transactions, puis réessayez.');
+          setStatus('failed');
           return;
         }
 

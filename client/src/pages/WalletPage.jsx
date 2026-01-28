@@ -570,7 +570,7 @@ const WalletPage = () => {
                   />
                 </div>
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Ex: 097xxxxxxx (Airtel), 081xxxxxxx (Vodacom), 084xxxxxxx (Orange)
+                  Ex: 097/098/099xxxxxxx (Airtel), 081/082/083xxxxxxx (Vodacom), 084/085/089xxxxxxx (Orange), 090/091xxxxxxx (Africell)
                 </p>
               </div>
 

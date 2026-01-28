@@ -22,13 +22,13 @@ const OPERATORS = {
   },
   AIRTEL: {
     name: 'Airtel Money',
-    prefixes: ['97', '99', '90'],
-    regex: /^(\+243|243|0)?(97|99|90)\d{7}$/
+    prefixes: ['97', '98', '99'],
+    regex: /^(\+243|243|0)?(97|98|99)\d{7}$/
   },
   AFRICELL: {
     name: 'Africell',
-    prefixes: ['91'],
-    regex: /^(\+243|243|0)?91\d{7}$/
+    prefixes: ['90', '91'],
+    regex: /^(\+243|243|0)?(90|91)\d{7}$/
   }
 };
 
