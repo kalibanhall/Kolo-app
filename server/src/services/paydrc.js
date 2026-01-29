@@ -571,16 +571,19 @@ function detectMobileProvider(phoneNumber) {
   // Vodacom M-Pesa: 081, 082, 083 -> method: "mpesa"
   if (['081', '082', '083'].includes(prefix)) return 'mpesa';
 
-  // Airtel Money: 097, 099 -> method: "airtel"
-  if (['097', '099'].includes(prefix)) return 'airtel';
+  // Airtel Money: 097, 098, 099 -> method: "airtel"
+  if (['097', '098', '099'].includes(prefix)) return 'airtel';
 
   // Orange Money: 084, 085, 089 -> method: "orange"
   if (['084', '085', '089'].includes(prefix)) return 'orange';
 
-    // Africell: 090, 091 -> method: "afrimoney"
-    if (['090', '091'].includes(prefix)) return 'afrimoney';
+  // Africell: 090, 091 -> method: "afrimoney"
+  if (['090', '091'].includes(prefix)) return 'afrimoney';
 
-  // Default to mpesa if unknown
+  // Log unknown prefix for debugging
+  console.warn(`⚠️ Unknown phone prefix: ${prefix} for number: ${phoneNumber}, defaulting to mpesa`);
+  
+  // Default to mpesa if unknown (should rarely happen)
   return 'mpesa';
 }
 
