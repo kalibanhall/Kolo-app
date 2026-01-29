@@ -577,8 +577,8 @@ function detectMobileProvider(phoneNumber) {
   // Orange Money: 084, 085, 089 -> method: "orange"
   if (['084', '085', '089'].includes(prefix)) return 'orange';
 
-  // Afrimoney: 090, 091 -> method: "afrimoney"
-  if (['090', '091'].includes(prefix)) return 'afrimoney';
+    // Africell: 090, 091 -> method: "afrimoney"
+    if (['090', '091'].includes(prefix)) return 'afrimoney';
 
   // Default to mpesa if unknown
   return 'mpesa';
