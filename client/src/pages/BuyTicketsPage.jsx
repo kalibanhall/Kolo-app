@@ -1490,9 +1490,13 @@ const BuyTicketsPage = () => {
                   (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9))
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
+                  purchasing || 
+                  availableTickets === 0 ||
+                  ticketCount < 1 ||
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate))
-                    ? 'bg-gray-500 cursor-not-allowed' 
+                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate)) ||
+                  (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9))
+                    ? 'bg-gray-500 cursor-not-allowed opacity-60' 
                     : paymentMethod === 'wallet'
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
                       : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'
