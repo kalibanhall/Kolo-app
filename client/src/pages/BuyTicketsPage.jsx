@@ -275,6 +275,34 @@ const BuyTicketsPage = () => {
     });
   };
 
+  // Fonction pour obtenir des numéros aléatoires parmi les disponibles
+  const getRandomAvailableNumbers = useCallback((count) => {
+    // Filtrer les numéros déjà dans le panier
+    const numbersInCart = composerItems.map(item => item.number);
+    const availableForSelection = availableNumbers.filter(num => !numbersInCart.includes(num));
+    
+    if (availableForSelection.length === 0) return [];
+    
+    // Mélanger et prendre les premiers
+    const shuffled = [...availableForSelection].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+  }, [availableNumbers, composerItems]);
+
+  // Ajouter au panier en mode automatique
+  const addAutoToComposer = useCallback(() => {
+    const randomNumbers = getRandomAvailableNumbers(ticketCount);
+    if (randomNumbers.length === 0) {
+      setError('Aucun numéro disponible. Le panier est peut-être plein ou tous les numéros sont pris.');
+      return;
+    }
+    if (randomNumbers.length < ticketCount) {
+      setError(`Seulement ${randomNumbers.length} numéro(s) disponible(s) sur ${ticketCount} demandé(s).`);
+    }
+    randomNumbers.forEach(num => {
+      addToComposer({ number: num, display: `#${String(num).padStart(4, '0')}` });
+    });
+  }, [ticketCount, getRandomAvailableNumbers, addToComposer]);
+
   const filteredNumbers = useMemo(() => {
     // Afficher tous les numéros disponibles (pas de limite arbitraire)
     if (!numberSearchTerm) return availableNumbers;
@@ -1452,15 +1480,15 @@ const BuyTicketsPage = () => {
                       </p>
                     </div>
                   )}
-                </div>
+              </div>
               </div>
 
-              {/* Bouton Ajouter au compositeur (seulement en mode manuel) */}
+              {/* Bouton Ajouter au panier - Mode Manuel */}
               {selectionMode === 'manual' && selectedNumbers.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    selectedNumbers.forEach(num => addToComposer(num));
+                    selectedNumbers.forEach(num => addToComposer({ number: num, display: `#${String(num).padStart(4, '0')}` }));
                     setSelectedNumbers([]);
                   }}
                   className={`w-full py-3 px-4 rounded-xl font-medium transition-all border-2 border-dashed ${
@@ -1474,6 +1502,31 @@ const BuyTicketsPage = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Ajouter au panier ({selectedNumbers.length} ticket{selectedNumbers.length > 1 ? 's' : ''})
+                  </span>
+                </button>
+              )}
+
+              {/* Bouton Ajouter au panier - Mode Automatique */}
+              {selectionMode === 'automatic' && ticketCount > 0 && (
+                <button
+                  type="button"
+                  onClick={addAutoToComposer}
+                  disabled={availableNumbers.length === 0 || loadingNumbers}
+                  className={`w-full py-3 px-4 rounded-xl font-medium transition-all border-2 border-dashed ${
+                    isDarkMode
+                      ? 'border-purple-600 text-purple-400 hover:bg-purple-900/30 disabled:border-gray-700 disabled:text-gray-600'
+                      : 'border-purple-400 text-purple-600 hover:bg-purple-50 disabled:border-gray-300 disabled:text-gray-400'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {loadingNumbers ? (
+                      <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    )}
+                    Ajouter {ticketCount} ticket{ticketCount > 1 ? 's' : ''} au panier (auto)
                   </span>
                 </button>
               )}
