@@ -1010,6 +1010,39 @@ router.post(
  * Check PayDRC transaction status
  * GET /api/payments/paydrc/status/:reference
  */
+
+// Fonction pour générer le message d'attente dynamique selon l'opérateur
+const getProviderPinMessage = (provider) => {
+  const providerLower = (provider || '').toLowerCase();
+  // Extraire le nom de l'opérateur du format "PayDRC-OperatorName"
+  const operatorMatch = providerLower.match(/paydrc-(.+)/);
+  const operator = operatorMatch ? operatorMatch[1] : providerLower;
+  
+  const messages = {
+    'vodacom m-pesa': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.',
+    'mpesa': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.',
+    'vodacom': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.',
+    'airtel money': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Airtel Money.',
+    'airtel': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Airtel Money.',
+    'orange money': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Orange Money.',
+    'orange': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Orange Money.',
+    'africell money': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Afrimoney.',
+    'africell': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Afrimoney.',
+    'afrimoney': 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Afrimoney.'
+  };
+  return messages[operator] || 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Mobile Money.';
+};
+
+// Fonction pour extraire le nom court de l'opérateur
+const getShortProviderName = (provider) => {
+  const providerLower = (provider || '').toLowerCase();
+  if (providerLower.includes('vodacom') || providerLower.includes('mpesa')) return 'mpesa';
+  if (providerLower.includes('airtel')) return 'airtel';
+  if (providerLower.includes('orange')) return 'orange';
+  if (providerLower.includes('africell') || providerLower.includes('afrimoney')) return 'afrimoney';
+  return 'mobile_money';
+};
+
 router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
   try {
     const { reference } = req.params;
@@ -1106,12 +1139,15 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
           paydrc_status: statusResponse.transStatus,
           paydrc_normalized: normalizedStatus,
           paydrc_description: statusResponse.transStatusDescription,
-          // Add helpful message for user
+          // Add helpful message for user - dynamique selon l'opérateur
           user_message: normalizedStatus === 'submitted' 
-            ? 'En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.'
+            ? getProviderPinMessage(purchase.payment_provider)
             : normalizedStatus === 'pending'
             ? 'Transaction en cours de traitement...'
             : null,
+          // Inclure l'opérateur pour le frontend
+          provider: getShortProviderName(purchase.payment_provider),
+          payment_provider: purchase.payment_provider,
           amount: purchase.total_amount,
           ticket_count: purchase.ticket_count,
           campaign_title: purchase.campaign_title,

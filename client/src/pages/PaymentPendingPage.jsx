@@ -58,7 +58,9 @@ export const PaymentPendingPage = () => {
           // Use server-provided message (e.g., for 'submitted' status)
           setStatusMessage(userMessage);
         } else if (paydrcStatus === 'submitted') {
-          setStatusMessage('📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.');
+          // Utiliser le provider de la réponse s'il est disponible, sinon celui du state
+          const activeProvider = response.data.provider || provider;
+          setStatusMessage(getProviderPinMessage(activeProvider));
         }
         
         return newStatus;
@@ -164,9 +166,24 @@ export const PaymentPendingPage = () => {
       'vodacom': 'M-Pesa (Vodacom)',
       'airtel': 'Airtel Money',
       'orange': 'Orange Money',
-      'africell': 'Africell Money'
+      'africell': 'Africell Money',
+      'afrimoney': 'Afrimoney (Africell)'
     };
     return providers[prov?.toLowerCase()] || prov || 'Mobile Money';
+  };
+
+  // Génère le message d'attente dynamique selon l'opérateur
+  const getProviderPinMessage = (prov) => {
+    const providerLower = prov?.toLowerCase();
+    const messages = {
+      'mpesa': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.',
+      'vodacom': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN M-Pesa.',
+      'airtel': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Airtel Money.',
+      'orange': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Orange Money.',
+      'africell': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Afrimoney.',
+      'afrimoney': '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Afrimoney.'
+    };
+    return messages[providerLower] || '📱 En attente de validation sur votre téléphone. Veuillez entrer votre code PIN Mobile Money.';
   };
 
   const formatTime = (seconds) => {
