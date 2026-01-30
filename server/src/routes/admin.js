@@ -603,6 +603,18 @@ router.post('/draw', drawLimiter, [
         }
       }
 
+      // Mark all non-winning tickets as 'lost'
+      await client.query(
+        `UPDATE tickets 
+         SET status = 'lost'
+         WHERE campaign_id = $1 
+           AND is_winner = false 
+           AND status = 'active'`,
+        [campaign_id]
+      );
+      
+      console.log(`✅ All non-winning tickets marked as 'lost' for campaign ${campaign_id}`);
+
       // Update campaign status
       await client.query(
         `UPDATE campaigns 

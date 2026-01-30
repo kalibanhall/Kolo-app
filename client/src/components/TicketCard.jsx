@@ -233,6 +233,7 @@ export const TicketCardMini = ({
   campaignTitle,
   campaignImage,
   campaignStatus,
+  ticketStatus, // 'active', 'winner', 'lost' from DB
   type = 'standard',
   prizeCategory,
   isWinner = false,
@@ -244,8 +245,12 @@ export const TicketCardMini = ({
   const isTicketBonus = prizeCategory === 'bonus';
   const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
   const isSalesClosed = campaignStatus === 'closed';
-  const isLost = isDrawingDone && !isTicketWinner && !isTicketBonus;
-  const isWaitingForDraw = isSalesClosed && !isDrawingDone;
+  
+  // Si le ticket a un statut explicite 'winner' ou 'lost', le tirage a été fait
+  const ticketHasResult = ticketStatus === 'winner' || ticketStatus === 'lost';
+  
+  const isLost = (isDrawingDone || ticketHasResult) && !isTicketWinner && !isTicketBonus;
+  const isWaitingForDraw = isSalesClosed && !isDrawingDone && !ticketHasResult;
   const isActive = campaignStatus === 'open';
   
   // Determine ticket type for styling

@@ -185,10 +185,15 @@ export const UserDashboard = () => {
                 const campaignStatus = ticket.campaign_status;
                 const isWinner = ticket.is_winner || ticket.prize_category === 'main';
                 const isBonus = ticket.prize_category === 'bonus';
+                // Tirage effectué: completed OU drawn OU (closed ET il y a des gagnants dans la campagne)
                 const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
                 const isSalesClosed = campaignStatus === 'closed';
-                const isLost = isDrawingDone && !isWinner && !isBonus;
-                const isWaitingForDraw = isSalesClosed && !isDrawingDone;
+                
+                // Si la campagne est fermée et le ticket a un statut 'winner' ou 'lost', le tirage a été fait
+                const ticketHasResult = ticket.status === 'winner' || ticket.status === 'lost';
+                
+                const isLost = (isDrawingDone || ticketHasResult) && !isWinner && !isBonus;
+                const isWaitingForDraw = isSalesClosed && !isDrawingDone && !ticketHasResult;
                 const isActive = campaignStatus === 'open';
                 
                 // Determine display status

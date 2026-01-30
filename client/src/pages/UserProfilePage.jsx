@@ -540,6 +540,7 @@ const UserProfilePage = () => {
                     campaignTitle={ticket.campaign_title}
                     campaignImage={ticket.campaign_image}
                     campaignStatus={ticket.campaign_status}
+                    ticketStatus={ticket.status}
                     type={ticket.prize_category === 'main' ? 'winner' : 
                           ticket.prize_category === 'bonus' ? 'bonus' : 'standard'}
                     prizeCategory={ticket.prize_category}
