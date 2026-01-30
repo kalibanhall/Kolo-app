@@ -2,6 +2,11 @@
 -- Date: 2026-01-30
 -- Description: For campaigns that have already been completed, mark all non-winning tickets as 'lost'
 
+-- First, drop and recreate the check constraint to allow 'lost' status
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_status_check;
+ALTER TABLE tickets ADD CONSTRAINT tickets_status_check 
+  CHECK (status IN ('active', 'winner', 'cancelled', 'lost'));
+
 -- Update tickets for completed/drawn campaigns
 UPDATE tickets t
 SET status = 'lost'
