@@ -181,8 +181,10 @@ export const UserDashboard = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {tickets.map((ticket) => {
-                const isCampaignEnded = ticket.campaign_status === 'completed' || ticket.campaign_status === 'closed' || ticket.campaign_status === 'drawn';
-                const isLost = isCampaignEnded && !ticket.is_winner && ticket.prize_category !== 'main' && ticket.prize_category !== 'bonus';
+                // Only show 'perdu' when the drawing has been done (status = 'drawn' or 'completed')
+                // 'closed' just means sales are closed, not that the drawing happened
+                const isDrawingDone = ticket.campaign_status === 'completed' || ticket.campaign_status === 'drawn';
+                const isLost = isDrawingDone && !ticket.is_winner && ticket.prize_category !== 'main' && ticket.prize_category !== 'bonus';
                 
                 return (
                   <div

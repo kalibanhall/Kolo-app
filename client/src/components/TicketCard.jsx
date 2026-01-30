@@ -240,9 +240,11 @@ export const TicketCardMini = ({
   isDarkMode = false,
 }) => {
   // Déterminer le statut réel du ticket
+  // Only show 'perdu' when the drawing has been done (status = 'drawn' or 'completed')
+  // 'closed' just means sales are closed, not that the drawing happened
   const isTicketWinner = isWinner || prizeCategory === 'main' || prizeCategory === 'bonus';
-  const isCampaignEnded = campaignStatus === 'completed' || campaignStatus === 'closed' || campaignStatus === 'drawn';
-  const isLost = isCampaignEnded && !isTicketWinner;
+  const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
+  const isLost = isDrawingDone && !isTicketWinner;
   
   const ticketType = prizeCategory === 'main' ? 'winner' : 
                      prizeCategory === 'bonus' ? 'bonus' : 
