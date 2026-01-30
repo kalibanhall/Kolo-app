@@ -579,12 +579,11 @@ function normalizeTransactionStatus(transStatus) {
  * @returns {string} - mpesa, airtel, orange, afrimoney (PayDRC method values)
  */
 function detectMobileProvider(phoneNumber) {
-  // Normalize phone number
-  let normalized = phoneNumber.replace(/[^0-9]/g, '');
-  if (normalized.startsWith('243')) normalized = '0' + normalized.slice(3);
-  if (!normalized.startsWith('0')) normalized = '0' + normalized;
-
+  // Normalize phone number first
+  const normalized = normalizePhoneNumber(phoneNumber);
   const prefix = normalized.slice(0, 3);
+
+  console.log(`📱 detectMobileProvider: input="${phoneNumber}" normalized="${normalized}" prefix="${prefix}"`);
 
   // Vodacom M-Pesa: 081, 082, 083 -> method: "mpesa"
   if (['081', '082', '083'].includes(prefix)) return 'mpesa';
@@ -607,15 +606,33 @@ function detectMobileProvider(phoneNumber) {
 
 /**
  * Normalize phone number for PayDRC API
+ * Handles various input formats:
+ * - 972148867 (9 digits, no leading 0)
+ * - 0972148867 (10 digits with leading 0)
+ * - 243972148867 (with country code)
+ * - +243972148867 (with + and country code)
+ * - 81234567 (8 digits for Vodacom)
+ * 
  * @param {string} phoneNumber
- * @returns {string}
+ * @returns {string} - Normalized format: 0XXXXXXXXX (10 digits)
  */
 function normalizePhoneNumber(phoneNumber) {
+  // Remove all non-numeric characters
   let normalized = phoneNumber.replace(/[^0-9]/g, '');
-  // Remove country code if present
-  if (normalized.startsWith('243')) normalized = '0' + normalized.slice(3);
-  // Ensure starts with 0
-  if (!normalized.startsWith('0') && normalized.length === 9) normalized = '0' + normalized;
+  
+  // Remove country code 243 if present
+  if (normalized.startsWith('243')) {
+    normalized = normalized.slice(3);
+  }
+  
+  // Now we should have 8-10 digits
+  // Add leading 0 if missing
+  if (!normalized.startsWith('0')) {
+    normalized = '0' + normalized;
+  }
+  
+  console.log(`📱 normalizePhoneNumber: input="${phoneNumber}" output="${normalized}"`);
+  
   return normalized;
 }
 
