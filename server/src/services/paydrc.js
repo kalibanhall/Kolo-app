@@ -576,7 +576,7 @@ function normalizeTransactionStatus(transStatus) {
 /**
  * Detect mobile money provider from phone number
  * @param {string} phoneNumber
- * @returns {string} - vodacom, airtel, orange, africell (PayDRC method values)
+ * @returns {string} - mpesa, airtel, orange, afrimoney (PayDRC method values)
  */
 function detectMobileProvider(phoneNumber) {
   // Normalize phone number
@@ -586,8 +586,8 @@ function detectMobileProvider(phoneNumber) {
 
   const prefix = normalized.slice(0, 3);
 
-  // Vodacom M-Pesa: 081, 082, 083 -> method: "vodacom"
-  if (['081', '082', '083'].includes(prefix)) return 'vodacom';
+  // Vodacom M-Pesa: 081, 082, 083 -> method: "mpesa"
+  if (['081', '082', '083'].includes(prefix)) return 'mpesa';
 
   // Airtel Money: 097, 098, 099 -> method: "airtel"
   if (['097', '098', '099'].includes(prefix)) return 'airtel';
@@ -595,14 +595,14 @@ function detectMobileProvider(phoneNumber) {
   // Orange Money: 084, 085, 089 -> method: "orange"
   if (['084', '085', '089'].includes(prefix)) return 'orange';
 
-  // Africell: 090, 091 -> method: "africell"
-  if (['090', '091'].includes(prefix)) return 'africell';
+  // Africell: 090, 091 -> method: "afrimoney"
+  if (['090', '091'].includes(prefix)) return 'afrimoney';
 
   // Log unknown prefix for debugging
-  console.warn(`⚠️ Unknown phone prefix: ${prefix} for number: ${phoneNumber}, defaulting to vodacom`);
+  console.warn(`⚠️ Unknown phone prefix: ${prefix} for number: ${phoneNumber}, defaulting to mpesa`);
   
-  // Default to vodacom if unknown (should rarely happen)
-  return 'vodacom';
+  // Default to mpesa if unknown (should rarely happen)
+  return 'mpesa';
 }
 
 /**
