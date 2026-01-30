@@ -320,6 +320,100 @@ async function notifyCampaignEnding(campaignId, campaignName, hoursRemaining) {
   }
 }
 
+/**
+ * Send notification when campaign is closed (before draw)
+ * Informs participants that the draw will happen within 48h
+ */
+async function notifyCampaignClosed(campaignId, campaignName) {
+  try {
+    await notifyCampaignParticipants(
+      campaignId,
+      {
+        title: '🔒 Campagne clôturée !',
+        body: `La tombola "${campaignName}" est terminée. Le tirage sera effectué dans les 48h.`
+      },
+      {
+        type: 'campaign_closed',
+        campaign_id: campaignId.toString(),
+        url: `/campaigns/${campaignId}`
+      }
+    );
+  } catch (error) {
+    console.error('Error sending campaign closed notification:', error);
+  }
+}
+
+/**
+ * Send notification when draw is completed to all participants
+ * (different from notifyWinner which only notifies the winner)
+ */
+async function notifyDrawCompleted(campaignId, campaignName, mainPrize) {
+  try {
+    await notifyCampaignParticipants(
+      campaignId,
+      {
+        title: '🎲 Tirage effectué !',
+        body: `Le tirage de "${campaignName}" a été effectué. Consultez les résultats !`
+      },
+      {
+        type: 'draw_completed',
+        campaign_id: campaignId.toString(),
+        main_prize: mainPrize || 'Prix principal',
+        url: `/campaigns/${campaignId}/results`
+      }
+    );
+  } catch (error) {
+    console.error('Error sending draw completed notification:', error);
+  }
+}
+
+/**
+ * Create database notifications for all campaign participants
+ * @param {number} campaignId - Campaign ID
+ * @param {string} type - Notification type
+ * @param {string} title - Notification title
+ * @param {string} message - Notification message
+ * @param {Object} data - Additional data (JSON)
+ */
+async function createParticipantNotifications(campaignId, type, title, message, data = {}) {
+  const { query } = require('../config/database');
+  
+  try {
+    // Get all unique users who have tickets in this campaign
+    const usersResult = await query(
+      `SELECT DISTINCT t.user_id 
+       FROM tickets t 
+       WHERE t.campaign_id = $1`,
+      [campaignId]
+    );
+
+    if (usersResult.rows.length === 0) {
+      console.log(`⚠️ No participants found for campaign ${campaignId}`);
+      return { created: 0 };
+    }
+
+    const userIds = usersResult.rows.map(row => row.user_id);
+    const dataJson = JSON.stringify({ ...data, campaign_id: campaignId });
+
+    // Insert notifications for all participants
+    let insertedCount = 0;
+    for (const userId of userIds) {
+      await query(
+        `INSERT INTO notifications (user_id, type, title, message, data)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [userId, type, title, message, dataJson]
+      );
+      insertedCount++;
+    }
+
+    console.log(`✅ Created ${insertedCount} notifications for campaign ${campaignId}`);
+    return { created: insertedCount };
+  } catch (error) {
+    console.error('Error creating participant notifications:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   initializeFirebase,
   sendNotification,
@@ -329,5 +423,8 @@ module.exports = {
   notifyLotteryDrawn,
   notifyWinner,
   notifyCampaignEnding,
+  notifyCampaignClosed,
+  notifyDrawCompleted,
+  createParticipantNotifications,
   isInitialized: () => initialized
 };

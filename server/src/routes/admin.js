@@ -624,24 +624,42 @@ router.post('/draw', drawLimiter, [
         ]
       );
 
-      // Send Firebase push notifications
+      // Send Firebase push notifications and create DB notifications for ALL participants
       try {
-        const { notifyWinner, notifyLotteryDrawn, isInitialized } = require('../services/firebaseNotifications');
+        const { 
+          notifyWinner, 
+          notifyDrawCompleted, 
+          createParticipantNotifications,
+          isInitialized 
+        } = require('../services/firebaseNotifications');
+        
+        // Create database notifications for ALL campaign participants
+        const campaignName = campaign.name || campaign.title;
+        await createParticipantNotifications(
+          campaign_id,
+          'draw_completed',
+          '🎲 Tirage effectué !',
+          `Le tirage de la tombola "${campaignName}" a été effectué. Consultez les résultats pour savoir si vous avez gagné !`,
+          { 
+            draw_id: draw.id, 
+            main_prize: campaign.main_prize,
+            total_winners: 1 + bonus_winners_count
+          }
+        );
         
         if (isInitialized()) {
-          // Notify the main winner
+          // Notify the main winner via push
           await notifyWinner(
             mainWinner.user_id,
-            campaign.name,
+            campaignName,
             campaign.main_prize
           );
 
-          // Notify all campaign participants about the draw
-          const totalWinners = 1 + bonus_winners_count;
-          await notifyLotteryDrawn(
+          // Notify all campaign participants about the draw via push
+          await notifyDrawCompleted(
             campaign_id,
-            campaign.name,
-            totalWinners
+            campaignName,
+            campaign.main_prize
           );
         }
       } catch (firebaseError) {

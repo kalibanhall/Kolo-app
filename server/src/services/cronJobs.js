@@ -13,7 +13,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
     // Find campaigns that should be closed
     // Close if: 1) end_date has passed OR 2) all tickets sold (sold_tickets >= total_tickets)
     const result = await query(
-      `SELECT id, title, end_date, sold_tickets, total_tickets,
+      `SELECT id, title, name, end_date, sold_tickets, total_tickets,
               CASE 
                 WHEN end_date < NOW() THEN 'date_expired'
                 WHEN sold_tickets >= total_tickets THEN 'sold_out'
@@ -46,6 +46,38 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
        WHERE id IN (${placeholders})`,
       campaignIds
     );
+
+    // Send notifications to all participants of closed campaigns
+    try {
+      const { 
+        notifyCampaignClosed, 
+        createParticipantNotifications,
+        isInitialized 
+      } = require('./firebaseNotifications');
+
+      for (const campaign of campaignsToClose) {
+        const campaignName = campaign.name || campaign.title;
+        
+        // Create database notifications for all participants
+        await createParticipantNotifications(
+          campaign.id,
+          'campaign_closed',
+          '🔒 Campagne clôturée !',
+          `La tombola "${campaignName}" est terminée. Le tirage sera effectué dans les 48 heures qui suivent. Restez connecté !`,
+          { close_reason: campaign.close_reason }
+        );
+
+        // Send push notifications if Firebase is initialized
+        if (isInitialized()) {
+          await notifyCampaignClosed(campaign.id, campaignName);
+        }
+
+        console.log(`📧 Notifications sent for closed campaign: ${campaignName}`);
+      }
+    } catch (notifError) {
+      console.error('⚠️ Error sending campaign close notifications:', notifError);
+      // Don't fail the cron job if notifications fail
+    }
 
     // Log the action
     for (const campaign of campaignsToClose) {
