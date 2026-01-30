@@ -239,17 +239,28 @@ export const TicketCardMini = ({
   onClick,
   isDarkMode = false,
 }) => {
-  // Déterminer le statut réel du ticket
-  // Only show 'perdu' when the drawing has been done (status = 'drawn' or 'completed')
-  // 'closed' just means sales are closed, not that the drawing happened
-  const isTicketWinner = isWinner || prizeCategory === 'main' || prizeCategory === 'bonus';
+  // Déterminer le statut réel du ticket basé sur le statut de la campagne
+  const isTicketWinner = isWinner || prizeCategory === 'main';
+  const isTicketBonus = prizeCategory === 'bonus';
   const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
-  const isLost = isDrawingDone && !isTicketWinner;
+  const isSalesClosed = campaignStatus === 'closed';
+  const isLost = isDrawingDone && !isTicketWinner && !isTicketBonus;
+  const isWaitingForDraw = isSalesClosed && !isDrawingDone;
+  const isActive = campaignStatus === 'open';
   
-  const ticketType = prizeCategory === 'main' ? 'winner' : 
-                     prizeCategory === 'bonus' ? 'bonus' : 
-                     isWinner ? 'winner' : 
-                     isLost ? 'lost' : type;
+  // Determine ticket type for styling
+  let ticketType;
+  if (isTicketWinner) {
+    ticketType = 'winner';
+  } else if (isTicketBonus) {
+    ticketType = 'bonus';
+  } else if (isLost) {
+    ticketType = 'lost';
+  } else if (isWaitingForDraw) {
+    ticketType = 'waiting';
+  } else {
+    ticketType = 'active';
+  }
 
   const getBgColor = () => {
     switch (ticketType) {
@@ -265,7 +276,11 @@ export const TicketCardMini = ({
         return isDarkMode 
           ? 'bg-gradient-to-r from-gray-800/50 to-gray-900/50 border-gray-600/50' 
           : 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300';
-      default:
+      case 'waiting':
+        return isDarkMode 
+          ? 'bg-gradient-to-r from-orange-900/50 to-amber-900/50 border-orange-500/50' 
+          : 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300';
+      default: // active
         return isDarkMode 
           ? 'bg-gradient-to-r from-indigo-900/50 to-blue-900/50 border-indigo-500/50' 
           : 'bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200';
@@ -279,7 +294,9 @@ export const TicketCardMini = ({
       case 'bonus':
         return <span className="text-lg">🎁</span>;
       case 'lost':
-        return <span className="text-lg">😔</span>;
+        return <TicketIcon className="w-5 h-5 text-gray-400" />;
+      case 'waiting':
+        return <span className="text-lg">⏳</span>;
       default:
         return <TicketIcon className="w-5 h-5 text-indigo-500" />;
     }
@@ -293,6 +310,8 @@ export const TicketCardMini = ({
         return 'Bonus';
       case 'lost':
         return 'Perdu';
+      case 'waiting':
+        return 'En attente';
       default:
         return 'Actif';
     }
@@ -336,7 +355,9 @@ export const TicketCardMini = ({
             ? 'bg-purple-500/20 text-purple-500'
             : ticketType === 'lost'
               ? 'bg-gray-500/20 text-gray-500'
-              : 'bg-green-500/20 text-green-500'
+              : ticketType === 'waiting'
+                ? 'bg-orange-500/20 text-orange-500'
+                : 'bg-green-500/20 text-green-500'
         }
       `}>
         {getLabel()}

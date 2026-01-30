@@ -181,25 +181,58 @@ export const UserDashboard = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {tickets.map((ticket) => {
-                // Only show 'perdu' when the drawing has been done (status = 'drawn' or 'completed')
-                // 'closed' just means sales are closed, not that the drawing happened
-                const isDrawingDone = ticket.campaign_status === 'completed' || ticket.campaign_status === 'drawn';
-                const isLost = isDrawingDone && !ticket.is_winner && ticket.prize_category !== 'main' && ticket.prize_category !== 'bonus';
+                // Determine ticket status based on campaign status
+                const campaignStatus = ticket.campaign_status;
+                const isWinner = ticket.is_winner || ticket.prize_category === 'main';
+                const isBonus = ticket.prize_category === 'bonus';
+                const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
+                const isSalesClosed = campaignStatus === 'closed';
+                const isLost = isDrawingDone && !isWinner && !isBonus;
+                const isWaitingForDraw = isSalesClosed && !isDrawingDone;
+                const isActive = campaignStatus === 'open';
+                
+                // Determine display status
+                let statusLabel, statusColor, bgClass, borderClass, badgeClass;
+                
+                if (isWinner) {
+                  statusLabel = 'Gagnant 🏆';
+                  statusColor = 'text-yellow-600';
+                  bgClass = 'bg-yellow-50';
+                  borderClass = 'border-yellow-400';
+                  badgeClass = 'bg-yellow-400 text-yellow-900';
+                } else if (isBonus) {
+                  statusLabel = 'Bonus 🎁';
+                  statusColor = 'text-purple-600';
+                  bgClass = 'bg-purple-50';
+                  borderClass = 'border-purple-400';
+                  badgeClass = 'bg-purple-400 text-purple-900';
+                } else if (isLost) {
+                  statusLabel = 'Perdu';
+                  statusColor = 'text-gray-500';
+                  bgClass = 'bg-gray-100';
+                  borderClass = 'border-gray-300';
+                  badgeClass = 'bg-gray-400 text-white';
+                } else if (isWaitingForDraw) {
+                  statusLabel = 'En attente du tirage';
+                  statusColor = 'text-orange-600';
+                  bgClass = 'bg-orange-50';
+                  borderClass = 'border-orange-300';
+                  badgeClass = 'bg-orange-400 text-white';
+                } else {
+                  // Active (campaign still open)
+                  statusLabel = 'Actif';
+                  statusColor = 'text-green-600';
+                  bgClass = 'bg-gray-50';
+                  borderClass = 'border-gray-200 hover:border-blue-400';
+                  badgeClass = 'bg-green-400 text-white';
+                }
                 
                 return (
                   <div
                     key={ticket.id}
-                    className={`relative p-4 rounded-lg border-2 text-center transition-all ${
-                      ticket.is_winner || ticket.prize_category === 'main'
-                        ? 'bg-yellow-50 border-yellow-400 shadow-lg'
-                        : ticket.prize_category === 'bonus'
-                          ? 'bg-purple-50 border-purple-400 shadow-lg'
-                          : isLost
-                            ? 'bg-gray-100 border-gray-300'
-                            : 'bg-gray-50 border-gray-200 hover:border-blue-400'
-                    }`}
+                    className={`relative p-4 rounded-lg border-2 text-center transition-all ${bgClass} ${borderClass} ${(isWinner || isBonus) ? 'shadow-lg' : ''}`}
                   >
-                    {ticket.is_winner && (
+                    {isWinner && (
                       <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
                         ★
                       </div>
@@ -209,16 +242,15 @@ export const UserDashboard = () => {
                         ✗
                       </div>
                     )}
+                    {isWaitingForDraw && (
+                      <div className="absolute -top-2 -right-2 bg-orange-400 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                        ⏳
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mb-1">Ticket</p>
                     <p className={`text-lg font-bold ${isLost ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.ticket_number}</p>
-                    <p className={`text-xs mt-1 font-medium ${
-                      ticket.is_winner || ticket.prize_category === 'main' ? 'text-yellow-600' :
-                      ticket.prize_category === 'bonus' ? 'text-purple-600' :
-                      isLost ? 'text-gray-500' : 'text-green-600'
-                    }`}>
-                      {ticket.is_winner || ticket.prize_category === 'main' ? 'Gagnant' :
-                       ticket.prize_category === 'bonus' ? 'Bonus' :
-                       isLost ? 'Perdu' : 'Actif'}
+                    <p className={`text-xs mt-1 font-medium ${statusColor}`}>
+                      {statusLabel}
                     </p>
                   </div>
                 );
