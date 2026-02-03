@@ -223,29 +223,45 @@ const BuyTicketsPage = () => {
   }, [user, campaignId]);
 
   // Load available numbers when campaign is loaded
+  const fetchAvailableNumbers = async () => {
+    if (!campaign) return;
+    setLoadingNumbers(true);
+    try {
+      // Charger tous les numéros disponibles (jusqu'à 50000)
+      const pageSize = 10000;
+      const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
+      if (numbersPage === 1) {
+        setAvailableNumbers(response.numbers || []);
+      } else {
+        setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
+      }
+      // Continuer à charger s'il y a plus de numéros
+      setHasMoreNumbers((response.numbers || []).length === pageSize);
+      
+      // Mettre à jour le nombre de tickets disponibles depuis la réponse API
+      if (response.total_available !== undefined) {
+        setAvailableTickets(response.total_available);
+      }
+    } catch (err) {
+      console.error('Error loading available numbers:', err);
+    } finally {
+      setLoadingNumbers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableNumbers();
+  }, [campaign, numbersPage]);
+
+  // Rafraîchir les numéros disponibles toutes les 10 secondes (pour synchronisation en temps réel)
   useEffect(() => {
     if (!campaign) return;
-    const fetchNumbers = async () => {
-      setLoadingNumbers(true);
-      try {
-        // Charger tous les numéros disponibles (jusqu'à 50000)
-        const pageSize = 10000;
-        const response = await campaignsAPI.getAvailableNumbers(campaign.id, { limit: pageSize, offset: (numbersPage - 1) * pageSize });
-        if (numbersPage === 1) {
-          setAvailableNumbers(response.numbers || []);
-        } else {
-          setAvailableNumbers(prev => [...prev, ...(response.numbers || [])]);
-        }
-        // Continuer à charger s'il y a plus de numéros
-        setHasMoreNumbers((response.numbers || []).length === pageSize);
-      } catch (err) {
-        console.error('Error loading available numbers:', err);
-      } finally {
-        setLoadingNumbers(false);
-      }
-    };
-    fetchNumbers();
-  }, [campaign, numbersPage]);
+    const interval = setInterval(() => {
+      fetchAvailableNumbers();
+    }, 10000); // 10 secondes
+    
+    return () => clearInterval(interval);
+  }, [campaign]);
 
   const loadWallet = async () => {
     try {
@@ -479,7 +495,9 @@ const BuyTicketsPage = () => {
           currency: selectedCurrency,
           amount: amountToCharge,
           promo_code_id: promoDiscount?.id || null,
-          discount_amount: promoDiscount?.discount_amount || 0
+          discount_amount: promoDiscount?.discount_amount || 0,
+          selection_mode: selectionMode,
+          selected_numbers: selectionMode === 'manual' ? selectedNumbers : []
         });
         
         console.log('PayDRC response:', response);

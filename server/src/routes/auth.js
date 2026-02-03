@@ -575,10 +575,10 @@ router.post('/google', async (req, res) => {
       }
       user = user.rows[0];
     } else {
-      // Create new user with Google account
+      // Create new user with Google account (phone is optional for Google users)
       const result = await query(
-        `INSERT INTO users (name, email, google_id, photo_url, is_admin, is_active, email_verified, created_at)
-         VALUES ($1, $2, $3, $4, false, true, true, CURRENT_TIMESTAMP)
+        `INSERT INTO users (name, email, phone, google_id, photo_url, is_admin, is_active, email_verified, created_at)
+         VALUES ($1, $2, '', $3, $4, false, true, true, CURRENT_TIMESTAMP)
          RETURNING *`,
         [name, email, googleId, photoURL]
       );

@@ -13,7 +13,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
     // Find campaigns that should be closed
     // Close if: 1) end_date has passed OR 2) all tickets sold (sold_tickets >= total_tickets)
     const result = await query(
-      `SELECT id, title, name, end_date, sold_tickets, total_tickets,
+      `SELECT id, title, end_date, sold_tickets, total_tickets,
               CASE 
                 WHEN end_date < NOW() THEN 'date_expired'
                 WHEN sold_tickets >= total_tickets THEN 'sold_out'
@@ -56,7 +56,7 @@ const updateCampaignStatus = cron.schedule('0 * * * *', async () => {
       } = require('./firebaseNotifications');
 
       for (const campaign of campaignsToClose) {
-        const campaignName = campaign.name || campaign.title;
+        const campaignName = campaign.title;
         
         // Create database notifications for all participants
         await createParticipantNotifications(
@@ -106,12 +106,12 @@ const sendCampaignReminders = cron.schedule('0 9 * * *', async () => {
   try {
     console.log('🔔 Running campaign reminder cron job...');
 
-    // Find campaigns ending in the next 24 hours
+    // Find campaigns ending in the next 24 hours (PostgreSQL syntax)
     const upcomingCampaigns = await query(
       `SELECT id, title, end_date, ticket_price
        FROM campaigns 
        WHERE status = 'open' 
-       AND end_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 24 HOUR)`
+       AND end_date BETWEEN NOW() AND NOW() + INTERVAL '24 hours'`
     );
 
     if (upcomingCampaigns.length === 0) {
@@ -143,22 +143,21 @@ const cleanupOldData = cron.schedule('0 2 * * 0', async () => {
   try {
     console.log('🧹 Running data cleanup cron job...');
 
-    // Delete old logs older than 90 days
+    // Delete old logs older than 90 days (PostgreSQL syntax)
     const logsDeleted = await query(
       `DELETE FROM admin_logs 
-       WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)`
+       WHERE created_at < NOW() - INTERVAL '90 days'`
     );
 
-    console.log(`✅ Deleted ${logsDeleted.affectedRows || 0} old log entries.`);
+    console.log(`✅ Deleted ${logsDeleted.rowCount || 0} old log entries.`);
 
     // Delete old password reset tokens older than 7 days
-    // (assuming you have a password_reset_tokens table)
     try {
       const tokensDeleted = await query(
         `DELETE FROM password_reset_tokens 
-         WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`
+         WHERE created_at < NOW() - INTERVAL '7 days'`
       );
-      console.log(`✅ Deleted ${tokensDeleted.affectedRows || 0} old password reset tokens.`);
+      console.log(`✅ Deleted ${tokensDeleted.rowCount || 0} old password reset tokens.`);
     } catch (err) {
       // Table might not exist, skip silently
       console.log('⚠️ password_reset_tokens table not found, skipping.');
@@ -168,10 +167,10 @@ const cleanupOldData = cron.schedule('0 2 * * 0', async () => {
     try {
       const notificationsDeleted = await query(
         `DELETE FROM notifications 
-         WHERE is_read = TRUE 
-         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`
+         WHERE read = TRUE 
+         AND created_at < NOW() - INTERVAL '30 days'`
       );
-      console.log(`✅ Deleted ${notificationsDeleted.affectedRows || 0} old read notifications.`);
+      console.log(`✅ Deleted ${notificationsDeleted.rowCount || 0} old read notifications.`);
     } catch (err) {
       console.log('⚠️ Could not clean notifications:', err.message);
     }

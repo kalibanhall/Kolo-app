@@ -847,31 +847,75 @@ router.post('/purchase', verifyToken, [
       const padLength = Math.max(2, String(totalTickets).length);
       const ticketPrefix = campaign.ticket_prefix || 'X'; // Default to 'X' if no prefix
       
-      // Get the highest existing ticket number for THIS campaign
-      const maxTicketResult = await client.query(
-        `SELECT MAX(CAST(REGEXP_REPLACE(ticket_number, '[^0-9]', '', 'g') AS INTEGER)) as max_num 
-         FROM tickets 
-         WHERE campaign_id = $1`,
+      // Vérifier s'il reste assez de tickets disponibles
+      const remainingTickets = totalTickets - (parseInt(campaign.sold_tickets) || 0);
+      if (ticket_count > remainingTickets) {
+        throw new Error(`Plus assez de tickets disponibles. Demandé: ${ticket_count}, Disponible: ${remainingTickets}`);
+      }
+      
+      // Get existing ticket numbers for this campaign
+      const existingResult = await client.query(
+        `SELECT ticket_number FROM tickets WHERE campaign_id = $1`,
         [campaign_id]
       );
-      const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
+      const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
       
-      // Start from highest of: max existing or sold_tickets
-      const startingNumber = Math.max(maxExistingNumber, parseInt(campaign.sold_tickets) || 0);
-      console.log(`🎫 Wallet purchase - Campaign ${campaign_id} (prefix: K${ticketPrefix}) - Starting from ${startingNumber + 1}`);
+      console.log(`🎫 Wallet purchase - Campaign ${campaign_id} (prefix: K${ticketPrefix}) - Generating ${ticket_count} ticket(s)`);
       
-      for (let i = 0; i < ticket_count; i++) {
-        // Use the calculated starting number + offset for sequential numbering
-        const ticketSequence = startingNumber + i + 1;
-        const ticketNumber = `K${ticketPrefix}-${String(ticketSequence).padStart(padLength, '0')}`;
-        const ticketResult = await client.query(
-          `INSERT INTO tickets 
-           (user_id, campaign_id, purchase_id, ticket_number, status)
-           VALUES ($1, $2, $3, $4, 'active')
-           RETURNING *`,
-          [userId, campaign_id, purchase.id, ticketNumber]
-        );
-        tickets.push(ticketResult.rows[0]);
+      // Si mode manuel avec des numéros sélectionnés
+      if (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0) {
+        // Vérifier que les numéros sélectionnés sont disponibles
+        for (const numObj of selected_numbers) {
+          const num = typeof numObj === 'object' ? numObj.number : numObj;
+          const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+          
+          if (existingNumbers.has(ticketNumber)) {
+            throw new Error(`Le ticket ${ticketNumber} n'est plus disponible. Il a été acheté par un autre utilisateur.`);
+          }
+          
+          const ticketResult = await client.query(
+            `INSERT INTO tickets 
+             (user_id, campaign_id, purchase_id, ticket_number, status)
+             VALUES ($1, $2, $3, $4, 'active')
+             ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+             RETURNING *`,
+            [userId, campaign_id, purchase.id, ticketNumber]
+          );
+          
+          if (ticketResult.rows.length > 0) {
+            tickets.push(ticketResult.rows[0]);
+            existingNumbers.add(ticketNumber);
+            console.log(`✅ Created manual ticket ${ticketNumber}`);
+          } else {
+            throw new Error(`Le ticket ${ticketNumber} n'est plus disponible.`);
+          }
+        }
+      } else {
+        // Mode automatique: Generate unique ticket numbers in range 1 to total_tickets
+        for (let num = 1; num <= totalTickets && tickets.length < ticket_count; num++) {
+          const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+          
+          if (!existingNumbers.has(ticketNumber)) {
+            const ticketResult = await client.query(
+              `INSERT INTO tickets 
+               (user_id, campaign_id, purchase_id, ticket_number, status)
+               VALUES ($1, $2, $3, $4, 'active')
+               ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+               RETURNING *`,
+              [userId, campaign_id, purchase.id, ticketNumber]
+            );
+            
+            if (ticketResult.rows.length > 0) {
+              tickets.push(ticketResult.rows[0]);
+              existingNumbers.add(ticketNumber);
+              console.log(`✅ Created ticket ${ticketNumber}`);
+            }
+          }
+        }
+      }
+      
+      if (tickets.length < ticket_count) {
+        throw new Error(`Impossible de générer tous les tickets. Générés: ${tickets.length}, Demandés: ${ticket_count}`);
       }
 
       // Update campaign sold count

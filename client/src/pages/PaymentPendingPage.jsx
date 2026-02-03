@@ -93,7 +93,14 @@ export const PaymentPendingPage = () => {
         if (attempts >= maxAttempts) {
           clearInterval(intervalId);
           setStatusMessage('Délai d\'attente dépassé. Le paiement n\'a pas été confirmé à temps. Vérifiez votre téléphone ou votre historique de transactions, puis réessayez.');
-          setStatus('failed');
+          // Vérifier une dernière fois si le paiement a réussi
+          const finalStatus = await checkPaymentStatus();
+          if (finalStatus === 'completed') {
+            setStatus('completed');
+            setTimeout(() => navigate('/dashboard'), 3000);
+            return;
+          }
+          setStatus('timeout'); // Nouveau status pour différencier du vrai échec
           return;
         }
 
@@ -139,6 +146,14 @@ export const PaymentPendingPage = () => {
           <div className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        );
+      case 'timeout':
+        return (
+          <div className="w-20 h-20 rounded-full bg-amber-500 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         );
@@ -242,6 +257,7 @@ export const PaymentPendingPage = () => {
         <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           {status === 'completed' ? 'Paiement Réussi !' : 
            status === 'failed' ? 'Paiement Échoué' : 
+           status === 'timeout' ? 'Vérification Requise' :
            'Paiement en cours...'}
         </h2>
         
@@ -296,6 +312,20 @@ export const PaymentPendingPage = () => {
           <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
             <p className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-700'}`}>
               Le paiement n'a pas abouti. Vérifiez votre solde Mobile Money et réessayez.
+            </p>
+          </div>
+        )}
+
+        {/* Timeout message - le paiement a peut-être réussi mais le callback n'a pas été reçu à temps */}
+        {status === 'timeout' && (
+          <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-amber-900/30 border border-amber-700' : 'bg-amber-50 border border-amber-200'}`}>
+            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+              ⚠️ Délai d'attente dépassé
+            </p>
+            <p className={`text-xs ${isDarkMode ? 'text-amber-300' : 'text-amber-600'}`}>
+              Si vous avez validé le paiement sur votre téléphone et que votre solde a été débité, 
+              <strong> vos tickets ont probablement été générés</strong>. 
+              Cliquez sur "Voir mes tickets" pour vérifier.
             </p>
           </div>
         )}

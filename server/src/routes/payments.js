@@ -51,33 +51,46 @@ async function generateTicketsForPurchase(purchaseId) {
     const padLength = Math.max(2, String(totalTickets).length);
     const ticketPrefix = campaign?.ticket_prefix || 'X'; // Default to 'X' if no prefix
     
-    // Get the highest existing ticket number for THIS campaign (using prefix)
-    const maxTicketResult = await client.query(
-      `SELECT MAX(CAST(REGEXP_REPLACE(ticket_number, '[^0-9]', '', 'g') AS INTEGER)) as max_num 
-       FROM tickets 
-       WHERE campaign_id = $1`,
+    // Vérifier s'il reste assez de tickets disponibles
+    const remainingTickets = totalTickets - (campaign?.sold_tickets || 0);
+    if (purchase.ticket_count > remainingTickets) {
+      throw new Error(`Plus assez de tickets disponibles. Demandé: ${purchase.ticket_count}, Disponible: ${remainingTickets}`);
+    }
+    
+    // Get existing ticket numbers for this campaign
+    const existingResult = await client.query(
+      `SELECT ticket_number FROM tickets WHERE campaign_id = $1`,
       [purchase.campaign_id]
     );
-    const maxExistingNumber = parseInt(maxTicketResult.rows[0]?.max_num) || 0;
+    const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
     
-    // Start from highest of: max existing or sold_tickets
-    const startingNumber = Math.max(maxExistingNumber, parseInt(campaign?.sold_tickets) || 0);
-    console.log(`🎫 Campaign ${purchase.campaign_id} (prefix: K${ticketPrefix}) - Starting from ${startingNumber + 1}`);
+    console.log(`🎫 Campaign ${purchase.campaign_id} (prefix: K${ticketPrefix}) - Generating ${purchase.ticket_count} ticket(s)`);
     
-    // Generate unique ticket numbers using campaign prefix
+    // Generate unique ticket numbers in range 1 to total_tickets
     const tickets = [];
-    for (let i = 0; i < purchase.ticket_count; i++) {
-      const ticketSequence = startingNumber + i + 1;
-      const ticketNumber = `K${ticketPrefix}-${String(ticketSequence).padStart(padLength, '0')}`;
+    for (let num = 1; num <= totalTickets && tickets.length < purchase.ticket_count; num++) {
+      const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
       
-      const ticketResult = await client.query(
-        `INSERT INTO tickets (
-          ticket_number, campaign_id, user_id, purchase_id, status
-        ) VALUES ($1, $2, $3, $4, $5)
-        RETURNING *`,
-        [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
-      );
-      tickets.push(ticketResult.rows[0]);
+      if (!existingNumbers.has(ticketNumber)) {
+        const ticketResult = await client.query(
+          `INSERT INTO tickets (
+            ticket_number, campaign_id, user_id, purchase_id, status
+          ) VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+          RETURNING *`,
+          [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+        );
+        
+        if (ticketResult.rows.length > 0) {
+          tickets.push(ticketResult.rows[0]);
+          existingNumbers.add(ticketNumber);
+          console.log(`✅ Created ticket ${ticketNumber}`);
+        }
+      }
+    }
+    
+    if (tickets.length < purchase.ticket_count) {
+      throw new Error(`Impossible de générer tous les tickets. Générés: ${tickets.length}, Demandés: ${purchase.ticket_count}`);
     }
     
     // Update campaign sold_tickets count
@@ -774,6 +787,8 @@ router.post(
     body('amount').optional().isFloat({ min: 0 }),
     body('promo_code_id').optional({ nullable: true }),
     body('discount_amount').optional({ nullable: true }),
+    body('selection_mode').optional().isIn(['automatic', 'manual']),
+    body('selected_numbers').optional().isArray(),
   ],
   async (req, res) => {
     try {
@@ -786,7 +801,7 @@ router.post(
         });
       }
 
-      const { campaign_id, ticket_count, phone_number, currency: requestedCurrency, amount: requestedAmount, promo_code_id, discount_amount } = req.body;
+      const { campaign_id, ticket_count, phone_number, currency: requestedCurrency, amount: requestedAmount, promo_code_id, discount_amount, selection_mode, selected_numbers } = req.body;
       const user_id = req.user.id;
 
       // Get user details
@@ -846,15 +861,21 @@ router.post(
         .substring(2, 8)
         .toUpperCase()}`;
 
-      // Create pending purchase record with promo code support
+      // Create pending purchase record with promo code and selected_numbers support
       let purchaseResult;
+      
+      // Prepare selected_numbers for storage (convert to JSON array of strings)
+      const selectedNumbersJson = (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0)
+        ? JSON.stringify(selected_numbers.map(n => typeof n === 'object' ? n.number : n))
+        : null;
+      
       try {
         purchaseResult = await query(
           `INSERT INTO purchases (
           user_id, campaign_id, ticket_count, total_amount, currency,
           phone_number, payment_provider, payment_status, transaction_id,
-          promo_code_id, discount_amount
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          promo_code_id, discount_amount, selected_numbers
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
           [
             user_id,
@@ -868,6 +889,7 @@ router.post(
             reference,
             promo_code_id || null,
             discount_amount || 0,
+            selectedNumbersJson,
           ]
         );
       } catch (err) {
@@ -1233,7 +1255,7 @@ router.post('/paydrc/callback', async (req, res) => {
 
     // Find the purchase
     let purchaseResult = await query(
-      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status
+      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers
        FROM purchases
        WHERE transaction_id = $1 OR transaction_id LIKE $2`,
       [reference, `%${reference}%`]
@@ -1243,7 +1265,7 @@ router.post('/paydrc/callback', async (req, res) => {
       console.error('❌ Purchase not found for reference:', reference);
       // Try finding by PayDRC transaction ID
       purchaseResult = await query(
-        `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status
+        `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers
          FROM purchases
          WHERE transaction_id = $1`,
         [transactionId]
@@ -1286,31 +1308,90 @@ router.post('/paydrc/callback', async (req, res) => {
 
         // Get campaign info for proper number formatting - lock for update
         const campaignInfo = await client.query(
-          'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
+          'SELECT total_tickets, sold_tickets, ticket_prefix FROM campaigns WHERE id = $1 FOR UPDATE',
           [purchase.campaign_id]
         );
         const campaign = campaignInfo.rows[0];
         const totalTickets = campaign?.total_tickets || 1000;
-        const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
         const padLength = Math.max(2, String(totalTickets).length);
+        const ticketPrefix = campaign?.ticket_prefix || 'X';
+        
+        // Vérifier s'il reste assez de tickets
+        const remainingTickets = totalTickets - (parseInt(campaign?.sold_tickets) || 0);
+        if (purchase.ticket_count > remainingTickets) {
+          throw new Error(`Plus assez de tickets disponibles. Demandé: ${purchase.ticket_count}, Disponible: ${remainingTickets}`);
+        }
+        
+        // Get existing ticket numbers for this campaign
+        const existingResult = await client.query(
+          `SELECT ticket_number FROM tickets WHERE campaign_id = $1`,
+          [purchase.campaign_id]
+        );
+        const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
 
-        // Generate unique ticket numbers using sequential campaign-based numbering
+        // Parse selected_numbers if present (manual selection mode)
+        const selectedNumbers = purchase.selected_numbers 
+          ? (typeof purchase.selected_numbers === 'string' 
+              ? JSON.parse(purchase.selected_numbers) 
+              : purchase.selected_numbers)
+          : null;
+
         const tickets = [];
-        for (let i = 0; i < purchase.ticket_count; i++) {
-          // Use campaign's sold_tickets + offset for sequential numbering
-          const ticketSequence = currentSoldTickets + i + 1;
-          const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
-          
-          const ticketResult = await client.query(
-            `INSERT INTO tickets (
-              ticket_number, campaign_id, user_id, purchase_id, status
-            ) VALUES ($1, $2, $3, $4, $5)
-            RETURNING *`,
-            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
-          );
 
-          tickets.push(ticketResult.rows[0]);
-          console.log(`✅ Created ticket ${ticketNumber} for user ${purchase.user_id}`);
+        // If manual selection mode: use the selected numbers
+        if (selectedNumbers && selectedNumbers.length > 0) {
+          console.log(`🎯 Manual selection mode - using selected numbers: ${selectedNumbers.join(', ')}`);
+          
+          for (const ticketNumber of selectedNumbers) {
+            // Verify ticket is not already taken
+            if (existingNumbers.has(ticketNumber)) {
+              console.log(`⚠️ Ticket ${ticketNumber} already exists, skipping`);
+              continue;
+            }
+            
+            const ticketResult = await client.query(
+              `INSERT INTO tickets (
+                ticket_number, campaign_id, user_id, purchase_id, status
+              ) VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+              RETURNING *`,
+              [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+            );
+
+            if (ticketResult.rows.length > 0) {
+              tickets.push(ticketResult.rows[0]);
+              existingNumbers.add(ticketNumber);
+              console.log(`✅ Created manually selected ticket ${ticketNumber} for user ${purchase.user_id}`);
+            }
+          }
+        } else {
+          // Automatic mode: generate sequential ticket numbers
+          console.log(`🔄 Automatic mode - generating ${purchase.ticket_count} ticket(s)`);
+          
+          for (let num = 1; num <= totalTickets && tickets.length < purchase.ticket_count; num++) {
+            const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+            
+            if (!existingNumbers.has(ticketNumber)) {
+              const ticketResult = await client.query(
+                `INSERT INTO tickets (
+                  ticket_number, campaign_id, user_id, purchase_id, status
+                ) VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+                RETURNING *`,
+                [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+              );
+
+              if (ticketResult.rows.length > 0) {
+                tickets.push(ticketResult.rows[0]);
+                existingNumbers.add(ticketNumber);
+                console.log(`✅ Created ticket ${ticketNumber} for user ${purchase.user_id}`);
+              }
+            }
+          }
+        }
+        
+        if (tickets.length < purchase.ticket_count) {
+          throw new Error(`Impossible de générer tous les tickets. Générés: ${tickets.length}, Demandés: ${purchase.ticket_count}`);
         }
 
         // Update campaign sold_tickets count

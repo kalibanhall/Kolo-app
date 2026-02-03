@@ -63,11 +63,11 @@ async function generateTickets(client, campaignId, userId, purchaseId, ticketCou
   reservedResult.rows.forEach(r => existingNumbers.add(r.ticket_number));
 
   const tickets = [];
-  let currentNumber = 1;
   let attempts = 0;
-  const maxAttempts = campaign.total_tickets * 2; // Safety limit
+  const maxAttempts = campaign.total_tickets; // Limité au nombre total de tickets
 
-  while (tickets.length < ticketCount && attempts < maxAttempts) {
+  // Générer les numéros de tickets uniquement dans la plage valide (1 à total_tickets)
+  for (let currentNumber = 1; currentNumber <= campaign.total_tickets && tickets.length < ticketCount; currentNumber++) {
     const ticketNumber = `K${ticketPrefix}-${String(currentNumber).padStart(padLength, '0')}`;
     
     if (!existingNumbers.has(ticketNumber)) {
@@ -95,7 +95,6 @@ async function generateTickets(client, campaignId, userId, purchaseId, ticketCou
       }
     }
     
-    currentNumber++;
     attempts++;
   }
 

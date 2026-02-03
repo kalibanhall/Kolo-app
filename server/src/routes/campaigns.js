@@ -124,11 +124,22 @@ router.get('/:id/available-numbers', async (req, res) => {
     // Calculate padding based on total tickets (e.g., 1000 -> 4 digits, 100 -> 3 digits)
     const padLength = Math.max(2, String(campaign.total_tickets).length);
     
-    // Get already used ticket numbers for this campaign
+    // Get already used ticket numbers for this campaign (compte réel des tickets vendus)
     const usedResult = await query(
       'SELECT ticket_number FROM tickets WHERE campaign_id = $1',
       [campaignId]
     );
+    
+    // Synchroniser sold_tickets si différent du nombre réel de tickets
+    const actualSoldCount = usedResult.rows.length;
+    if (actualSoldCount !== campaign.sold_tickets) {
+      console.warn(`⚠️ Campaign ${campaignId}: sold_tickets (${campaign.sold_tickets}) != actual tickets (${actualSoldCount}). Syncing...`);
+      await query(
+        'UPDATE campaigns SET sold_tickets = $1 WHERE id = $2',
+        [actualSoldCount, campaignId]
+      );
+      campaign.sold_tickets = actualSoldCount;
+    }
     
     // Get reserved tickets (not expired) excluding current user's reservations
     const userId = req.user?.id;
