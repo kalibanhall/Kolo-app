@@ -1070,6 +1070,13 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
     const { reference } = req.params;
     console.log('🔍 Status check for reference:', reference, 'user:', req.user.id);
 
+    // First, check if this purchase exists at all (without user filter) for debugging
+    const debugResult = await query(
+      `SELECT id, user_id, payment_status, transaction_id FROM purchases WHERE transaction_id = $1 OR transaction_id LIKE $2`,
+      [reference, `%${reference}%`]
+    );
+    console.log('🔍 DEBUG - All purchases matching reference:', debugResult.rows);
+
     // Check our database first - search by transaction_id OR by LIKE match (in case reference was modified)
     const purchaseResult = await query(
       `SELECT p.*, c.title as campaign_title
@@ -1079,7 +1086,7 @@ router.get('/paydrc/status/:reference', verifyToken, async (req, res) => {
       [reference, req.user.id, `%${reference}%`]
     );
     
-    console.log('📊 DB query returned', purchaseResult.rows.length, 'rows');
+    console.log('📊 DB query returned', purchaseResult.rows.length, 'rows for user', req.user.id);
 
     if (purchaseResult.rows.length === 0) {
       console.log('❌ Transaction not found in DB for reference:', reference);
