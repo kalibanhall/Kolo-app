@@ -890,30 +890,48 @@ router.post(
           return `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
         });
         
-        // Check for already sold tickets OR pending purchases with same numbers
-        const takenResult = await query(
-          `SELECT ticket_number FROM (
-            SELECT ticket_number FROM tickets WHERE campaign_id = $1 AND ticket_number = ANY($2)
-            UNION
-            SELECT DISTINCT unnest(selected_numbers::text[]) as ticket_number 
-            FROM purchases 
-            WHERE campaign_id = $1 
-              AND payment_status IN ('pending', 'completed')
-              AND selected_numbers IS NOT NULL
-              AND created_at > NOW() - INTERVAL '15 minutes'
-          ) AS taken
-          WHERE ticket_number = ANY($2)`,
+        // Check for already sold tickets
+        const soldTicketsResult = await query(
+          `SELECT ticket_number FROM tickets WHERE campaign_id = $1 AND ticket_number = ANY($2)`,
           [campaign_id, selectedTicketNumbers]
         );
         
-        if (takenResult.rows.length > 0) {
-          const takenNumbers = takenResult.rows.map(r => r.ticket_number);
-          console.warn(`⚠️ Numbers already taken: ${takenNumbers.join(', ')}`);
+        if (soldTicketsResult.rows.length > 0) {
+          const takenNumbers = soldTicketsResult.rows.map(r => r.ticket_number);
+          console.warn(`⚠️ Numbers already sold: ${takenNumbers.join(', ')}`);
           return res.status(409).json({
             success: false,
             message: 'Certains numéros ne sont plus disponibles',
             unavailable: takenNumbers
           });
+        }
+        
+        // Also check pending purchases with same raw numbers (within last 5 minutes to allow retries)
+        const rawNumbers = selected_numbers.map(n => typeof n === 'object' ? n.number : n);
+        const pendingResult = await query(
+          `SELECT id, selected_numbers FROM purchases 
+           WHERE campaign_id = $1 
+             AND payment_status = 'pending'
+             AND selected_numbers IS NOT NULL
+             AND created_at > NOW() - INTERVAL '5 minutes'`,
+          [campaign_id]
+        );
+        
+        // Check if any pending purchase has overlapping numbers
+        for (const pending of pendingResult.rows) {
+          const pendingNums = Array.isArray(pending.selected_numbers) 
+            ? pending.selected_numbers 
+            : JSON.parse(pending.selected_numbers || '[]');
+          const overlap = rawNumbers.filter(n => pendingNums.includes(n));
+          if (overlap.length > 0) {
+            console.warn(`⚠️ Numbers in pending purchase ${pending.id}: ${overlap.join(', ')}`);
+            const overlapFormatted = overlap.map(n => `K${ticketPrefix}-${String(n).padStart(padLength, '0')}`);
+            return res.status(409).json({
+              success: false,
+              message: 'Ces numéros sont en cours d\'achat par un autre utilisateur',
+              unavailable: overlapFormatted
+            });
+          }
         }
       }
 
