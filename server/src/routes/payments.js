@@ -874,6 +874,49 @@ router.post(
         });
       }
 
+      // IMPORTANT: Check if selected numbers are still available (for manual selection mode)
+      if (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0) {
+        // Get campaign prefix for ticket number format
+        const prefixResult = await query(
+          'SELECT ticket_prefix FROM campaigns WHERE id = $1',
+          [campaign_id]
+        );
+        const ticketPrefix = prefixResult.rows[0]?.ticket_prefix || 'X';
+        const padLength = Math.max(2, String(campaign.total_tickets).length);
+        
+        // Convert selected numbers to ticket_number format
+        const selectedTicketNumbers = selected_numbers.map(n => {
+          const num = typeof n === 'object' ? n.number : n;
+          return `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+        });
+        
+        // Check for already sold tickets OR pending purchases with same numbers
+        const takenResult = await query(
+          `SELECT ticket_number FROM (
+            SELECT ticket_number FROM tickets WHERE campaign_id = $1 AND ticket_number = ANY($2)
+            UNION
+            SELECT DISTINCT unnest(selected_numbers::text[]) as ticket_number 
+            FROM purchases 
+            WHERE campaign_id = $1 
+              AND payment_status IN ('pending', 'completed')
+              AND selected_numbers IS NOT NULL
+              AND created_at > NOW() - INTERVAL '15 minutes'
+          ) AS taken
+          WHERE ticket_number = ANY($2)`,
+          [campaign_id, selectedTicketNumbers]
+        );
+        
+        if (takenResult.rows.length > 0) {
+          const takenNumbers = takenResult.rows.map(r => r.ticket_number);
+          console.warn(`⚠️ Numbers already taken: ${takenNumbers.join(', ')}`);
+          return res.status(409).json({
+            success: false,
+            message: 'Certains numéros ne sont plus disponibles',
+            unavailable: takenNumbers
+          });
+        }
+      }
+
       // Use amount from frontend if provided, otherwise calculate
       // Frontend sends: USD = price in $, CDF = price * 2850
       const total_amount = requestedAmount || (currency === 'CDF' 
