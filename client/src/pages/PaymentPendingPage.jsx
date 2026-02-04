@@ -14,7 +14,8 @@ export const PaymentPendingPage = () => {
   const [checking, setChecking] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const [error, setError] = useState(null);
-  const [timeRemaining, setTimeRemaining] = useState(90); // 1.5 minutes countdown
+  const [timeRemaining, setTimeRemaining] = useState(180); // 3 minutes countdown for slower networks
+  const [paydrcStatus, setPaydrcStatus] = useState(null); // Track PayDRC normalized status
   
   // Safely extract state with defaults
   const { 
@@ -45,10 +46,11 @@ export const PaymentPendingPage = () => {
       
       if (response && response.success && response.data) {
         const newStatus = response.data.status;
-        const paydrcStatus = response.data.paydrc_normalized;
+        const normalizedPaydrcStatus = response.data.paydrc_normalized;
         const userMessage = response.data.user_message;
         
         setStatus(newStatus);
+        setPaydrcStatus(normalizedPaydrcStatus); // Track PayDRC status for timeout handling
         
         if (newStatus === 'completed') {
           setStatusMessage('Paiement confirmé ! Vos tickets ont été générés.');
@@ -57,13 +59,13 @@ export const PaymentPendingPage = () => {
         } else if (userMessage) {
           // Use server-provided message (e.g., for 'submitted' status)
           setStatusMessage(userMessage);
-        } else if (paydrcStatus === 'submitted') {
+        } else if (normalizedPaydrcStatus === 'submitted') {
           // Utiliser le provider de la réponse s'il est disponible, sinon celui du state
           const activeProvider = response.data.provider || provider;
           setStatusMessage(getProviderPinMessage(activeProvider));
         }
         
-        return newStatus;
+        return { status: newStatus, paydrcStatus: normalizedPaydrcStatus };
       }
     } catch (err) {
       console.error('Status check error:', err);
@@ -80,8 +82,8 @@ export const PaymentPendingPage = () => {
       return;
     }
 
-    // Poll for status every 5 seconds for 2 minutes (24 attempts)
-    const maxAttempts = 24;
+    // Poll for status every 5 seconds for 3 minutes (36 attempts) - increased for Afrimoney
+    const maxAttempts = 36;
     let attempts = 0;
     let intervalId = null;
 
@@ -93,19 +95,32 @@ export const PaymentPendingPage = () => {
         if (attempts >= maxAttempts) {
           clearInterval(intervalId);
           // Vérifier une dernière fois si le paiement a réussi
-          const finalStatus = await checkPaymentStatus();
+          const finalResult = await checkPaymentStatus();
+          const finalStatus = finalResult?.status || finalResult;
+          const finalPaydrcStatus = finalResult?.paydrcStatus;
+          
           if (finalStatus === 'completed') {
             setStatus('completed');
             setTimeout(() => navigate('/dashboard'), 3000);
             return;
           }
-          // Si pas de succès, considérer comme échoué
+          
+          // Si status est 'submitted' (en attente de validation), ne pas marquer comme échoué
+          // Le callback viendra plus tard - rediriger vers les tickets pour vérifier
+          if (finalPaydrcStatus === 'submitted' || finalStatus === 'pending') {
+            setStatus('timeout');
+            setStatusMessage('Le paiement n\'a pas été confirmé dans le délai. Si vous avez été débité, vérifiez vos tickets dans quelques minutes.');
+            return;
+          }
+          
+          // Seulement si vraiment échoué
           setStatus('failed');
-          setStatusMessage('Le paiement n\'a pas été confirmé. Veuillez vérifier vos tickets ou réessayer.');
+          setStatusMessage('Le paiement n\'a pas abouti. Vérifiez votre solde Mobile Money et réessayez.');
           return;
         }
 
-        const newStatus = await checkPaymentStatus();
+        const result = await checkPaymentStatus();
+        const newStatus = result?.status || result;
         
         if (newStatus === 'completed' || newStatus === 'failed') {
           clearInterval(intervalId);
@@ -118,7 +133,8 @@ export const PaymentPendingPage = () => {
 
     // Initial check after 2 seconds
     const initialTimeout = setTimeout(async () => {
-      const newStatus = await checkPaymentStatus();
+      const result = await checkPaymentStatus();
+      const newStatus = result?.status || result;
       if (newStatus !== 'completed' && newStatus !== 'failed') {
         startPolling();
       } else if (newStatus === 'completed') {
@@ -147,6 +163,14 @@ export const PaymentPendingPage = () => {
           <div className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        );
+      case 'timeout':
+        return (
+          <div className="w-20 h-20 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         );
@@ -249,7 +273,8 @@ export const PaymentPendingPage = () => {
         
         <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           {status === 'completed' ? 'Paiement Réussi !' : 
-           status === 'failed' ? 'Paiement Échoué' : 
+           status === 'failed' ? 'Paiement Échoué' :
+           status === 'timeout' ? 'Délai dépassé' : 
            'Paiement en cours...'}
         </h2>
         
@@ -299,6 +324,16 @@ export const PaymentPendingPage = () => {
           </div>
         )}
 
+        {/* Timeout message - different from failed */}
+        {status === 'timeout' && (
+          <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-orange-900/30 border border-orange-700' : 'bg-orange-50 border border-orange-200'}`}>
+            <p className={`text-sm ${isDarkMode ? 'text-orange-400' : 'text-orange-700'}`}>
+              ⏱️ Si vous avez été débité, vos tickets seront générés automatiquement. 
+              Vérifiez dans "Mes tickets" dans quelques minutes.
+            </p>
+          </div>
+        )}
+
         {/* Failed message */}
         {status === 'failed' && (
           <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
@@ -337,12 +372,12 @@ export const PaymentPendingPage = () => {
         {checking && (
           <p className={`text-sm mb-4 flex items-center justify-center gap-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
             <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-            Vérification du statut... (tentative {pollCount}/24)
+            Vérification du statut... (tentative {pollCount}/36)
           </p>
         )}
 
         {/* Manual verify button */}
-        {status === 'pending' && !checking && (
+        {(status === 'pending' || status === 'timeout') && !checking && (
           <button
             onClick={checkPaymentStatus}
             className={`w-full mb-4 px-6 py-3 rounded-xl font-medium transition-all ${
@@ -351,12 +386,12 @@ export const PaymentPendingPage = () => {
                 : 'bg-indigo-500 hover:bg-indigo-600 text-white'
             }`}
           >
-            🔄 Vérifier manuellement
+            🔄 Vérifier le statut
           </button>
         )}
 
         {/* Warning if taking too long */}
-        {status === 'pending' && pollCount > 12 && (
+        {status === 'pending' && pollCount > 18 && (
           <div className={`mb-4 p-3 rounded-lg text-sm ${
             isDarkMode ? 'bg-amber-900/30 border border-amber-700 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'
           }`}>
@@ -378,11 +413,15 @@ export const PaymentPendingPage = () => {
           </button>
           
           <button
-            onClick={() => navigate('/dashboard', { replace: true })}
+            onClick={() => navigate('/tickets', { replace: true })}
             className={`flex-1 max-w-xs px-6 py-3 rounded-xl font-medium transition-all ${
-              isDarkMode 
-                ? 'bg-gray-600 hover:bg-gray-500 text-gray-300' 
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+              status === 'timeout' 
+                ? (isDarkMode 
+                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
+                    : 'bg-cyan-500 hover:bg-cyan-600 text-white')
+                : (isDarkMode 
+                    ? 'bg-gray-600 hover:bg-gray-500 text-gray-300' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600')
             }`}
           >
             Voir mes tickets

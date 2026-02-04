@@ -290,13 +290,14 @@ router.post('/webhook', async (req, res) => {
       const ticketData = await transaction(async (client) => {
         // Get campaign info for ticket number format - lock row for update
         const campaignResult = await client.query(
-          'SELECT total_tickets, sold_tickets FROM campaigns WHERE id = $1 FOR UPDATE',
+          'SELECT total_tickets, sold_tickets, ticket_prefix FROM campaigns WHERE id = $1 FOR UPDATE',
           [purchase.campaign_id]
         );
         const campaign = campaignResult.rows[0];
         const totalTickets = campaign?.total_tickets || 1000;
         const currentSoldTickets = parseInt(campaign?.sold_tickets || 0);
         const padLength = Math.max(2, String(totalTickets).length);
+        const ticketPrefix = campaign?.ticket_prefix || 'X'; // Use campaign prefix
         
         // Update purchase status
         await client.query(
@@ -306,22 +307,33 @@ router.post('/webhook', async (req, res) => {
           ['completed', purchase.id]
         );
 
-        // Generate unique ticket numbers using sequential campaign-based numbering
-        const tickets = [];
-        for (let i = 0; i < purchase.ticket_count; i++) {
-          // Use campaign's sold_tickets + offset for sequential numbering
-          const ticketSequence = currentSoldTickets + i + 1;
-          const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
-          
-          const ticketResult = await client.query(
-            `INSERT INTO tickets (
-              ticket_number, campaign_id, user_id, purchase_id, status
-            ) VALUES ($1, $2, $3, $4, $5)
-            RETURNING *`,
-            [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
-          );
+        // Get existing ticket numbers to avoid duplicates
+        const existingResult = await client.query(
+          `SELECT ticket_number FROM tickets WHERE campaign_id = $1`,
+          [purchase.campaign_id]
+        );
+        const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
 
-          tickets.push(ticketResult.rows[0]);
+        // Generate unique ticket numbers
+        const tickets = [];
+        for (let num = 1; num <= totalTickets && tickets.length < purchase.ticket_count; num++) {
+          const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+          
+          if (!existingNumbers.has(ticketNumber)) {
+            const ticketResult = await client.query(
+              `INSERT INTO tickets (
+                ticket_number, campaign_id, user_id, purchase_id, status
+              ) VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+              RETURNING *`,
+              [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+            );
+
+            if (ticketResult.rows.length > 0) {
+              tickets.push(ticketResult.rows[0]);
+              existingNumbers.add(ticketNumber);
+            }
+          }
         }
 
         // Update campaign sold_tickets count
@@ -571,25 +583,42 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
         [transactionId, purchaseId]
       );
 
-      // Generate tickets using sequential campaign-based numbering
+      // Generate tickets using proper ticket prefix
       const tickets = [];
       const totalTickets = parseInt(purchase.total_tickets) || 100;
-      const currentSoldTickets = parseInt(purchase.sold_tickets);
       const padLength = Math.max(2, String(totalTickets).length);
       
-      for (let i = 0; i < purchase.ticket_count; i++) {
-        // Use campaign's sold_tickets + offset for sequential numbering
-        const ticketSequence = currentSoldTickets + i + 1;
-        const ticketNumber = `K-${String(ticketSequence).padStart(padLength, '0')}`;
+      // Get ticket_prefix from campaign
+      const campaignPrefixResult = await client.query(
+        'SELECT ticket_prefix FROM campaigns WHERE id = $1',
+        [purchase.campaign_id]
+      );
+      const ticketPrefix = campaignPrefixResult.rows[0]?.ticket_prefix || 'X';
+      
+      // Get existing ticket numbers to avoid duplicates
+      const existingResult = await client.query(
+        'SELECT ticket_number FROM tickets WHERE campaign_id = $1',
+        [purchase.campaign_id]
+      );
+      const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
+      
+      for (let num = 1; num <= totalTickets && tickets.length < purchase.ticket_count; num++) {
+        const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
         
-        const ticketResult = await client.query(
-          `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
-           VALUES ($1, $2, $3, $4, 'active')
-           RETURNING *`,
-          [ticketNumber, purchase.campaign_id, purchase.user_id, purchaseId]
-        );
+        if (!existingNumbers.has(ticketNumber)) {
+          const ticketResult = await client.query(
+            `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
+             VALUES ($1, $2, $3, $4, 'active')
+             ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+             RETURNING *`,
+            [ticketNumber, purchase.campaign_id, purchase.user_id, purchaseId]
+          );
 
-        tickets.push(ticketResult.rows[0]);
+          if (ticketResult.rows.length > 0) {
+            tickets.push(ticketResult.rows[0]);
+            existingNumbers.add(ticketNumber);
+          }
+        }
       }
 
       // Update campaign sold tickets
