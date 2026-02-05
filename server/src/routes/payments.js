@@ -821,8 +821,11 @@ router.post(
   ],
   async (req, res) => {
     try {
+      console.log('📥 PayDRC initiate request body:', JSON.stringify(req.body, null, 2));
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('❌ Validation errors:', JSON.stringify(errors.array()));
         return res.status(400).json({
           success: false,
           message: 'Validation errors',
