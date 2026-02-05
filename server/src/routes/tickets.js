@@ -149,8 +149,11 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
     const limit = parseInt(req.query.limit) || 100; // Default 100 tickets max
     const offset = parseInt(req.query.offset) || 0;
     
+    console.log(`[DEBUG] GET /tickets/user/${userId} - req.user.id:`, req.user?.id);
+    
     // Users can only see their own tickets unless they're admin
     if (req.user.id !== userId && !req.user.is_admin) {
+      console.log(`[DEBUG] Access denied: user ${req.user.id} trying to access tickets of user ${userId}`);
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -194,6 +197,8 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
 
     const stats = statsResult.rows[0] || {};
 
+    console.log(`[DEBUG] GET /tickets/user/${userId} - Found ${result.rows.length} tickets`);
+    
     res.json({
       success: true,
       data: result.rows,
