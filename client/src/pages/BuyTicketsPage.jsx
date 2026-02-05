@@ -1331,6 +1331,15 @@ const BuyTicketsPage = () => {
                     {formatCurrency(promoDiscount ? promoDiscount.final_amount : totalPrice)}
                   </span>
                 </div>
+
+                {/* Avertissement si sélection manuelle incomplète */}
+                {selectionMode === 'manual' && selectedNumbers.length < ticketCount && (
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p className="text-red-600 dark:text-red-400 text-sm font-medium text-center">
+                      ⚠️ Il vous reste {ticketCount - selectedNumbers.length} ticket{ticketCount - selectedNumbers.length > 1 ? 's' : ''} à sélectionner
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Payment Method Selection */}
