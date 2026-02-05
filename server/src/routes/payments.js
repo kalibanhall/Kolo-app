@@ -1082,6 +1082,7 @@ router.post(
         // Purchase already has the correct transaction_id (reference)
         // PayDRC's transactionId is logged but we keep our reference for tracking
         console.log(`✅ PayDRC payment initiated for purchase ${purchase.id}, PayDRC ID: ${paymentResponse.transactionId}`);
+        console.log(`📱 PayDRC raw response:`, JSON.stringify(paymentResponse.raw, null, 2));
 
         res.json({
           success: true,
