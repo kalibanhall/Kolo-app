@@ -1439,7 +1439,10 @@ router.post('/paydrc/callback', async (req, res) => {
         if (selectedNumbers && selectedNumbers.length > 0) {
           console.log(`🎯 Manual selection mode - using selected numbers: ${selectedNumbers.join(', ')}`);
           
-          for (const ticketNumber of selectedNumbers) {
+          for (const num of selectedNumbers) {
+            // Convert number to proper ticket format: K{PREFIX}-XX
+            const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
+            
             // Verify ticket is not already taken
             if (existingNumbers.has(ticketNumber)) {
               console.log(`⚠️ Ticket ${ticketNumber} already exists, skipping`);
