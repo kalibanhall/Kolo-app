@@ -34,11 +34,12 @@ const request = async (endpoint, options = {}) => {
 
     if (!response.ok) {
       // Include validation errors in the message if available
-      let errorMessage = data.message || 'Une erreur est survenue';
+      let errorMessage = data.message || data.error || `Erreur ${response.status}`;
       if (data.errors && Array.isArray(data.errors)) {
         const errorDetails = data.errors.map(e => e.msg || e.message).join(', ');
         errorMessage = `${errorMessage}: ${errorDetails}`;
       }
+      console.error('API Error Response:', { status: response.status, data, endpoint });
       throw new Error(errorMessage);
     }
 
