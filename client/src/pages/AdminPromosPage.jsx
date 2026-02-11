@@ -20,6 +20,7 @@ export const AdminPromosPage = () => {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingPromo, setEditingPromo] = useState(null);
   
   // Formulaire de création
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -77,14 +78,7 @@ export const AdminPromosPage = () => {
 
       if (response.success) {
         setSuccess(`Code promo "${formData.code}" créé avec succès pour ${formData.influencer_name}`);
-        setFormData({
-          influencer_name: '',
-          code: '',
-          discount_percent: 10,
-          max_uses: 100,
-          expires_at: ''
-        });
-        setShowCreateForm(false);
+        resetForm();
         loadPromos();
       }
     } catch (err) {
@@ -113,6 +107,60 @@ export const AdminPromosPage = () => {
     } catch (err) {
       setError('Erreur lors de la mise à jour');
     }
+  };
+
+  const handleEditPromo = (promo) => {
+    setEditingPromo(promo);
+    setFormData({
+      influencer_name: promo.influencer_name || '',
+      code: promo.code,
+      discount_percent: promo.discount_percent || 10,
+      max_uses: promo.max_uses || 100,
+      expires_at: promo.expires_at ? promo.expires_at.split('T')[0] : ''
+    });
+    setShowCreateForm(true);
+  };
+
+  const handleUpdatePromo = async (e) => {
+    e.preventDefault();
+    if (!formData.influencer_name.trim()) {
+      setError('Veuillez entrer le nom de l\'influenceur');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setError('');
+      
+      const response = await promosAPI.update(editingPromo.id, {
+        influencer_name: formData.influencer_name,
+        discount_percent: formData.discount_percent,
+        max_uses: formData.max_uses,
+        expires_at: formData.expires_at || null
+      });
+
+      if (response.success) {
+        setSuccess(`Code promo "${formData.code}" mis à jour avec succès`);
+        resetForm();
+        loadPromos();
+      }
+    } catch (err) {
+      setError(err.message || 'Erreur lors de la mise à jour du code promo');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      influencer_name: '',
+      code: '',
+      discount_percent: 10,
+      max_uses: 100,
+      expires_at: ''
+    });
+    setEditingPromo(null);
+    setShowCreateForm(false);
   };
 
   return (
@@ -147,9 +195,16 @@ export const AdminPromosPage = () => {
           </div>
         )}
         {success && (
-          <div className="p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
-            {success}
-            <button onClick={() => setSuccess('')} className="float-right font-bold">×</button>
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-lg text-emerald-900 dark:text-emerald-300 font-medium shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{success}</span>
+              </div>
+              <button onClick={() => setSuccess('')} className="ml-4 text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 font-bold text-lg">×</button>
+            </div>
           </div>
         )}
 
@@ -158,10 +213,10 @@ export const AdminPromosPage = () => {
           <div className={`p-6 rounded-xl ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} shadow-lg`}>
             <div className="flex justify-between items-center mb-4">
               <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Nouveau Code Promo
+                {editingPromo ? 'Modifier le Code Promo' : 'Nouveau Code Promo'}
               </h2>
               <button 
-                onClick={() => setShowCreateForm(false)}
+                onClick={resetForm}
                 className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,7 +225,7 @@ export const AdminPromosPage = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreatePromo} className="space-y-4">
+            <form onSubmit={editingPromo ? handleUpdatePromo : handleCreatePromo} className="space-y-4">
               {/* Nom de l'influenceur */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -207,15 +262,18 @@ export const AdminPromosPage = () => {
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                     } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
-                    readOnly
+                    readOnly={!!editingPromo}
+                    disabled={!!editingPromo}
                   />
-                  <button
-                    type="button"
-                    onClick={handleGenerateCode}
-                    className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all whitespace-nowrap"
-                  >
-                    🎲 Générer
-                  </button>
+                  {!editingPromo && (
+                    <button
+                      type="button"
+                      onClick={handleGenerateCode}
+                      className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all whitespace-nowrap"
+                    >
+                      🎲 Générer
+                    </button>
+                  )}
                 </div>
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                   Code de 7 caractères alphanumériques
@@ -281,7 +339,7 @@ export const AdminPromosPage = () => {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={resetForm}
                   className={`px-4 py-2 rounded-lg font-medium ${
                     isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
@@ -296,10 +354,10 @@ export const AdminPromosPage = () => {
                   {creating ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      Création...
+                      {editingPromo ? 'Mise à jour...' : 'Création...'}
                     </>
                   ) : (
-                    'Créer le code'
+                    editingPromo ? 'Mettre à jour' : 'Créer le code'
                   )}
                 </button>
               </div>
@@ -376,6 +434,15 @@ export const AdminPromosPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEditPromo(promo)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg"
+                            title="Modifier"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
                           <button
                             onClick={() => handleToggleActive(promo.id, promo.is_active)}
                             className={`p-2 rounded-lg ${
