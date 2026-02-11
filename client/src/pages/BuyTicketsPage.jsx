@@ -76,7 +76,7 @@ const BuyTicketsPage = () => {
     }
   }, [ticketCount, selectionMode]);
   
-  // Invalider le code promo si le nombre de tickets passe en dessous de 3
+  // Recalculer / invalider le code promo quand le nombre de tickets change
   useEffect(() => {
     // En mode manuel, vérifier les tickets sélectionnés, sinon le compteur
     const actualTicketCount = selectionMode === 'manual' ? selectedNumbers.length : ticketCount;
@@ -86,7 +86,40 @@ const BuyTicketsPage = () => {
       setPromoCode('');
       setPromoError('Le code promo a été retiré car vous avez moins de 3 tickets');
     }
-  }, [ticketCount, selectedNumbers.length, selectionMode, promoDiscount]);
+  }, [ticketCount, selectedNumbers.length, selectionMode]);
+
+  // Recalculate promo discount when ticket count changes (separate to avoid infinite loop)
+  useEffect(() => {
+    if (!promoDiscount || !campaign) return;
+    const actualTicketCount = selectionMode === 'manual' ? selectedNumbers.length : ticketCount;
+    if (actualTicketCount < 3) return;
+
+    const price = campaign.ticket_price || 0;
+    let discountPerTicket;
+    if (promoDiscount.discount_type === 'percentage') {
+      discountPerTicket = (price * promoDiscount.discount_value) / 100;
+    } else {
+      discountPerTicket = promoDiscount.discount_value;
+    }
+    let totalDiscount = discountPerTicket * actualTicketCount;
+    if (promoDiscount.max_discount && totalDiscount > promoDiscount.max_discount) {
+      totalDiscount = promoDiscount.max_discount;
+      discountPerTicket = totalDiscount / actualTicketCount;
+    }
+    const newTotal = price * actualTicketCount;
+    const finalAmount = Math.max(0, newTotal - totalDiscount);
+
+    // Only update if values actually changed
+    if (promoDiscount.discount_amount !== totalDiscount || promoDiscount.final_amount !== finalAmount) {
+      setPromoDiscount(prev => ({
+        ...prev,
+        discount_per_ticket: discountPerTicket,
+        discount_amount: totalDiscount,
+        final_amount: finalAmount
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketCount, selectedNumbers.length, selectionMode, campaign]);
   
   // Charger le panier sauvegardé quand la campagne est chargée
   useEffect(() => {
@@ -351,9 +384,19 @@ const BuyTicketsPage = () => {
       const response = await promosAPI.validate(promoCode);
       if (response.success) {
         const promo = response.data;
-        // Apply fixed discount of $0.30 per ticket
-        const discountPerTicket = 0.30;
-        const totalDiscount = discountPerTicket * ticketCount;
+        // Calculate discount based on promo type (percentage or fixed)
+        let discountPerTicket;
+        if (promo.discount_type === 'percentage') {
+          discountPerTicket = (campaign.ticket_price * promo.discount_value) / 100;
+        } else {
+          discountPerTicket = promo.discount_value;
+        }
+        // Apply max_discount cap if set
+        let totalDiscount = discountPerTicket * ticketCount;
+        if (promo.max_discount && totalDiscount > promo.max_discount) {
+          totalDiscount = promo.max_discount;
+          discountPerTicket = totalDiscount / ticketCount;
+        }
         const finalAmount = Math.max(0, totalPrice - totalDiscount);
         
         setPromoDiscount({
@@ -620,8 +663,8 @@ const BuyTicketsPage = () => {
   }
 
   const totalPrice = ticketCount * (campaign.ticket_price || 0);
-  // Code promo: $0.30 discount per ticket
-  const promoDiscountAmount = promoDiscount ? (0.30 * ticketCount) : 0;
+  // Code promo: dynamic discount based on promo type
+  const promoDiscountAmount = promoDiscount ? promoDiscount.discount_amount : 0;
   const finalPrice = promoDiscount ? Math.max(0, totalPrice - promoDiscountAmount) : totalPrice;
   // Calculer les tickets disponibles avec valeurs par défaut
   const totalTickets = parseInt(campaign.total_tickets) || 0;
@@ -1274,7 +1317,9 @@ const BuyTicketsPage = () => {
                             ✓ {promoDiscount.code}
                           </span>
                           <span className={`text-sm ml-2 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
-                            (-$0.30 / ticket)
+                            ({promoDiscount.discount_type === 'percentage' 
+                              ? `-${promoDiscount.discount_value}%` 
+                              : `-$${promoDiscount.discount_per_ticket.toFixed(2)}`} / ticket)
                           </span>
                         </div>
                         <button
@@ -1317,7 +1362,7 @@ const BuyTicketsPage = () => {
                       <span className="font-semibold">{formatCurrency(totalPrice)}</span>
                     </div>
                     <div className={`flex justify-between text-green-500`}>
-                      <span>Remise ({promoDiscount.code}: -$0.30 × {ticketCount})</span>
+                      <span>Remise ({promoDiscount.code}: {promoDiscount.discount_type === 'percentage' ? `-${promoDiscount.discount_value}%` : `-$${promoDiscount.discount_per_ticket.toFixed(2)}`} × {ticketCount})</span>
                       <span className="font-semibold">-{formatCurrency(promoDiscountAmount)}</span>
                     </div>
                   </>
