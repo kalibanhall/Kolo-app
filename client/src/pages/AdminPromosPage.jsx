@@ -195,7 +195,7 @@ export const AdminPromosPage = () => {
           </div>
         )}
         {success && (
-          <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-lg text-emerald-900 dark:text-emerald-300 font-medium shadow-sm">
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg text-blue-900 dark:text-blue-300 font-medium shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,7 +269,7 @@ export const AdminPromosPage = () => {
                     <button
                       type="button"
                       onClick={handleGenerateCode}
-                      className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all whitespace-nowrap"
+                      className="px-4 py-3 bg-gradient-to-r from-indigo-500 to-blue-600 text-white rounded-lg font-medium hover:from-indigo-600 hover:to-blue-700 transition-all whitespace-nowrap"
                     >
                       🎲 Générer
                     </button>
@@ -416,7 +416,7 @@ export const AdminPromosPage = () => {
                         {promo.influencer_name || '-'}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium">
+                        <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium">
                           -{promo.discount_percent}%
                         </span>
                       </td>
@@ -426,8 +426,8 @@ export const AdminPromosPage = () => {
                       <td className="px-6 py-4 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           promo.is_active
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400'
                         }`}>
                           {promo.is_active ? 'Actif' : 'Inactif'}
                         </span>
@@ -448,7 +448,7 @@ export const AdminPromosPage = () => {
                             className={`p-2 rounded-lg ${
                               promo.is_active
                                 ? 'text-yellow-600 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
-                                : 'text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'
+                                : 'text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30'
                             }`}
                             title={promo.is_active ? 'Désactiver' : 'Activer'}
                           >
