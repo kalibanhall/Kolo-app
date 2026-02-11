@@ -420,7 +420,7 @@ router.post('/', verifyToken, verifyAdmin, [
   body('main_prize').notEmpty().withMessage('Le prix principal est requis').trim(),
   body('start_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de début doit être au format valide'),
   body('end_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de fin doit être au format valide'),
-  body('status').optional().isIn(['draft', 'open']).withMessage('Le statut doit être draft ou open'),
+  body('status').optional().isIn(['draft', 'scheduled', 'open']).withMessage('Le statut doit être draft, scheduled ou open'),
   body('draw_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de tirage doit être au format valide'),
   body('secondary_prizes').optional({ nullable: true }).trim(),
   body('third_prize').optional({ nullable: true }).trim(),
@@ -457,6 +457,15 @@ router.post('/', verifyToken, verifyAdmin, [
       });
     }
 
+    // Auto-schedule: if status is 'open' but start_date is in the future, force 'scheduled'
+    let effectiveStatus = status || 'draft';
+    if (effectiveStatus === 'open' && start_date) {
+      const startMoment = new Date(start_date);
+      if (startMoment > new Date()) {
+        effectiveStatus = 'scheduled';
+      }
+    }
+
     const result = await query(
       `INSERT INTO campaigns (
         title, description, status, total_tickets, ticket_price, ticket_prefix,
@@ -465,7 +474,7 @@ router.post('/', verifyToken, verifyAdmin, [
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
-        title, description, status || 'draft', total_tickets, ticket_price, ticket_prefix.toUpperCase(),
+        title, description, effectiveStatus, total_tickets, ticket_price, ticket_prefix.toUpperCase(),
         main_prize, image_url || null, start_date, end_date || null, draw_date || null,
         secondary_prizes || null, third_prize || null, rules || null, 
         display_order || 0, is_featured || false, req.user.id
@@ -501,7 +510,7 @@ router.post('/', verifyToken, verifyAdmin, [
 
 // Update campaign status (admin only)
 router.patch('/:id/status', verifyToken, verifyAdmin, [
-  body('status').isIn(['draft', 'open', 'closed', 'completed'])
+  body('status').isIn(['draft', 'scheduled', 'open', 'closed', 'completed'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -571,7 +580,7 @@ router.put('/:id', verifyToken, verifyAdmin, [
   body('start_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de début doit être au format valide'),
   body('end_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de fin doit être au format valide'),
   body('draw_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('La date de tirage doit être au format valide'),
-  body('status').optional().isIn(['draft', 'open', 'closed', 'completed']).withMessage('Statut invalide')
+  body('status').optional().isIn(['draft', 'scheduled', 'open', 'closed', 'completed']).withMessage('Statut invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -607,6 +616,15 @@ router.put('/:id', verifyToken, verifyAdmin, [
       }
     }
 
+    // Auto-schedule: if status is 'open' but start_date is in the future, force 'scheduled'
+    let effectiveStatus = status;
+    if (status === 'open' && start_date) {
+      const startMoment = new Date(start_date);
+      if (startMoment > new Date()) {
+        effectiveStatus = 'scheduled';
+      }
+    }
+
     // Convert empty strings to null for timestamp fields
     const cleanStartDate = start_date === '' ? null : start_date;
     const cleanEndDate = end_date === '' ? null : end_date;
@@ -630,7 +648,7 @@ router.put('/:id', verifyToken, verifyAdmin, [
        RETURNING *`,
       [
         title, description, total_tickets, ticket_price, main_prize,
-        image_url, cleanStartDate, cleanEndDate, cleanDrawDate, status,
+        image_url, cleanStartDate, cleanEndDate, cleanDrawDate, effectiveStatus,
         ticket_prefix ? ticket_prefix.toUpperCase() : null, campaignId
       ]
     );

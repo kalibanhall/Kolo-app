@@ -3,6 +3,63 @@ const { query } = require('../config/database');
 const { logAdminAction } = require('../utils/logger');
 
 /**
+ * Auto-open scheduled campaigns when start_date is reached
+ * Runs every 5 minutes
+ */
+const openScheduledCampaigns = cron.schedule('*/5 * * * *', async () => {
+  try {
+    console.log('🔄 Checking for scheduled campaigns to open...');
+
+    const result = await query(
+      `SELECT id, title, start_date
+       FROM campaigns 
+       WHERE status = 'scheduled' 
+       AND start_date <= NOW()`
+    );
+
+    const campaignsToOpen = result.rows || [];
+
+    if (campaignsToOpen.length === 0) {
+      return;
+    }
+
+    console.log(`📌 Found ${campaignsToOpen.length} scheduled campaign(s) to open:`,
+      campaignsToOpen.map(c => c.title).join(', ')
+    );
+
+    const campaignIds = campaignsToOpen.map(c => c.id);
+    const placeholders = campaignIds.map((_, i) => `$${i + 1}`).join(',');
+
+    await query(
+      `UPDATE campaigns 
+       SET status = 'open', 
+           updated_at = NOW() 
+       WHERE id IN (${placeholders})`,
+      campaignIds
+    );
+
+    // Send notifications for newly opened campaigns
+    try {
+      const { isInitialized } = require('./firebaseNotifications');
+
+      for (const campaign of campaignsToOpen) {
+        logAdminAction(
+          null,
+          'CAMPAIGN_OPENED',
+          `Campaign "${campaign.title}" (ID: ${campaign.id}) automatically opened by scheduler (start_date: ${campaign.start_date})`
+        );
+      }
+    } catch (notifError) {
+      console.error('⚠️ Error logging scheduled campaign open:', notifError);
+    }
+
+    console.log(`✅ Successfully opened ${campaignsToOpen.length} scheduled campaign(s).`);
+  } catch (error) {
+    console.error('❌ Error opening scheduled campaigns:', error);
+  }
+});
+
+/**
  * Update campaign status based on end_date
  * Runs every hour at minute 0
  */
@@ -188,11 +245,13 @@ const initializeCronJobs = () => {
   console.log('⏰ Initializing cron jobs...');
 
   // Start cron jobs
+  openScheduledCampaigns.start();
   updateCampaignStatus.start();
   sendCampaignReminders.start();
   cleanupOldData.start();
 
   console.log('✅ Cron jobs initialized:');
+  console.log('   - Scheduled campaigns auto-open: Every 5 minutes');
   console.log('   - Campaign status update: Every hour at :00');
   console.log('   - Campaign reminders: Daily at 9:00 AM');
   console.log('   - Data cleanup: Weekly on Sunday at 2:00 AM');
@@ -203,6 +262,7 @@ const initializeCronJobs = () => {
  */
 const stopCronJobs = () => {
   console.log('🛑 Stopping cron jobs...');
+  openScheduledCampaigns.stop();
   updateCampaignStatus.stop();
   sendCampaignReminders.stop();
   cleanupOldData.stop();
@@ -212,6 +272,7 @@ const stopCronJobs = () => {
 module.exports = {
   initializeCronJobs,
   stopCronJobs,
+  openScheduledCampaigns,
   updateCampaignStatus,
   sendCampaignReminders,
   cleanupOldData,

@@ -174,11 +174,13 @@ export const CampaignsManagementPage = () => {
 
     try {
       // Convert dates to ISO 8601 format for backend validation
+      // Use local midnight (T00:00:00) instead of UTC to avoid timezone shift
+      // (e.g. "2026-02-12" must stay Feb 12, not become Feb 11 at UTC)
       const dataToSend = {
         ...formData,
-        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
-        draw_date: formData.draw_date ? new Date(formData.draw_date).toISOString() : null,
+        start_date: formData.start_date ? new Date(formData.start_date + 'T00:00:00').toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date + 'T23:59:59').toISOString() : null,
+        draw_date: formData.draw_date ? new Date(formData.draw_date + 'T12:00:00').toISOString() : null,
       };
 
       if (editingCampaign) {
@@ -286,12 +288,14 @@ export const CampaignsManagementPage = () => {
   const getStatusBadge = (status) => {
     const badges = {
       draft: 'bg-gray-100 text-gray-800',
+      scheduled: 'bg-amber-100 text-amber-800',
       open: 'bg-green-100 text-green-800',
       closed: 'bg-red-100 text-red-800',
       completed: 'bg-blue-100 text-blue-800'
     };
     const labels = {
       draft: 'Brouillon',
+      scheduled: 'Programmée',
       open: 'Ouverte',
       closed: 'Fermée',
       completed: 'Terminée'
@@ -378,6 +382,7 @@ export const CampaignsManagementPage = () => {
               status: {
                 options: [
                   { value: 'draft', label: 'Brouillon' },
+                  { value: 'scheduled', label: 'Programmée' },
                   { value: 'open', label: 'Ouvert' },
                   { value: 'closed', label: 'Fermé' },
                 ],
@@ -696,10 +701,21 @@ export const CampaignsManagementPage = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="draft">Brouillon</option>
+                  <option value="scheduled">Programmée</option>
                   <option value="open">Ouverte</option>
                   <option value="closed">Fermée</option>
                   <option value="completed">Terminée</option>
                 </select>
+                {formData.status === 'open' && formData.start_date && new Date(formData.start_date + 'T00:00:00') > new Date() && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    ⏰ La date de début est dans le futur — la campagne sera automatiquement programmée et s'ouvrira à la date prévue.
+                  </p>
+                )}
+                {formData.status === 'scheduled' && (
+                  <p className="text-sm text-blue-600 mt-1">
+                    📅 La campagne s'ouvrira automatiquement à la date de début.
+                  </p>
+                )}
               </div>
 
               {/* Buttons */}

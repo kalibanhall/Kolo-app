@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     id SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT,
-    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'open', 'closed', 'completed')),
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'open', 'closed', 'completed')),
     total_tickets INTEGER NOT NULL,
     sold_tickets INTEGER DEFAULT 0,
     ticket_price DECIMAL(10, 2) NOT NULL,
