@@ -86,7 +86,7 @@ const TicketCard = ({
       onClick={onClick}
       className={`
         relative cursor-pointer transform transition-all duration-300 
-        hover:scale-105 hover:-rotate-1 hover:shadow-2xl
+        hover:scale-105 hover:shadow-2xl
         ${className}
       `}
     >

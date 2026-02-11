@@ -161,22 +161,46 @@ export const getIPLocation = async () => {
     
     // Vérifier si c'est en RDC
     if (data.country_code === 'CD') {
-      // Essayer de trouver la ville correspondante
-      const matchedCity = DRC_CITIES.find(city => 
-        data.city?.toLowerCase().includes(city.toLowerCase()) ||
-        city.toLowerCase().includes(data.city?.toLowerCase())
-      );
+      // Essayer de trouver la ville correspondante - priorité aux correspondances exactes
+      let matchedCity = null;
+      
+      if (data.city) {
+        const ipCity = data.city.toLowerCase().trim();
+        
+        // 1. Correspondance exacte (insensible à la casse)
+        matchedCity = DRC_CITIES.find(city => 
+          city.toLowerCase() === ipCity
+        );
+        
+        // 2. Si pas de correspondance exacte, essayer la correspondance partielle
+        //    mais seulement si la ville IP contient le nom complet de la ville DRC
+        if (!matchedCity) {
+          matchedCity = DRC_CITIES.find(city => 
+            ipCity.includes(city.toLowerCase()) && city.length >= 3
+          );
+        }
+      }
+      
+      // 3. Si toujours pas trouvé et qu'on a les coordonnées, trouver la ville la plus proche
+      if (!matchedCity && data.latitude && data.longitude) {
+        const nearest = findNearestCity(data.latitude, data.longitude);
+        // Utiliser seulement si la distance est raisonnable (< 150 km)
+        if (nearest && nearest.distance < 150) {
+          matchedCity = nearest.city;
+        }
+      }
       
       return {
         success: true,
         method: 'ip',
-        city: matchedCity || data.city,
+        city: matchedCity || null, // Ne pas forcer une ville si on n'est pas sûr
         province: data.region,
         country: 'RDC',
         countryCode: data.country_code,
         ip: data.ip,
         latitude: data.latitude,
-        longitude: data.longitude
+        longitude: data.longitude,
+        autoDetected: !!matchedCity
       };
     }
     

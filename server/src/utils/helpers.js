@@ -89,6 +89,7 @@ const detectProvider = (phone) => {
 
 // Generate random winners - excludes tickets from same user if excludeUserId is provided
 // Also excludes bonus tickets if excludeBonus is true
+// IMPORTANT: Ensures only 1 ticket per unique user in the results (no duplicate users)
 const selectRandomWinners = (tickets, count = 1, excludeUserId = null, excludeBonus = true) => {
   // Filter out bonus tickets and tickets from excluded user
   let eligibleTickets = tickets.filter(t => {
@@ -103,8 +104,24 @@ const selectRandomWinners = (tickets, count = 1, excludeUserId = null, excludeBo
     return true;
   });
   
+  // Shuffle all eligible tickets
   const shuffled = [...eligibleTickets].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, Math.min(count, shuffled.length));
+  
+  // Select winners ensuring unique users (max 1 bonus ticket per user)
+  const winners = [];
+  const selectedUserIds = new Set();
+  
+  for (const ticket of shuffled) {
+    if (winners.length >= count) break;
+    
+    // Skip if this user already has a winning ticket in this selection
+    if (selectedUserIds.has(ticket.user_id)) continue;
+    
+    winners.push(ticket);
+    selectedUserIds.add(ticket.user_id);
+  }
+  
+  return winners;
 };
 
 module.exports = {

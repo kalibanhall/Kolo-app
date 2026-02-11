@@ -436,10 +436,73 @@ router.get('/deposit/status/:reference', verifyToken, async (req, res) => {
 
     if (statusResponse.success && statusResponse.found) {
       let newStatus = tx.status;
-      if (statusResponse.transStatus === 'Successful') {
+      
+      // Use normalizedStatus for reliable mapping across all operators
+      // PayDRC returns Trans_Status values like: 'Successful', 'Success', 'Submitted', 'Failed', etc.
+      const normalized = statusResponse.normalizedStatus || 'pending';
+      
+      if (normalized === 'completed') {
         newStatus = 'completed';
-      } else if (statusResponse.transStatus === 'Failed') {
+      } else if (normalized === 'failed') {
         newStatus = 'failed';
+      }
+      // 'submitted' means still waiting for user to validate on phone - keep as pending
+      
+      // If status changed, update in DB and credit wallet if completed
+      if (newStatus !== tx.status) {
+        if (newStatus === 'completed') {
+          // Credit the wallet
+          const newBalance = parseFloat(tx.balance_before) + parseFloat(tx.amount);
+          await query(
+            `UPDATE wallet_transactions 
+             SET status = 'completed', balance_after = $1, 
+                 description = 'Rechargement PayDRC réussi',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [newBalance, tx.id]
+          );
+          await query(
+            'UPDATE wallets SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [parseFloat(tx.amount), tx.wallet_id]
+          );
+          
+          // Create notification
+          try {
+            await query(
+              `INSERT INTO notifications (user_id, type, title, message, data)
+               VALUES ($1, 'wallet_deposit', '💰 Rechargement réussi', $2, $3)`,
+              [
+                userId,
+                `Votre portefeuille a été rechargé de ${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`,
+                JSON.stringify({ amount: parseFloat(tx.amount), reference })
+              ]
+            );
+          } catch (notifErr) {
+            console.error('Notification error:', notifErr);
+          }
+          
+          console.log(`✅ Wallet credited via status check: ${parseFloat(tx.amount)} FC for ${reference}`);
+          
+          return res.json({
+            success: true,
+            data: {
+              reference,
+              status: 'completed',
+              paydrc_status: statusResponse.transStatus,
+              amount: parseFloat(tx.amount),
+              balance_after: newBalance
+            }
+          });
+        } else if (newStatus === 'failed') {
+          await query(
+            `UPDATE wallet_transactions 
+             SET status = 'failed', 
+                 description = 'Rechargement PayDRC échoué',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [tx.id]
+          );
+        }
       }
 
       return res.json({
@@ -575,8 +638,14 @@ router.post('/paydrc/callback', async (req, res) => {
     }
 
     const tx = txResult.rows[0];
-    const isSuccess = transStatus === 'Successful' || transStatus === 'Success';
-    const isFailed = transStatus === 'Failed';
+    
+    // Use normalizeTransactionStatus for consistent status mapping across all operators
+    const normalizedStatus = paydrc.normalizeTransactionStatus 
+      ? paydrc.normalizeTransactionStatus(transStatus)
+      : ((transStatus || '').toLowerCase());
+    
+    const isSuccess = normalizedStatus === 'completed' || transStatus === 'Successful' || transStatus === 'Success';
+    const isFailed = normalizedStatus === 'failed' || transStatus === 'Failed';
 
     if (isSuccess) {
       // Credit wallet

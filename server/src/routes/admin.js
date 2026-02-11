@@ -551,14 +551,17 @@ router.post('/draw', drawLimiter, [
 
       // Select bonus winners if requested (always automatic, exclude main winner's user)
       // IMPORTANT: Le gagnant bonus ne doit JAMAIS être le même utilisateur que le gagnant principal
+      // IMPORTANT: Max 10 bonus winners, and max 1 bonus ticket per unique user
       if (bonus_winners_count > 0) {
+        const effectiveBonusCount = Math.min(bonus_winners_count, 10); // Hard cap at 10
+        
         // Exclude BOTH the main winner ticket AND all tickets from the same user
         const remainingTickets = allTickets.filter(t => 
           t.id !== mainWinner.id && t.user_id !== mainWinner.user_id
         );
         
-        // Double-check with selectRandomWinners (belt and suspenders approach)
-        const bonusWinners = selectRandomWinners(remainingTickets, bonus_winners_count, mainWinner.user_id, true);
+        // selectRandomWinners already ensures unique users (1 bonus per user)
+        const bonusWinners = selectRandomWinners(remainingTickets, effectiveBonusCount, mainWinner.user_id, true);
 
         // Verify no bonus winner is the main winner's user (extra safety check)
         const validBonusWinners = bonusWinners.filter(ticket => ticket.user_id !== mainWinner.user_id);

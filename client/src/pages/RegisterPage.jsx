@@ -55,10 +55,9 @@ export const RegisterPage = () => {
       const location = await getUserLocation(false); // IP d'abord (moins intrusif)
       
       if (location.success && location.city) {
-        // Vérifier si la ville est dans notre liste
+        // Vérifier si la ville est dans notre liste (correspondance exacte uniquement)
         const matchedCity = drcCities.find(city => 
-          city.toLowerCase() === location.city?.toLowerCase() ||
-          location.city?.toLowerCase().includes(city.toLowerCase())
+          city.toLowerCase() === location.city?.toLowerCase()
         );
         
         if (matchedCity) {

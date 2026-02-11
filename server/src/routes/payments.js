@@ -1385,9 +1385,14 @@ router.post('/paydrc/callback', async (req, res) => {
       return res.json({ status: 'Already processed' });
     }
 
-    // Determine payment status
-    const isSuccess = transStatus === 'Successful' || transStatus === 'Success';
-    const isFailed = transStatus === 'Failed';
+    // Determine payment status - use normalized status for all operators
+    const paydrc = require('../services/paydrc');
+    const normalizedCallbackStatus = paydrc.normalizeTransactionStatus 
+      ? paydrc.normalizeTransactionStatus(transStatus)
+      : ((transStatus || '').toLowerCase());
+    
+    const isSuccess = normalizedCallbackStatus === 'completed' || transStatus === 'Successful' || transStatus === 'Success';
+    const isFailed = normalizedCallbackStatus === 'failed' || transStatus === 'Failed';
 
     // Extract currency and amount from callback
     const callbackCurrency = callbackData.Currency || 'USD';

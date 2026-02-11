@@ -222,7 +222,22 @@ export const CampaignsManagementPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette campagne ?')) return;
+    // Find the campaign to show its title
+    const campaign = campaigns.find(c => c.id === id);
+    const campaignTitle = campaign?.title || 'cette campagne';
+    
+    // First confirmation
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaignTitle}" ?`)) return;
+    
+    // Second confirmation - type the campaign title for safety
+    const confirmText = prompt(
+      `⚠️ Action irréversible !\n\nPour confirmer la suppression, tapez le nom de la campagne :\n"${campaignTitle}"`
+    );
+    
+    if (!confirmText || confirmText.trim().toLowerCase() !== campaignTitle.trim().toLowerCase()) {
+      alert('Le nom de la campagne ne correspond pas. Suppression annulée.');
+      return;
+    }
 
     try {
       await campaignsAPI.delete(id);
@@ -801,12 +816,21 @@ export const CampaignsManagementPage = () => {
                           <div>Fin: {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                          <button
-                            onClick={() => handleEdit(campaign)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Éditer
-                          </button>
+                          {campaign.status !== 'completed' ? (
+                            <button
+                              onClick={() => handleEdit(campaign)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Éditer
+                            </button>
+                          ) : (
+                            <span
+                              className="text-gray-400 cursor-not-allowed"
+                              title="Impossible d'éditer une campagne dont le tirage a été effectué"
+                            >
+                              Éditer
+                            </span>
+                          )}
                           <button
                             onClick={() => handleDelete(campaign.id)}
                             className="text-red-600 hover:text-red-900"

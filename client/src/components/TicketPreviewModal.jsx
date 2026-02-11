@@ -54,7 +54,7 @@ const TicketPreviewModal = ({
           </svg>
         </button>
 
-        {/* Conteneur du ticket avec effet 3D */}
+        {/* Conteneur du ticket - horizontal et droit */}
         <div 
           className="relative"
           style={{
@@ -65,6 +65,7 @@ const TicketPreviewModal = ({
             className="relative transform transition-transform duration-300 hover:scale-105"
             style={{
               transformStyle: 'preserve-3d',
+              transform: 'rotate(0deg)', /* Toujours droit, pas penché */
             }}
           >
             {/* Image du ticket */}
@@ -74,10 +75,11 @@ const TicketPreviewModal = ({
               className="w-full h-auto rounded-lg"
               style={{
                 filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.5))',
+                transform: 'rotate(0deg)', /* Forcer horizontal */
               }}
             />
             
-            {/* Numéro du ticket superposé sur la zone blanche */}
+            {/* Numéro du ticket superposé sur la zone blanche - même police que TICKET NUMBER */}
             <div 
               className="absolute flex items-center justify-center"
               style={{
@@ -88,11 +90,11 @@ const TicketPreviewModal = ({
               }}
             >
               <span 
-                className="text-gray-800 font-bold tracking-wider"
+                className="text-gray-800 font-black tracking-wider uppercase"
                 style={{
-                  fontSize: 'clamp(1.2rem, 6vw, 2.2rem)',
-                  fontFamily: "'Courier New', Consolas, monospace",
-                  letterSpacing: '0.15em',
+                  fontSize: 'clamp(1.4rem, 7vw, 2.5rem)',
+                  fontFamily: "'Impact', 'Arial Black', 'Helvetica Neue', sans-serif",
+                  letterSpacing: '0.2em',
                   textShadow: '0 1px 2px rgba(0,0,0,0.1)',
                 }}
               >
