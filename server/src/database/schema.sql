@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
+    admin_level INTEGER DEFAULT NULL CHECK (admin_level IS NULL OR admin_level IN (1, 2, 3)),
     is_active BOOLEAN DEFAULT TRUE,
     email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -148,6 +149,24 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 CREATE INDEX IF NOT EXISTS idx_admin_logs_admin ON admin_logs(admin_id);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_logs(created_at);
+
+-- Admin Validations table (approval workflows for L1/L2 admins)
+CREATE TABLE IF NOT EXISTS admin_validations (
+    id SERIAL PRIMARY KEY,
+    requested_by INTEGER NOT NULL REFERENCES users(id),
+    validated_by INTEGER REFERENCES users(id),
+    action_type VARCHAR(50) NOT NULL, -- 'create_campaign', 'create_promo', 'launch_draw'
+    entity_type VARCHAR(50) NOT NULL, -- 'campaign', 'promo', 'draw'
+    entity_id INTEGER,
+    payload JSONB,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    rejection_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    validated_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_validations_status ON admin_validations(status);
+CREATE INDEX IF NOT EXISTS idx_admin_validations_requested_by ON admin_validations(requested_by);
 
 -- Payment Webhooks table (for debugging and verification)
 CREATE TABLE IF NOT EXISTS payment_webhooks (

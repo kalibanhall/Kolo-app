@@ -6,24 +6,29 @@ import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon
 import { LogoKolo } from './LogoKolo';
 
 export const AdminLayout = ({ children }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, getAdminLevel } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const adminLevel = getAdminLevel();
+
+  // L1: Dashboard + Campagnes + Promos
+  // L2: + Transactions + Tirages + Livraisons
+  // L3: Full Access (+ Participants, Actions, Journal, Debug)
   const navItems = [
-    { path: '/admin', label: 'Tableau de bord', Icon: ChartIcon },
-    { path: '/admin/campaigns', label: 'Campagnes', Icon: CampaignIcon },
-    { path: '/admin/participants', label: 'Participants', Icon: UsersIcon },
-    { path: '/admin/transactions', label: 'Transactions', Icon: MoneyIcon },
-    { path: '/admin/draws', label: 'Tirages', Icon: TargetIcon },
-    { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon },
-    { path: '/admin/promos', label: 'Promos', Icon: TicketIcon },
-    { path: '/admin/actions', label: 'Actions', Icon: SettingsIcon },
-    { path: '/admin/logs', label: 'Journal', Icon: SettingsIcon },
-    { path: '/admin/debug', label: 'Debug', Icon: SettingsIcon },
-  ];
+    { path: '/admin', label: 'Tableau de bord', Icon: ChartIcon, minLevel: 1 },
+    { path: '/admin/campaigns', label: 'Campagnes', Icon: CampaignIcon, minLevel: 1 },
+    { path: '/admin/promos', label: 'Promos', Icon: TicketIcon, minLevel: 1 },
+    { path: '/admin/transactions', label: 'Transactions', Icon: MoneyIcon, minLevel: 2 },
+    { path: '/admin/draws', label: 'Tirages', Icon: TargetIcon, minLevel: 2 },
+    { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon, minLevel: 2 },
+    { path: '/admin/participants', label: 'Participants', Icon: UsersIcon, minLevel: 3 },
+    { path: '/admin/actions', label: 'Actions', Icon: SettingsIcon, minLevel: 3 },
+    { path: '/admin/logs', label: 'Journal', Icon: SettingsIcon, minLevel: 3 },
+    { path: '/admin/debug', label: 'Debug', Icon: SettingsIcon, minLevel: 3 },
+  ].filter(item => adminLevel >= item.minLevel);
 
   const handleNavClick = () => {
     setSidebarOpen(false);

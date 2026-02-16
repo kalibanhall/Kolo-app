@@ -525,6 +525,25 @@ router.post('/webhook', async (req, res) => {
         // Don't fail the whole process if SMS fails
       }
 
+      // Record promo code usage if applicable
+      if (purchase.promo_code_id && purchase.discount_amount > 0) {
+        try {
+          await query(
+            `INSERT INTO promo_code_usage (promo_code_id, user_id, purchase_id, discount_applied)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT DO NOTHING`,
+            [purchase.promo_code_id, purchase.user_id, purchase.id, purchase.discount_amount]
+          );
+          await query(
+            'UPDATE promo_codes SET current_uses = COALESCE(current_uses, 0) + 1 WHERE id = $1',
+            [purchase.promo_code_id]
+          );
+          console.log(`✅ Promo code ${purchase.promo_code_id} usage recorded`);
+        } catch (promoErr) {
+          console.warn('Failed to record promo usage:', promoErr.message);
+        }
+      }
+
       // Mark webhook as processed
       await query(
         `UPDATE payment_webhooks 
@@ -1001,11 +1020,56 @@ router.post(
         }
       }
 
-      // Use amount from frontend if provided, otherwise calculate
-      // Frontend sends: USD = price in $, CDF = price * 2850
-      const total_amount = requestedAmount || (currency === 'CDF' 
-        ? campaign.ticket_price * ticket_count * 2850 
-        : campaign.ticket_price * ticket_count);
+      // ---- PROMO CODE: server-side validation & discount calculation ----
+      let promoDiscountUSD = 0;
+      let validatedPromo = null;
+      if (promo_code_id) {
+        try {
+          const promoResult = await query(
+            `SELECT * FROM promo_codes 
+             WHERE id = $1 AND is_active = TRUE 
+             AND (expires_at IS NULL OR expires_at > NOW())
+             AND (starts_at IS NULL OR starts_at <= NOW())`,
+            [promo_code_id]
+          );
+          if (promoResult.rows.length > 0) {
+            const promo = promoResult.rows[0];
+            if (promo.max_uses === null || promo.current_uses < promo.max_uses) {
+              const usageCheck = await query(
+                'SELECT COUNT(*) as count FROM promo_code_usage WHERE promo_code_id = $1 AND user_id = $2',
+                [promo.id, user_id]
+              );
+              if (parseInt(usageCheck.rows[0].count) === 0) {
+                validatedPromo = promo;
+                const baseAmountUSD = parseFloat(campaign.ticket_price) * ticket_count;
+                if (promo.discount_type === 'percentage') {
+                  promoDiscountUSD = (baseAmountUSD * parseFloat(promo.discount_value)) / 100;
+                  if (promo.max_discount && promoDiscountUSD > parseFloat(promo.max_discount)) {
+                    promoDiscountUSD = parseFloat(promo.max_discount);
+                  }
+                } else {
+                  promoDiscountUSD = parseFloat(promo.discount_value);
+                }
+                promoDiscountUSD = Math.min(promoDiscountUSD, baseAmountUSD);
+              }
+            }
+          }
+        } catch (promoErr) {
+          console.warn('Promo validation failed:', promoErr.message);
+        }
+      }
+
+      // Use server-calculated amount (with promo applied) instead of trusting frontend
+      const baseAmountUSD = parseFloat(campaign.ticket_price) * ticket_count;
+      const discountedAmountUSD = baseAmountUSD - promoDiscountUSD;
+      const total_amount = currency === 'CDF' 
+        ? Math.ceil(discountedAmountUSD * 2850) 
+        : discountedAmountUSD;
+
+      // If frontend sent a different amount, log warning but use server-calculated
+      if (requestedAmount && Math.abs(requestedAmount - total_amount) > 1) {
+        console.warn(`Amount mismatch: frontend=${requestedAmount}, server=${total_amount} (promo discount: ${promoDiscountUSD} USD)`);
+      }
 
       // Normalize phone and detect provider
       const normalizedPhone = paydrc.normalizePhoneNumber(phone_number);
@@ -1043,8 +1107,8 @@ router.post(
             `PayDRC-${provider}`,
             'pending',
             reference,
-            promo_code_id || null,
-            discount_amount || 0,
+            validatedPromo ? validatedPromo.id : null,
+            promoDiscountUSD,
             selectedNumbersJson,
           ]
         );
@@ -1624,6 +1688,25 @@ router.post('/paydrc/callback', async (req, res) => {
 
         console.log(`✅ PayDRC callback processed: ${tickets.length} tickets generated`);
       });
+
+      // Record promo code usage if applicable
+      if (purchase.promo_code_id && purchase.discount_amount > 0) {
+        try {
+          await query(
+            `INSERT INTO promo_code_usage (promo_code_id, user_id, purchase_id, discount_applied)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT DO NOTHING`,
+            [purchase.promo_code_id, purchase.user_id, purchase.id, purchase.discount_amount]
+          );
+          await query(
+            'UPDATE promo_codes SET current_uses = COALESCE(current_uses, 0) + 1 WHERE id = $1',
+            [purchase.promo_code_id]
+          );
+          console.log(`✅ Promo code ${purchase.promo_code_id} usage recorded (PayDRC callback)`);
+        } catch (promoErr) {
+          console.warn('Failed to record promo usage in callback:', promoErr.message);
+        }
+      }
 
       // Send confirmation email/SMS (non-blocking)
       try {

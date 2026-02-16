@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query, transaction } = require('../config/database');
-const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin, requireAdminLevel } = require('../middleware/auth');
 const { logAdminAction } = require('../utils/logger');
 const { selectRandomWinners } = require('../utils/helpers');
 const { sendWinnerNotificationSMS } = require('../services/africasTalking');
@@ -447,8 +447,8 @@ router.get('/campaigns/:campaignId/tickets', async (req, res) => {
   }
 });
 
-// Perform lottery draw (rate limited to 1 per hour)
-router.post('/draw', drawLimiter, [
+// Perform lottery draw (rate limited to 1 per hour) - L2+
+router.post('/draw', requireAdminLevel(2), drawLimiter, [
   body('campaign_id').isInt({ min: 1 }),
   body('bonus_winners_count').optional().isInt({ min: 0, max: 10 }),
   body('draw_method').optional().isIn(['automatic', 'manual']),
@@ -856,8 +856,8 @@ router.get('/draws', async (req, res) => {
   }
 });
 
-// Export data (CSV/PDF simulation)
-router.post('/export', (req, res) => {
+// Export data (CSV/PDF simulation) - L2+
+router.post('/export', requireAdminLevel(2), (req, res) => {
   try {
     const { type, format } = req.body;
     
@@ -887,8 +887,8 @@ router.post('/export', (req, res) => {
   }
 });
 
-// Get suspicious accounts
-router.get('/suspicious-accounts', (req, res) => {
+// Get suspicious accounts - L3 only
+router.get('/suspicious-accounts', requireAdminLevel(3), (req, res) => {
   try {
     const suspiciousAccounts = [
       {
@@ -927,8 +927,8 @@ router.get('/suspicious-accounts', (req, res) => {
   }
 });
 
-// Get admin logs with pagination and filters
-router.get('/logs', async (req, res) => {
+// Get admin logs with pagination and filters - L3 only
+router.get('/logs', requireAdminLevel(3), async (req, res) => {
   try {
     const {
       page = 1,
@@ -1023,8 +1023,8 @@ router.get('/logs', async (req, res) => {
   }
 });
 
-// Get admin log statistics
-router.get('/logs/stats', async (req, res) => {
+// Get admin log statistics - L3 only
+router.get('/logs/stats', requireAdminLevel(3), async (req, res) => {
   try {
     const statsQuery = `
       SELECT 
@@ -1263,8 +1263,8 @@ router.get('/winners/stats', async (req, res) => {
   }
 });
 
-// Update winner delivery status
-router.patch('/winners/:ticketId/delivery', [
+// Update winner delivery status - L3 only
+router.patch('/winners/:ticketId/delivery', requireAdminLevel(3), [
   body('delivery_status')
     .isIn(['pending', 'contacted', 'shipped', 'delivered', 'claimed'])
     .withMessage('Invalid delivery status'),
@@ -1402,8 +1402,8 @@ router.patch('/winners/:ticketId/delivery', [
   }
 });
 
-// Bulk update delivery status
-router.post('/winners/bulk-update', [
+// Bulk update delivery status - L3 only
+router.post('/winners/bulk-update', requireAdminLevel(3), [
   body('ticket_ids').isArray().withMessage('ticket_ids must be an array'),
   body('delivery_status')
     .isIn(['pending', 'contacted', 'shipped', 'delivered', 'claimed'])
@@ -1486,8 +1486,8 @@ router.post('/winners/bulk-update', [
   }
 });
 
-// Get all transactions with details
-router.get('/transactions', async (req, res) => {
+// Get all transactions with details - L2+
+router.get('/transactions', requireAdminLevel(2), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -1633,8 +1633,8 @@ router.get('/transactions', async (req, res) => {
   }
 });
 
-// Sync transaction with PayDRC - check real status from payment gateway
-router.post('/transactions/:id/sync', async (req, res) => {
+// Sync transaction with PayDRC - check real status from payment gateway - L3 only
+router.post('/transactions/:id/sync', requireAdminLevel(3), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1751,8 +1751,8 @@ router.post('/transactions/:id/sync', async (req, res) => {
   }
 });
 
-// Bulk sync all pending transactions with PayDRC
-router.post('/transactions/sync-all', async (req, res) => {
+// Bulk sync all pending transactions with PayDRC - L3 only
+router.post('/transactions/sync-all', requireAdminLevel(3), async (req, res) => {
   try {
     // Get all pending transactions with PayDRC transaction IDs
     const pendingResult = await query(
@@ -1859,8 +1859,8 @@ router.post('/transactions/sync-all', async (req, res) => {
   }
 });
 
-// Update transaction status
-router.patch('/transactions/:id', [
+// Update transaction status - L3 only
+router.patch('/transactions/:id', requireAdminLevel(3), [
   body('status').isIn(['completed', 'pending', 'failed', 'cancelled'])
 ], async (req, res) => {
   try {
@@ -1974,8 +1974,8 @@ router.patch('/transactions/:id', [
 
 // ============ APP SETTINGS MANAGEMENT ============
 
-// Get all settings
-router.get('/settings', async (req, res) => {
+// Get all settings - L3 only
+router.get('/settings', requireAdminLevel(3), async (req, res) => {
   try {
     let result;
     try {
@@ -2035,8 +2035,8 @@ router.get('/settings', async (req, res) => {
   }
 });
 
-// Get specific setting
-router.get('/settings/:key', async (req, res) => {
+// Get specific setting - L3 only
+router.get('/settings/:key', requireAdminLevel(3), async (req, res) => {
   try {
     const { key } = req.params;
     
@@ -2065,8 +2065,8 @@ router.get('/settings/:key', async (req, res) => {
   }
 });
 
-// Update setting
-router.put('/settings/:key', [
+// Update setting - L3 only
+router.put('/settings/:key', requireAdminLevel(3), [
   body('value').notEmpty().withMessage('La valeur est requise')
 ], async (req, res) => {
   try {
@@ -2174,8 +2174,8 @@ router.get('/exchange-rate', async (req, res) => {
   }
 });
 
-// Debug route: Get all payment webhooks (for debugging)
-router.get('/debug/webhooks', async (req, res) => {
+// Debug route: Get all payment webhooks (for debugging) - L3 only
+router.get('/debug/webhooks', requireAdminLevel(3), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     
@@ -2203,8 +2203,8 @@ router.get('/debug/webhooks', async (req, res) => {
   }
 });
 
-// Debug route: Get raw purchases data
-router.get('/debug/purchases', async (req, res) => {
+// Debug route: Get raw purchases data - L3 only
+router.get('/debug/purchases', requireAdminLevel(3), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     
@@ -2241,8 +2241,8 @@ router.get('/debug/purchases', async (req, res) => {
   }
 });
 
-// Debug route: Get raw tickets data
-router.get('/debug/tickets', async (req, res) => {
+// Debug route: Get raw tickets data - L3 only
+router.get('/debug/tickets', requireAdminLevel(3), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     
@@ -2279,8 +2279,8 @@ router.get('/debug/tickets', async (req, res) => {
   }
 });
 
-// Fix missing tickets for completed purchases (admin only)
-router.post('/fix-missing-tickets', async (req, res) => {
+// Fix missing tickets for completed purchases (admin only) - L3 only
+router.post('/fix-missing-tickets', requireAdminLevel(3), async (req, res) => {
   try {
     console.log('🔧 Admin requested fix-missing-tickets');
     
@@ -2405,6 +2405,200 @@ router.post('/fix-missing-tickets', async (req, res) => {
       message: 'Erreur serveur',
       error: error.message
     });
+  }
+});
+
+// ============ ADMIN VALIDATION REQUESTS ============
+
+// Submit a validation request (L1 creates campaign/promo, L2 launches draw)
+router.post('/validations', [
+  body('action_type').isIn(['create_campaign', 'create_promo', 'launch_draw']),
+  body('entity_type').isIn(['campaign', 'promo', 'draw']),
+  body('entity_id').optional().isInt(),
+  body('payload').isObject()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { action_type, entity_type, entity_id, payload } = req.body;
+
+    const result = await query(
+      `INSERT INTO admin_validations (requested_by, action_type, entity_type, entity_id, payload)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [req.user.id, action_type, entity_type, entity_id || null, JSON.stringify(payload)]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      'VALIDATION_REQUEST',
+      entity_type,
+      entity_id || result.rows[0].id,
+      { action_type, status: 'pending' },
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Demande de validation soumise',
+      validation: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Validation request error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Get all validation requests - L2+ can see, all admins can see their own
+router.get('/validations', async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+    const userLevel = req.user.admin_level || 0;
+
+    let whereClause = '';
+    const params = [];
+
+    // L1/L2 see only their own requests, L3 sees all
+    if (userLevel < 3) {
+      params.push(req.user.id);
+      whereClause = `WHERE v.requested_by = $${params.length}`;
+    }
+
+    if (status) {
+      params.push(status);
+      whereClause += whereClause ? ` AND v.status = $${params.length}` : `WHERE v.status = $${params.length}`;
+    }
+
+    const result = await query(
+      `SELECT v.*, 
+              u1.name as requested_by_name,
+              u2.name as validated_by_name
+       FROM admin_validations v
+       LEFT JOIN users u1 ON v.requested_by = u1.id
+       LEFT JOIN users u2 ON v.validated_by = u2.id
+       ${whereClause}
+       ORDER BY v.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) FROM admin_validations v ${whereClause}`,
+      params
+    );
+
+    res.json({
+      success: true,
+      data: {
+        validations: result.rows,
+        total: parseInt(countResult.rows[0].count),
+        page: parseInt(page),
+        totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get validations error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Approve or reject a validation request - L3 only (or L2 for L1 requests)
+router.patch('/validations/:id', requireAdminLevel(2), [
+  body('status').isIn(['approved', 'rejected']),
+  body('rejection_reason').optional().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { status, rejection_reason } = req.body;
+    const userLevel = req.user.admin_level || 0;
+
+    // Get the validation request
+    const validationResult2 = await query(
+      'SELECT * FROM admin_validations WHERE id = $1',
+      [id]
+    );
+
+    if (validationResult2.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Demande non trouvee' });
+    }
+
+    const validation = validationResult2.rows[0];
+
+    if (validation.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Cette demande a deja ete traitee' });
+    }
+
+    // Cannot approve own request
+    if (validation.requested_by === req.user.id) {
+      return res.status(403).json({ success: false, message: 'Vous ne pouvez pas valider votre propre demande' });
+    }
+
+    // L2 can only approve L1 requests (campaigns/promos), L3 can approve all
+    if (userLevel === 2 && validation.action_type === 'launch_draw') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Seul un administrateur Niveau 3 peut valider les tirages' 
+      });
+    }
+
+    const result = await query(
+      `UPDATE admin_validations 
+       SET status = $1, validated_by = $2, rejection_reason = $3, validated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING *`,
+      [status, req.user.id, rejection_reason || null, id]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      status === 'approved' ? 'VALIDATION_APPROVED' : 'VALIDATION_REJECTED',
+      validation.entity_type,
+      validation.entity_id || validation.id,
+      { action_type: validation.action_type, rejection_reason },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: status === 'approved' ? 'Demande approuvee' : 'Demande rejetee',
+      validation: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Validate request error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Get pending validations count (for badge in sidebar)
+router.get('/validations/pending-count', async (req, res) => {
+  try {
+    const userLevel = req.user.admin_level || 0;
+
+    let result;
+    if (userLevel >= 3) {
+      result = await query("SELECT COUNT(*) FROM admin_validations WHERE status = 'pending'");
+    } else if (userLevel === 2) {
+      // L2 sees pending campaigns/promos from L1
+      result = await query(
+        "SELECT COUNT(*) FROM admin_validations WHERE status = 'pending' AND action_type IN ('create_campaign', 'create_promo')"
+      );
+    } else {
+      result = { rows: [{ count: 0 }] };
+    }
+
+    res.json({ success: true, count: parseInt(result.rows[0].count) });
+  } catch (error) {
+    console.error('Pending count error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
 

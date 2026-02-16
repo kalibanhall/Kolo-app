@@ -798,7 +798,7 @@ router.post('/purchase', verifyToken, [
     }
 
     const userId = req.user.id;
-    const { campaign_id, ticket_count, selection_mode, selected_numbers } = req.body;
+    const { campaign_id, ticket_count, selection_mode, selected_numbers, promo_code_id, discount_amount } = req.body;
 
     // Get wallet
     const walletResult = await query(
@@ -859,7 +859,50 @@ router.post('/purchase', verifyToken, [
     }
     
     const ticketPriceUSD = parseFloat(campaign.ticket_price);
-    const totalAmountCDF = Math.ceil(ticketPriceUSD * ticket_count * exchangeRate);
+    
+    // ---- PROMO CODE: server-side validation & discount calculation ----
+    let promoDiscountUSD = 0;
+    let validatedPromo = null;
+    if (promo_code_id) {
+      try {
+        const promoResult = await query(
+          `SELECT * FROM promo_codes 
+           WHERE id = $1 AND is_active = TRUE 
+           AND (expires_at IS NULL OR expires_at > NOW())
+           AND (starts_at IS NULL OR starts_at <= NOW())`,
+          [promo_code_id]
+        );
+        if (promoResult.rows.length > 0) {
+          const promo = promoResult.rows[0];
+          // Check max uses
+          if (promo.max_uses === null || promo.current_uses < promo.max_uses) {
+            // Check user hasn't already used it
+            const usageCheck = await query(
+              'SELECT COUNT(*) as count FROM promo_code_usage WHERE promo_code_id = $1 AND user_id = $2',
+              [promo.id, userId]
+            );
+            if (parseInt(usageCheck.rows[0].count) === 0) {
+              validatedPromo = promo;
+              const baseAmount = ticketPriceUSD * ticket_count;
+              if (promo.discount_type === 'percentage') {
+                promoDiscountUSD = (baseAmount * parseFloat(promo.discount_value)) / 100;
+                if (promo.max_discount && promoDiscountUSD > parseFloat(promo.max_discount)) {
+                  promoDiscountUSD = parseFloat(promo.max_discount);
+                }
+              } else {
+                promoDiscountUSD = parseFloat(promo.discount_value);
+              }
+              promoDiscountUSD = Math.min(promoDiscountUSD, baseAmount);
+            }
+          }
+        }
+      } catch (promoErr) {
+        console.warn('Promo validation in wallet purchase failed:', promoErr.message);
+      }
+    }
+
+    const totalAmountUSD = ticketPriceUSD * ticket_count - promoDiscountUSD;
+    const totalAmountCDF = Math.ceil(totalAmountUSD * exchangeRate);
 
     // Check wallet balance (in CDF)
     if (parseFloat(wallet.balance) < totalAmountCDF) {
@@ -896,16 +939,18 @@ router.post('/purchase', verifyToken, [
         `INSERT INTO wallet_transactions 
          (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
          VALUES ($1, 'purchase', $2, $3, $4, $5, 'completed', $6)`,
-        [wallet.id, totalAmountCDF, wallet.balance, newBalance, reference, `Achat de ${ticket_count} ticket(s) - ${ticketPriceUSD * ticket_count}$`]
+        [wallet.id, totalAmountCDF, wallet.balance, newBalance, reference, 
+         `Achat de ${ticket_count} ticket(s) - ${totalAmountUSD.toFixed(2)}$${validatedPromo ? ` (promo ${validatedPromo.code})` : ''}`]
       );
 
       // Create purchase record (store USD amount for reporting)
         const purchaseResult = await client.query(
           `INSERT INTO purchases 
-           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider)
-           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet')
+           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider, promo_code_id, discount_amount)
+           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet', $6, $7)
            RETURNING *`,
-          [userId, campaign_id, ticket_count, ticketPriceUSD * ticket_count, purchaseTransactionId]
+          [userId, campaign_id, ticket_count, totalAmountUSD, purchaseTransactionId, 
+           validatedPromo ? validatedPromo.id : null, promoDiscountUSD]
         );
 
       const purchase = purchaseResult.rows[0];
@@ -1033,6 +1078,23 @@ router.post('/purchase', verifyToken, [
 
       await client.query('COMMIT');
 
+      // Record promo usage AFTER successful commit (outside transaction)
+      if (validatedPromo) {
+        try {
+          await query(
+            `INSERT INTO promo_code_usage (promo_code_id, user_id, purchase_id, discount_applied)
+             VALUES ($1, $2, $3, $4)`,
+            [validatedPromo.id, userId, purchase.id, promoDiscountUSD]
+          );
+          await query(
+            'UPDATE promo_codes SET current_uses = COALESCE(current_uses, 0) + 1 WHERE id = $1',
+            [validatedPromo.id]
+          );
+        } catch (promoUsageErr) {
+          console.warn('Failed to record promo usage:', promoUsageErr.message);
+        }
+      }
+
       res.json({
         success: true,
         message: 'Achat effectué avec succès !',
@@ -1044,7 +1106,8 @@ router.post('/purchase', verifyToken, [
             ticket_number: t.ticket_number
           })),
           amount_paid_cdf: totalAmountCDF,
-          amount_paid_usd: ticketPriceUSD * ticket_count,
+          amount_paid_usd: totalAmountUSD,
+          discount_applied: promoDiscountUSD,
           new_balance: newBalance
         }
       });

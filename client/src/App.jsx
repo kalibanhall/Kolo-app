@@ -163,7 +163,7 @@ function App() {
           <Route
             path="/admin/participants"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
                 <ParticipantsPage />
               </ProtectedRoute>
             }
@@ -171,7 +171,7 @@ function App() {
           <Route
             path="/admin/draw"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
                 <DrawManagementPage />
               </ProtectedRoute>
             }
@@ -179,7 +179,7 @@ function App() {
           <Route
             path="/admin/draws"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
                 <DrawManagementPage />
               </ProtectedRoute>
             }
@@ -195,7 +195,7 @@ function App() {
           <Route
             path="/admin/payments"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
                 <TransactionsPage />
               </ProtectedRoute>
             }
@@ -203,7 +203,7 @@ function App() {
           <Route
             path="/admin/transactions"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
                 <TransactionsPage />
               </ProtectedRoute>
             }
@@ -211,7 +211,7 @@ function App() {
           <Route
             path="/admin/actions"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
                 <AdminActionsPage />
               </ProtectedRoute>
             }
@@ -219,7 +219,7 @@ function App() {
           <Route
             path="/admin/logs"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
                 <AdminLogsPage />
               </ProtectedRoute>
             }
@@ -227,7 +227,7 @@ function App() {
           <Route
             path="/admin/debug"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
                 <AdminDebugPage />
               </ProtectedRoute>
             }
@@ -235,7 +235,7 @@ function App() {
           <Route
             path="/admin/delivery"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
                 <PrizeDeliveryPage />
               </ProtectedRoute>
             }

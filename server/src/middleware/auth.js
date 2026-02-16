@@ -34,7 +34,7 @@ const verifyToken = async (req, res, next) => {
     } else {
       // Get user from database
       const result = await query(
-        'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
+        'SELECT id, email, name, phone, is_admin, admin_level, is_active FROM users WHERE id = $1',
         [userId]
       );
 
@@ -129,7 +129,7 @@ const optionalAuth = async (req, res, next) => {
         req.user = cached.user;
       } else {
         const result = await query(
-          'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
+          'SELECT id, email, name, phone, is_admin, admin_level, is_active FROM users WHERE id = $1',
           [userId]
         );
 
@@ -148,8 +148,36 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware factory: require a minimum admin level.
+ * Level 1 = Operateur (Campagnes + Promos, creation avec validation)
+ * Level 2 = Superviseur (Transactions + Tirages, consultation + lancement avec validation)
+ * Level 3 = Administrateur General (Full Access)
+ */
+const requireAdminLevel = (minLevel) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    if (!req.user.is_admin) {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    const userLevel = req.user.admin_level || 0;
+    if (userLevel < minLevel) {
+      return res.status(403).json({
+        success: false,
+        message: `Niveau d'acces insuffisant. Niveau ${minLevel} requis.`,
+        required_level: minLevel,
+        current_level: userLevel
+      });
+    }
+    next();
+  };
+};
+
 module.exports = {
   verifyToken,
   verifyAdmin,
-  optionalAuth
+  optionalAuth,
+  requireAdminLevel
 };

@@ -208,7 +208,21 @@ router.post('/admin', verifyToken, verifyAdmin, [
 
     // Use discount_percent if provided, otherwise use discount_value
     const finalDiscountType = discount_percent ? 'percentage' : (discount_type || 'percentage');
-    const finalDiscountValue = discount_percent || discount_value || 10;
+    const finalDiscountValue = discount_percent || discount_value;
+
+    if (!finalDiscountValue || finalDiscountValue <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'La valeur de la remise est requise (discount_percent ou discount_value)'
+      });
+    }
+
+    if (finalDiscountType === 'percentage' && finalDiscountValue > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le pourcentage ne peut pas depasser 100%'
+      });
+    }
 
     const result = await query(
       `INSERT INTO promo_codes 
@@ -245,6 +259,8 @@ router.put('/admin/:id', verifyToken, verifyAdmin, [
   body('description').optional().trim(),
   body('discount_type').optional().isIn(['percentage', 'fixed']),
   body('discount_value').optional().isFloat({ min: 0 }),
+  body('discount_percent').optional().isInt({ min: 1, max: 100 }),
+  body('influencer_name').optional().trim(),
   body('min_purchase').optional().isFloat({ min: 0 }),
   body('max_discount').optional().isFloat({ min: 0 }),
   body('max_uses').optional().isInt({ min: 1 }),
@@ -257,8 +273,14 @@ router.put('/admin/:id', verifyToken, verifyAdmin, [
     const values = [];
     let paramCount = 1;
 
+    // If discount_percent is sent, convert it to discount_value + discount_type
+    if (req.body.discount_percent !== undefined) {
+      req.body.discount_value = req.body.discount_percent;
+      req.body.discount_type = 'percentage';
+    }
+
     const allowedFields = [
-      'description', 'discount_type', 'discount_value', 
+      'description', 'discount_type', 'discount_value', 'influencer_name',
       'min_purchase', 'max_discount', 'max_uses', 'is_active', 'expires_at'
     ];
 

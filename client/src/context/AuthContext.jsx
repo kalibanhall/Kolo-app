@@ -197,6 +197,11 @@ export const AuthProvider = ({ children }) => {
     return user?.is_admin === true;
   };
 
+  const getAdminLevel = () => {
+    if (!user?.is_admin) return 0;
+    return user?.admin_level || 3; // Les anciens admins sans niveau = L3 (full access)
+  };
+
   const isAuthenticated = () => {
     return user !== null;
   };
@@ -211,6 +216,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     checkAuth,
     isAdmin,
+    getAdminLevel,
     isAuthenticated,
   };
 

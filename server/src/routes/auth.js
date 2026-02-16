@@ -159,7 +159,7 @@ router.post('/login', authLimiter, [
     
     // Find user
     const result = await query(
-      'SELECT id, email, name, phone, password_hash, is_admin, is_active FROM users WHERE email = $1',
+      'SELECT id, email, name, phone, password_hash, is_admin, admin_level, is_active FROM users WHERE email = $1',
       [email]
     );
 
@@ -215,7 +215,8 @@ router.post('/login', authLimiter, [
         name: user.name,
         email: user.email,
         phone: user.phone,
-        is_admin: user.is_admin
+        is_admin: user.is_admin,
+        admin_level: user.admin_level
       }
     });
 
@@ -245,7 +246,7 @@ router.get('/verify', async (req, res) => {
 
     // Get user from database
     const result = await query(
-      'SELECT id, email, name, phone, photo_url, is_admin, is_active FROM users WHERE id = $1',
+      'SELECT id, email, name, phone, photo_url, is_admin, admin_level, is_active FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -273,7 +274,8 @@ router.get('/verify', async (req, res) => {
         email: user.email,
         phone: user.phone,
         photo_url: user.photo_url,
-        is_admin: user.is_admin
+        is_admin: user.is_admin,
+        admin_level: user.admin_level
       }
     });
 
@@ -606,6 +608,7 @@ router.post('/google', async (req, res) => {
         email: user.email,
         phone: user.phone,
         is_admin: user.is_admin,
+        admin_level: user.admin_level,
         photo_url: user.photo_url
       }
     });

@@ -2,8 +2,8 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false }) => {
-  const { user, loading, isAdmin } = useAuth();
+export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false, requiredLevel = 0 }) => {
+  const { user, loading, isAdmin, getAdminLevel } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -24,6 +24,11 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
   // Si route admin uniquement et user n'est pas admin
   if (adminOnly && !isAdmin()) {
     return <Navigate to="/" replace />;
+  }
+
+  // Si un niveau admin minimum est requis
+  if (requiredLevel > 0 && getAdminLevel() < requiredLevel) {
+    return <Navigate to="/admin" replace />;
   }
 
   // Si route utilisateur uniquement et user est admin, rediriger vers tableau de bord admin
