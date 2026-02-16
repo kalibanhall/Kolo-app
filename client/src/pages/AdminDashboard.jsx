@@ -4,6 +4,7 @@ import { StatCard } from '../components/StatCard';
 import { adminAPI, campaignsAPI } from '../services/api';
 import { Link } from 'react-router-dom';
 import { TicketIcon, UsersIcon, MoneyIcon, TargetIcon, TrophyIcon, ChartIcon, CampaignIcon } from '../components/Icons';
+import { useTheme } from '../context/ThemeContext';
 import {
   RevenueChart,
   ParticipantsChart,
@@ -238,6 +239,7 @@ const FixMissingTickets = () => {
 };
 
 export const AdminDashboard = () => {
+  const { isDarkMode } = useTheme();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

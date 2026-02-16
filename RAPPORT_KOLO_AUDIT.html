@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOLO - Rapport d'Audit Technique v2</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1a1a2e;
+            line-height: 1.6;
+            font-size: 11pt;
+        }
+
+        /* ---- COVER ---- */
+        .cover {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #fff;
+            text-align: center;
+            page-break-after: always;
+        }
+        .cover h1 { font-size: 42pt; letter-spacing: 6px; margin-bottom: 10px; }
+        .cover .subtitle { font-size: 16pt; color: #a5b4fc; margin-bottom: 40px; }
+        .cover .meta { font-size: 10pt; color: #94a3b8; margin-top: 60px; }
+        .cover .meta span { display: block; margin-top: 4px; }
+        .cover .version { margin-top: 12px; background: rgba(255,255,255,0.1); padding: 6px 20px; border-radius: 20px; font-size: 9pt; }
+
+        /* ---- TOC ---- */
+        .toc { page-break-after: always; padding: 40px 60px; }
+        .toc h2 { font-size: 20pt; border-bottom: 3px solid #302b63; padding-bottom: 8px; margin-bottom: 24px; }
+        .toc ol { list-style: none; counter-reset: toc; }
+        .toc ol li { counter-increment: toc; padding: 10px 0; border-bottom: 1px dotted #cbd5e1; font-size: 12pt; }
+        .toc ol li::before { content: counter(toc) ". "; font-weight: 700; color: #302b63; }
+
+        /* ---- SECTIONS ---- */
+        .section { padding: 30px 50px; page-break-before: always; }
+        .section h2 { font-size: 18pt; color: #302b63; border-left: 5px solid #302b63; padding-left: 14px; margin-bottom: 18px; }
+        .section h3 { font-size: 13pt; color: #1e1b4b; margin: 18px 0 8px; }
+        .section h4 { font-size: 11pt; color: #4338ca; margin: 12px 0 6px; }
+        .section p, .section li { margin-bottom: 6px; }
+        .section ul { padding-left: 20px; }
+
+        /* status badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 9pt;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .badge-fixed { background: #dcfce7; color: #166534; }
+        .badge-open { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #e0e7ff; color: #3730a3; }
+        .badge-warning { background: #fef9c3; color: #854d0e; }
+
+        /* tables */
+        table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 10pt; }
+        th { background: #302b63; color: #fff; text-align: left; padding: 8px 10px; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+
+        /* code */
+        code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 9.5pt; font-family: 'Consolas', monospace; }
+        pre { background: #1e1b4b; color: #e2e8f0; padding: 14px; border-radius: 6px; overflow-x: auto; font-size: 9pt; margin: 10px 0; white-space: pre-wrap; }
+
+        /* priority bar */
+        .priority { display: flex; gap: 4px; align-items: center; }
+        .priority .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-critical { background: #dc2626; }
+        .dot-high { background: #f59e0b; }
+        .dot-medium { background: #3b82f6; }
+        .dot-low { background: #22c55e; }
+
+        /* footer */
+        .page-footer { text-align: center; font-size: 8pt; color: #94a3b8; margin-top: 40px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+
+<!-- ========== COVER ========== -->
+<div class="cover">
+    <h1>KOLO</h1>
+    <div class="subtitle">Rapport d'Audit Technique</div>
+    <p style="font-size:12pt; max-width:480px; color:#cbd5e1;">
+        Analyse complete de la plateforme Tombola : tickets, facturation, backoffice, niveaux d'acces et migration VPS.
+    </p>
+    <div class="meta">
+        <span>Commanditaire : Direction KOLO</span>
+        <span>Auditeur : Equipe Technique</span>
+        <span>Date : Juin 2025</span>
+    </div>
+    <div class="version">v2.0 - Post-corrections</div>
+</div>
+
+<!-- ========== TABLE OF CONTENTS ========== -->
+<div class="toc">
+    <h2>Table des matieres</h2>
+    <ol>
+        <li>Affichage et Gestion des Tickets <span class="badge badge-fixed">13 corrections appliquees</span></li>
+        <li>Systeme de Facturation KOLO</li>
+        <li>Etat du Backoffice Administratif</li>
+        <li>Niveaux d'Acces Administrateur (L1 / L2 / L3)</li>
+        <li>Migration VPS et Architecture de Deploiement</li>
+        <li>Anomalies Residuelles</li>
+        <li>Recommandations et Priorites</li>
+    </ol>
+</div>
+
+<!-- ========== SECTION 1 : TICKETS ========== -->
+<div class="section">
+    <h2>1. Affichage et Gestion des Tickets</h2>
+
+    <h3>1.1 Bugs corriges</h3>
+    <table>
+        <tr><th>#</th><th>Composant</th><th>Probleme</th><th>Correction</th><th>Statut</th></tr>
+        <tr>
+            <td>1</td>
+            <td><code>UserProfilePage.jsx</code></td>
+            <td>Champ <code>prize_name</code> inexistant - nom du prix non affiche</td>
+            <td>Remplace par <code>main_prize</code> (champ reel de la BDD)</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td><code>UserProfilePage.jsx</code></td>
+            <td>Prop <code>prizeCategory</code> manquante sur <code>TicketPreviewModal</code></td>
+            <td>Ajout de <code>prizeCategory={selectedTicket?.prize_category}</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td><code>TicketPreviewModal.jsx</code></td>
+            <td><code>campaignTitle</code> non destructure dans les props</td>
+            <td>Ajout dans la destructuration + affichage dans le modal</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td><code>NotificationsPanel.jsx</code></td>
+            <td>Props <code>ownerName</code> et <code>prizeCategory</code> non transmises</td>
+            <td>Ajout des deux props depuis <code>selectedWinnerTicket</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td><code>UserDashboard.jsx</code></td>
+            <td>Rendu inline des tickets (~80 lignes) au lieu d'utiliser les composants existants</td>
+            <td>Refactoring complet avec <code>TicketCardMini</code> + <code>TicketPreviewModal</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td><code>public/</code></td>
+            <td>Noms de fichiers avec espaces (<code>ticket bonus.png</code>) - erreur 404</td>
+            <td>Renomme en <code>ticket-bonus.png</code>, <code>ticket-gagnant.png</code>, <code>ticket-number.png</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+    </table>
+
+    <h3>1.2 Architecture des composants Ticket</h3>
+    <table>
+        <tr><th>Composant</th><th>Role</th><th>Utilise dans</th></tr>
+        <tr><td><code>TicketCard</code></td><td>Carte complete avec details et actions</td><td>Import mort dans UserProfilePage (dead code)</td></tr>
+        <tr><td><code>TicketCardMini</code></td><td>Carte compacte pour grilles</td><td>UserDashboard, UserProfilePage</td></tr>
+        <tr><td><code>TicketPreviewModal</code></td><td>Modal plein-ecran avec image du ticket</td><td>UserDashboard, UserProfilePage, NotificationsPanel</td></tr>
+    </table>
+
+    <h3>1.3 Cycle de vie d'un ticket</h3>
+    <pre>ACHAT -> active -> [TIRAGE] -> winner | active (pas de statut "lost")
+                                   |
+                          cancelled (annulation manuelle)</pre>
+    <p><span class="badge badge-open">Anomalie</span> Le schema SQL ne contient pas le statut <code>lost</code> dans la contrainte CHECK. Apres un tirage, les tickets non-gagnants restent en <code>active</code>, rendant impossible leur distinction des tickets de campagnes futures.</p>
+</div>
+
+<!-- ========== SECTION 2 : FACTURATION ========== -->
+<div class="section">
+    <h2>2. Systeme de Facturation KOLO</h2>
+
+    <h3>2.1 Flux de generation de facture</h3>
+    <table>
+        <tr><th>Etape</th><th>Action</th><th>Fichier</th><th>Statut</th></tr>
+        <tr><td>1</td><td>Achat initie - enregistrement en BDD</td><td><code>payments.js</code></td><td><span class="badge badge-fixed">OK</span></td></tr>
+        <tr><td>2</td><td>Paiement confirme (webhook PayDRC)</td><td><code>payments.js</code></td><td><span class="badge badge-fixed">OK</span></td></tr>
+        <tr><td>3</td><td>Generation PDF (PDFKit)</td><td><code>pdfGenerator.js</code></td><td><span class="badge badge-fixed">OK</span></td></tr>
+        <tr><td>4</td><td>Upload Cloudinary + mise a jour <code>pdf_url</code></td><td><code>payments.js</code></td><td><span class="badge badge-fixed">OK</span></td></tr>
+        <tr><td>5</td><td>Envoi email avec lien facture</td><td><code>emailService.js</code></td><td><span class="badge badge-fixed">OK</span></td></tr>
+    </table>
+
+    <h3>2.2 Corrections appliquees</h3>
+    <table>
+        <tr><th>#</th><th>Probleme</th><th>Correction</th><th>Statut</th></tr>
+        <tr>
+            <td>1</td>
+            <td>PDF non genere dans le flux <code>generateTicketsForPurchase()</code></td>
+            <td>Ajout de la generation PDF + upload Cloudinary apres la transaction</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>PDF non genere dans le callback PayDRC secondaire</td>
+            <td>Ajout du meme bloc de generation apres l'envoi email/SMS</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Lien "Mes Factures" absent du profil utilisateur</td>
+            <td>Ajout d'un onglet dans <code>UserProfilePage.jsx</code> pointant vers <code>/profile/invoices</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+    </table>
+
+    <h3>2.3 Anomalies residuelles</h3>
+    <ul>
+        <li><span class="badge badge-open">Doublon API</span> Deux endpoints de factures coexistent :
+            <ul>
+                <li><code>GET /api/payments/invoices</code> (dans payments.js)</li>
+                <li><code>GET /api/invoices/user/:userId</code> (dans invoices.js)</li>
+            </ul>
+            Risque de confusion et de maintenance. Recommandation : unifier sous un seul endpoint.
+        </li>
+        <li><span class="badge badge-warning">Colonne inutilisee</span> Le champ <code>sent_to_email</code> dans la table <code>invoices</code> n'est jamais ecrit ni lu par aucune route.</li>
+    </ul>
+
+    <h3>2.4 Contenu du PDF genere</h3>
+    <p>Le service <code>pdfGenerator.js</code> produit un document PDF contenant :</p>
+    <ul>
+        <li>En-tete KOLO avec logo</li>
+        <li>Numero de facture unique</li>
+        <li>Informations utilisateur (nom, telephone, email)</li>
+        <li>Detail de la campagne et nombre de tickets</li>
+        <li>Montant total et methode de paiement</li>
+        <li>Liste des numeros de tickets achetes</li>
+        <li>Pied de page avec mentions legales</li>
+    </ul>
+</div>
+
+<!-- ========== SECTION 3 : BACKOFFICE ========== -->
+<div class="section">
+    <h2>3. Etat du Backoffice Administratif</h2>
+
+    <h3>3.1 Pages disponibles</h3>
+    <table>
+        <tr><th>Page</th><th>Route</th><th>Etat</th></tr>
+        <tr><td>Tableau de bord</td><td><code>/admin</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Campagnes</td><td><code>/admin/campaigns</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Transactions</td><td><code>/admin/transactions</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Tirages</td><td><code>/admin/draws</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Promotions</td><td><code>/admin/promotions</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Participants</td><td><code>/admin/participants</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Debug</td><td><code>/admin/debug</code></td><td><span class="badge badge-fixed">Fonctionnel</span></td></tr>
+        <tr><td>Actions admin</td><td><code>/admin/actions</code></td><td><span class="badge badge-warning">Partiellement fonctionnel</span></td></tr>
+    </table>
+
+    <h3>3.2 Corrections appliquees au backoffice</h3>
+    <table>
+        <tr><th>#</th><th>Probleme</th><th>Correction</th><th>Statut</th></tr>
+        <tr>
+            <td>1</td>
+            <td>Route <code>/admin/actions</code> absente du menu sidebar</td>
+            <td>Ajout dans le tableau <code>navItems</code> de <code>AdminLayout.jsx</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Route <code>/profile/invoices</code> dupliquee dans <code>App.jsx</code></td>
+            <td>Suppression du doublon (lignes ~114 et ~252)</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Methode <code>getDraws</code> dupliquee dans <code>api.js</code></td>
+            <td>Suppression de la deuxieme definition</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>5 appels <code>logAdminAction</code> avec signatures incorrectes</td>
+            <td>Correction de toutes les signatures dans <code>admin.js</code></td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Dark mode absent sur 4 pages admin</td>
+            <td>Ajout de <code>useTheme()</code> + classes conditionnelles sur AdminDebugPage, AdminActionsPage, ParticipantsPage, AdminDashboard</td>
+            <td><span class="badge badge-fixed">Corrige</span></td>
+        </tr>
+    </table>
+
+    <h3>3.3 Anomalies residuelles du backoffice</h3>
+    <ul>
+        <li><span class="badge badge-open">Fonctions stub</span> Les 3 actions de <code>AdminActionsPage</code> sont des stubs :
+            <ul>
+                <li>Messagerie groupee - affiche "Fonctionnalite en developpement"</li>
+                <li>Verrouillage campagne - idem</li>
+                <li>Archivage campagne - idem</li>
+            </ul>
+        </li>
+        <li><span class="badge badge-open">Routes alias</span> Doublons intentionnels mais inutiles :
+            <ul>
+                <li><code>/admin/draw</code> et <code>/admin/draws</code> rendent la meme page</li>
+                <li><code>/admin/payments</code> et <code>/admin/transactions</code> rendent la meme page</li>
+            </ul>
+        </li>
+        <li><span class="badge badge-open">Export mock</span> <code>POST /admin/export</code> retourne un <code>exportId</code> fictif et un <code>download_url</code> factice. Aucune generation reelle de fichier CSV/PDF.</li>
+        <li><span class="badge badge-open">Comptes suspects mock</span> <code>GET /admin/suspicious-accounts</code> retourne un tableau en dur de 2 faux comptes. Aucune logique de detection.</li>
+        <li><span class="badge badge-open">Gestion utilisateurs</span> Aucune page <code>/admin/users</code> n'existe. Les administrateurs ne peuvent pas gerer les utilisateurs (blocage, roles, etc.).</li>
+    </ul>
+</div>
+
+<!-- ========== SECTION 4 : NIVEAUX D'ACCES ========== -->
+<div class="section">
+    <h2>4. Niveaux d'Acces Administrateur</h2>
+
+    <h3>4.1 Definition des niveaux</h3>
+
+    <h4>Niveau 1 - Operateur</h4>
+    <p>Acces limite aux operations de base avec validation obligatoire par un niveau superieur.</p>
+    <table>
+        <tr><th>Module</th><th>Droits</th></tr>
+        <tr><td>Campagnes</td><td>Consulter, Creer (soumis a validation N2/N3)</td></tr>
+        <tr><td>Promotions</td><td>Consulter, Creer (soumis a validation N2/N3)</td></tr>
+        <tr><td>Transactions</td><td>Consulter uniquement</td></tr>
+        <tr><td>Tirages</td><td>Aucun acces</td></tr>
+        <tr><td>Participants</td><td>Consulter uniquement</td></tr>
+        <tr><td>Parametres</td><td>Aucun acces</td></tr>
+    </table>
+
+    <h4>Niveau 2 - Superviseur</h4>
+    <p>Acces etendu avec droits de validation et d'execution des tirages.</p>
+    <table>
+        <tr><th>Module</th><th>Droits</th></tr>
+        <tr><td>Campagnes</td><td>Consulter, Creer, Modifier, Valider les creations N1</td></tr>
+        <tr><td>Promotions</td><td>Consulter, Creer, Modifier</td></tr>
+        <tr><td>Transactions</td><td>Consulter, Telecharger les listes, Exporter</td></tr>
+        <tr><td>Tirages</td><td>Consulter, Lancer le tirage (campagnes cloturees, soumis a validation N3)</td></tr>
+        <tr><td>Participants</td><td>Consulter, Telecharger les listes</td></tr>
+        <tr><td>Parametres</td><td>Aucun acces</td></tr>
+    </table>
+
+    <h4>Niveau 3 - Administrateur General</h4>
+    <p>Acces total a l'ensemble de la plateforme.</p>
+    <table>
+        <tr><th>Module</th><th>Droits</th></tr>
+        <tr><td>Campagnes</td><td>Acces complet + Suppression</td></tr>
+        <tr><td>Promotions</td><td>Acces complet + Suppression</td></tr>
+        <tr><td>Transactions</td><td>Acces complet + Remboursements</td></tr>
+        <tr><td>Tirages</td><td>Acces complet + Validation finale</td></tr>
+        <tr><td>Participants</td><td>Acces complet + Gestion des comptes</td></tr>
+        <tr><td>Parametres</td><td>Acces complet (configuration systeme, API, emails)</td></tr>
+        <tr><td>Utilisateurs admin</td><td>Creer/Modifier/Supprimer des comptes admin N1/N2</td></tr>
+        <tr><td>Logs et audit</td><td>Consultation de toutes les actions admin</td></tr>
+    </table>
+
+    <h3>4.2 Matrice de permissions</h3>
+    <table>
+        <tr>
+            <th>Action</th><th>N1</th><th>N2</th><th>N3</th>
+        </tr>
+        <tr><td>Voir tableau de bord</td><td>Oui</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Creer une campagne</td><td>Oui*</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Valider une campagne</td><td>Non</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Supprimer une campagne</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+        <tr><td>Voir les transactions</td><td>Oui</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Exporter les donnees</td><td>Non</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Lancer un tirage</td><td>Non</td><td>Oui*</td><td>Oui</td></tr>
+        <tr><td>Valider un tirage</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+        <tr><td>Effectuer un remboursement</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+        <tr><td>Gerer les parametres</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+        <tr><td>Gerer les administrateurs</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+        <tr><td>Consulter les logs d'audit</td><td>Non</td><td>Non</td><td>Oui</td></tr>
+    </table>
+    <p style="font-size:9pt; color:#64748b;">* Soumis a validation par un niveau superieur</p>
+
+    <h3>4.3 Etat d'implementation actuel</h3>
+    <p><span class="badge badge-warning">Non implemente</span> Le systeme de niveaux d'acces n'est pas encore implemente dans le code. Le champ <code>role</code> dans la table <code>users</code> accepte <code>'user'</code> ou <code>'admin'</code>, sans distinction de niveau. Les routes admin utilisent un middleware <code>isAdmin</code> binaire (admin ou non).</p>
+    <p>Implementation necessaire :</p>
+    <ul>
+        <li>Ajouter un champ <code>admin_level</code> (1, 2, 3) dans la table <code>users</code></li>
+        <li>Creer un middleware <code>requireAdminLevel(minLevel)</code></li>
+        <li>Appliquer le middleware sur chaque route admin selon la matrice ci-dessus</li>
+        <li>Adapter le frontend pour masquer les elements selon le niveau</li>
+    </ul>
+</div>
+
+<!-- ========== SECTION 5 : VPS ========== -->
+<div class="section">
+    <h2>5. Migration VPS et Architecture de Deploiement</h2>
+
+    <h3>5.1 Architecture cible</h3>
+    <table>
+        <tr><th>Composant</th><th>Technologie</th><th>Emplacement</th></tr>
+        <tr><td>Frontend</td><td>React (Vite build statique)</td><td>Vercel ou Nginx sur VPS</td></tr>
+        <tr><td>Backend API</td><td>Node.js / Express</td><td>VPS (PM2)</td></tr>
+        <tr><td>Base de donnees</td><td>PostgreSQL</td><td>Supabase (cloud) ou VPS local</td></tr>
+        <tr><td>Fichiers/PDF</td><td>Cloudinary</td><td>Cloud</td></tr>
+        <tr><td>Reverse proxy</td><td>Nginx</td><td>VPS</td></tr>
+        <tr><td>SSL</td><td>Let's Encrypt (Certbot)</td><td>VPS</td></tr>
+        <tr><td>Process manager</td><td>PM2</td><td>VPS</td></tr>
+    </table>
+
+    <h3>5.2 Specifications VPS recommandees</h3>
+    <table>
+        <tr><th>Ressource</th><th>Minimum</th><th>Recommande</th></tr>
+        <tr><td>CPU</td><td>2 vCPU</td><td>4 vCPU</td></tr>
+        <tr><td>RAM</td><td>2 Go</td><td>4 Go</td></tr>
+        <tr><td>Stockage</td><td>40 Go SSD</td><td>80 Go SSD</td></tr>
+        <tr><td>OS</td><td colspan="2">Ubuntu 22.04 LTS</td></tr>
+        <tr><td>Bande passante</td><td>1 TB/mois</td><td>2 TB/mois</td></tr>
+    </table>
+
+    <h3>5.3 Configuration Nginx</h3>
+    <pre>server {
+    listen 80;
+    server_name api.kolo.cd;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.kolo.cd;
+
+    ssl_certificate /etc/letsencrypt/live/api.kolo.cd/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.kolo.cd/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name kolo.cd www.kolo.cd;
+
+    ssl_certificate /etc/letsencrypt/live/kolo.cd/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kolo.cd/privkey.pem;
+
+    root /var/www/kolo/client/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}</pre>
+
+    <h3>5.4 Script de deploiement</h3>
+    <pre>#!/bin/bash
+# deploy.sh - Deploiement KOLO sur VPS
+set -e
+
+APP_DIR="/var/www/kolo"
+REPO="git@github.com:votre-org/kolo.git"
+
+echo "[1/6] Pull des dernieres modifications..."
+cd $APP_DIR
+git pull origin main
+
+echo "[2/6] Installation des dependances backend..."
+cd $APP_DIR/server
+npm ci --production
+
+echo "[3/6] Execution des migrations..."
+npm run migrate
+
+echo "[4/6] Build du frontend..."
+cd $APP_DIR/client
+npm ci
+npm run build
+
+echo "[5/6] Redemarrage de l'API avec PM2..."
+pm2 restart kolo-api || pm2 start src/server.js --name kolo-api
+
+echo "[6/6] Rechargement de Nginx..."
+sudo nginx -t && sudo systemctl reload nginx
+
+echo "Deploiement termine."</pre>
+
+    <h3>5.5 Variables d'environnement requises</h3>
+    <table>
+        <tr><th>Variable</th><th>Description</th><th>Exemple</th></tr>
+        <tr><td><code>DATABASE_URL</code></td><td>Connexion PostgreSQL</td><td>postgresql://user:pass@host:5432/kolo</td></tr>
+        <tr><td><code>JWT_SECRET</code></td><td>Secret JWT</td><td>(chaine aleatoire 64 car.)</td></tr>
+        <tr><td><code>CLOUDINARY_URL</code></td><td>URL Cloudinary</td><td>cloudinary://key:secret@cloud</td></tr>
+        <tr><td><code>SENDGRID_API_KEY</code></td><td>Cle API SendGrid</td><td>SG.xxxx</td></tr>
+        <tr><td><code>PAYDRC_*</code></td><td>Configuration PayDRC</td><td>Cles marchand + callback URL</td></tr>
+        <tr><td><code>FIREBASE_*</code></td><td>Configuration Firebase</td><td>Credentials du projet</td></tr>
+        <tr><td><code>PORT</code></td><td>Port du serveur</td><td>5000</td></tr>
+        <tr><td><code>NODE_ENV</code></td><td>Environnement</td><td>production</td></tr>
+    </table>
+</div>
+
+<!-- ========== SECTION 6 : ANOMALIES RESIDUELLES ========== -->
+<div class="section">
+    <h2>6. Anomalies Residuelles</h2>
+    <p>Liste consolidee des anomalies identifiees lors de l'audit et non encore corrigees.</p>
+
+    <table>
+        <tr><th>#</th><th>Categorie</th><th>Description</th><th>Priorite</th><th>Impact</th></tr>
+        <tr>
+            <td>1</td>
+            <td>Schema BDD</td>
+            <td>Contrainte CHECK sur <code>tickets.status</code> ne contient pas <code>'lost'</code>. Tickets non-gagnants restent en <code>'active'</code> apres tirage.</td>
+            <td><span class="priority"><span class="dot dot-critical"></span> Critique</span></td>
+            <td>Fausse les statistiques et l'experience utilisateur</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>API</td>
+            <td>Deux endpoints de factures coexistent (<code>/api/payments/invoices</code> et <code>/api/invoices/user/:id</code>)</td>
+            <td><span class="priority"><span class="dot dot-high"></span> Haute</span></td>
+            <td>Risque d'incoherence et confusion frontend</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Backend</td>
+            <td><code>POST /admin/export</code> retourne des donnees fictives (mock)</td>
+            <td><span class="priority"><span class="dot dot-high"></span> Haute</span></td>
+            <td>L'export des donnees ne fonctionne pas</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Backend</td>
+            <td><code>GET /admin/suspicious-accounts</code> retourne un tableau en dur</td>
+            <td><span class="priority"><span class="dot dot-medium"></span> Moyenne</span></td>
+            <td>Aucune detection de fraude reelle</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Frontend</td>
+            <td>3 actions stub dans <code>AdminActionsPage</code> (messagerie groupee, verrouillage, archivage)</td>
+            <td><span class="priority"><span class="dot dot-medium"></span> Moyenne</span></td>
+            <td>Fonctionnalites affichees mais non operationnelles</td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td>Frontend</td>
+            <td>Import mort de <code>TicketCard</code> dans <code>UserProfilePage</code></td>
+            <td><span class="priority"><span class="dot dot-low"></span> Basse</span></td>
+            <td>Code inutile, aucun impact fonctionnel</td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Routing</td>
+            <td>Routes alias redondantes (<code>/admin/draw</code> vs <code>/admin/draws</code>, <code>/admin/payments</code> vs <code>/admin/transactions</code>)</td>
+            <td><span class="priority"><span class="dot dot-low"></span> Basse</span></td>
+            <td>Maintenance alourdie</td>
+        </tr>
+        <tr>
+            <td>8</td>
+            <td>BDD</td>
+            <td>Colonne <code>sent_to_email</code> dans <code>invoices</code> jamais utilisee</td>
+            <td><span class="priority"><span class="dot dot-low"></span> Basse</span></td>
+            <td>Champ orphelin</td>
+        </tr>
+        <tr>
+            <td>9</td>
+            <td>Backoffice</td>
+            <td>Aucune page de gestion des utilisateurs (<code>/admin/users</code>)</td>
+            <td><span class="priority"><span class="dot dot-high"></span> Haute</span></td>
+            <td>Impossible de bloquer/gerer les comptes utilisateurs</td>
+        </tr>
+        <tr>
+            <td>10</td>
+            <td>Securite</td>
+            <td>Niveaux d'acces admin (N1/N2/N3) non implementes - acces binaire uniquement</td>
+            <td><span class="priority"><span class="dot dot-critical"></span> Critique</span></td>
+            <td>Tout admin a acces a tout</td>
+        </tr>
+    </table>
+</div>
+
+<!-- ========== SECTION 7 : RECOMMANDATIONS ========== -->
+<div class="section">
+    <h2>7. Recommandations et Priorites</h2>
+
+    <h3>7.1 Actions immediates (Sprint 1 - 1 semaine)</h3>
+    <table>
+        <tr><th>#</th><th>Action</th><th>Effort</th></tr>
+        <tr><td>1</td><td>Ajouter le statut <code>'lost'</code> dans la contrainte CHECK de <code>tickets.status</code> et mettre a jour la logique de tirage</td><td>2h</td></tr>
+        <tr><td>2</td><td>Unifier les endpoints de factures sous <code>/api/invoices</code></td><td>3h</td></tr>
+        <tr><td>3</td><td>Implementer le vrai export CSV/PDF dans <code>POST /admin/export</code></td><td>4h</td></tr>
+        <tr><td>4</td><td>Supprimer l'import mort de <code>TicketCard</code> dans <code>UserProfilePage</code></td><td>5min</td></tr>
+        <tr><td>5</td><td>Nettoyer les routes alias en gardant une seule version</td><td>30min</td></tr>
+    </table>
+
+    <h3>7.2 Actions a court terme (Sprint 2 - 2 semaines)</h3>
+    <table>
+        <tr><th>#</th><th>Action</th><th>Effort</th></tr>
+        <tr><td>1</td><td>Implementer le systeme de niveaux d'acces admin (N1/N2/N3) avec middleware et UI</td><td>3-4 jours</td></tr>
+        <tr><td>2</td><td>Creer la page de gestion des utilisateurs (<code>/admin/users</code>)</td><td>2-3 jours</td></tr>
+        <tr><td>3</td><td>Implementer les 3 actions stub de <code>AdminActionsPage</code></td><td>2 jours</td></tr>
+        <tr><td>4</td><td>Implementer la detection de comptes suspects (algorithme reel)</td><td>2 jours</td></tr>
+    </table>
+
+    <h3>7.3 Actions a moyen terme (Sprint 3+)</h3>
+    <ul>
+        <li>Migration VPS avec configuration Nginx + PM2 + SSL</li>
+        <li>Mise en place du monitoring (PM2 + uptimerobot ou equivalent)</li>
+        <li>Automatisation des backups PostgreSQL</li>
+        <li>Tests d'integration et pipeline CI/CD</li>
+        <li>Audit de securite complet (rate limiting, CORS strict, validation des entrees)</li>
+    </ul>
+
+    <div class="page-footer">
+        KOLO - Rapport d'Audit Technique v2.0 | Juin 2025 | Document confidentiel
+    </div>
+</div>
+
+</body>
+</html>

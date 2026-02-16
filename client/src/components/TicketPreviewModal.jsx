@@ -18,6 +18,7 @@ const TicketPreviewModal = ({
   onClose,
   ticketNumber,
   ownerName,
+  campaignTitle,
   isWinner = false,
   prize,
   prizeCategory,
@@ -27,12 +28,12 @@ const TicketPreviewModal = ({
   // Déterminer quelle image utiliser
   const getTicketImage = () => {
     if (isWinner || prizeCategory === 'main') {
-      return '/ticket gagnant.png';
+      return '/ticket-gagnant.png';
     }
     if (prizeCategory === 'bonus') {
-      return '/ticket bonus.png';
+      return '/ticket-bonus.png';
     }
-    return '/ticket number.png';
+    return '/ticket-number.png';
   };
 
   return (
@@ -111,12 +112,17 @@ const TicketPreviewModal = ({
               {ownerName}
             </p>
           )}
+          {campaignTitle && (
+            <p className="text-sm opacity-60 mb-1">
+              {campaignTitle}
+            </p>
+          )}
           <p className="text-sm opacity-80">
             {isWinner || prizeCategory === 'main' 
-              ? '🏆 Félicitations ! Ce ticket a gagné !' 
+              ? 'Félicitations ! Ce ticket a gagné !' 
               : prizeCategory === 'bonus'
-                ? '🎁 Ticket bonus gagnant !'
-                : '🎟️ Bonne chance pour le tirage !'}
+                ? 'Ticket bonus gagnant !'
+                : 'Bonne chance pour le tirage !'}
           </p>
           {(isWinner || prizeCategory) && prize && (
             <p className="mt-2 text-lg font-bold text-yellow-400">

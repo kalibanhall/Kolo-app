@@ -388,11 +388,6 @@ export const adminAPI = {
     return await request(`/admin/logs${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Obtenir les résultats des tirages
-  getDraws: async () => {
-    return await request('/admin/draws');
-  },
-
   // Obtenir les tickets d'une campagne
   getCampaignTickets: async (campaignId, params = {}) => {
     const queryString = new URLSearchParams({

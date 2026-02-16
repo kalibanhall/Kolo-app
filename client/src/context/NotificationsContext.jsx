@@ -4,6 +4,13 @@ import api from '../services/api';
 
 const NotificationsContext = createContext();
 
+// Polling interval: 60 seconds
+const POLL_INTERVAL_MS = 60000;
+// Minimum time between fetches to prevent bursts
+const MIN_FETCH_INTERVAL_MS = 10000;
+// Max consecutive errors before stopping
+const MAX_ERROR_COUNT = 5;
+
 export const useNotifications = () => {
   const context = useContext(NotificationsContext);
   if (!context) {
@@ -23,21 +30,25 @@ export const NotificationsProvider = ({ children }) => {
   const isFetchingRef = useRef(false);
   const errorCountRef = useRef(0);
   const lastFetchRef = useRef(0);
+  // Track if the tab is visible
+  const isVisibleRef = useRef(!document.hidden);
 
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (force = false) => {
     if (!user) return;
     
     // Prevent concurrent requests
     if (isFetchingRef.current) return;
     
-    // Rate limit: minimum 5 seconds between requests
-    const now = Date.now();
-    if (now - lastFetchRef.current < 5000) return;
+    // Don't poll when tab is hidden (unless forced)
+    if (!force && !isVisibleRef.current) return;
     
-    // Stop fetching after 5 consecutive errors (will reset on success)
-    if (errorCountRef.current >= 5) {
-      console.warn('Notifications: Too many errors, stopping polling');
+    // Rate limit: minimum interval between requests
+    const now = Date.now();
+    if (!force && now - lastFetchRef.current < MIN_FETCH_INTERVAL_MS) return;
+    
+    // Stop fetching after too many consecutive errors (will reset on success)
+    if (errorCountRef.current >= MAX_ERROR_COUNT) {
       return;
     }
 
@@ -54,7 +65,6 @@ export const NotificationsProvider = ({ children }) => {
         errorCountRef.current = 0; // Reset error count on success
       }
     } catch (err) {
-      console.error('Error fetching notifications:', err);
       setError(err.message);
       errorCountRef.current += 1;
     } finally {
@@ -111,19 +121,42 @@ export const NotificationsProvider = ({ children }) => {
     }
   }, []);
 
-  // Polling: fetch notifications every 30 seconds
+  // Reset state when user changes
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      setUnreadCount(0);
+      errorCountRef.current = 0;
+      lastFetchRef.current = 0;
+    }
+  }, [user]);
+
+  // Visibility-aware polling: pause when tab is hidden, resume when visible
   useEffect(() => {
     if (!user) return;
 
-    // Fetch immediately
-    fetchNotifications();
+    // Fetch immediately on mount
+    fetchNotifications(true);
 
     // Set up polling interval
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 30000); // 30 seconds
+    }, POLL_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    // Listen for tab visibility changes
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = !document.hidden;
+      if (!document.hidden) {
+        // Tab became visible — fetch fresh data
+        fetchNotifications(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [user, fetchNotifications]);
 
   const value = {

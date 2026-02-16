@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI } from '../services/api';
 import { LogoKoloFull } from '../components/LogoKolo';
 import { MoneyIcon } from '../components/Icons';
+import { TicketCardMini } from '../components/TicketCard';
+import TicketPreviewModal from '../components/TicketPreviewModal';
 
 export const UserDashboard = () => {
   const { user, logout } = useAuth();
@@ -11,6 +13,7 @@ export const UserDashboard = () => {
   const [campaign, setCampaign] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -179,91 +182,36 @@ export const UserDashboard = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {tickets.map((ticket) => {
-                // Determine ticket status based on campaign status
-                const campaignStatus = ticket.campaign_status;
-                const isWinner = ticket.is_winner || ticket.prize_category === 'main';
-                const isBonus = ticket.prize_category === 'bonus';
-                // Tirage effectué: completed OU drawn OU (closed ET il y a des gagnants dans la campagne)
-                const isDrawingDone = campaignStatus === 'completed' || campaignStatus === 'drawn';
-                const isSalesClosed = campaignStatus === 'closed';
-                
-                // Si la campagne est fermée et le ticket a un statut 'winner' ou 'lost', le tirage a été fait
-                const ticketHasResult = ticket.status === 'winner' || ticket.status === 'lost';
-                
-                const isLost = (isDrawingDone || ticketHasResult) && !isWinner && !isBonus;
-                const isWaitingForDraw = isSalesClosed && !isDrawingDone && !ticketHasResult;
-                const isActive = campaignStatus === 'open';
-                
-                // Determine display status
-                let statusLabel, statusColor, bgClass, borderClass, badgeClass;
-                
-                if (isWinner) {
-                  statusLabel = 'Gagnant 🏆';
-                  statusColor = 'text-yellow-600';
-                  bgClass = 'bg-yellow-50';
-                  borderClass = 'border-yellow-400';
-                  badgeClass = 'bg-yellow-400 text-yellow-900';
-                } else if (isBonus) {
-                  statusLabel = 'Bonus 🎁';
-                  statusColor = 'text-purple-600';
-                  bgClass = 'bg-purple-50';
-                  borderClass = 'border-purple-400';
-                  badgeClass = 'bg-purple-400 text-purple-900';
-                } else if (isLost) {
-                  statusLabel = 'Perdu';
-                  statusColor = 'text-gray-500';
-                  bgClass = 'bg-gray-100';
-                  borderClass = 'border-gray-300';
-                  badgeClass = 'bg-gray-400 text-white';
-                } else if (isWaitingForDraw) {
-                  statusLabel = 'En attente du tirage';
-                  statusColor = 'text-orange-600';
-                  bgClass = 'bg-orange-50';
-                  borderClass = 'border-orange-300';
-                  badgeClass = 'bg-orange-400 text-white';
-                } else {
-                  // Active (campaign still open)
-                  statusLabel = 'Actif';
-                  statusColor = 'text-green-600';
-                  bgClass = 'bg-gray-50';
-                  borderClass = 'border-gray-200 hover:border-blue-400';
-                  badgeClass = 'bg-green-400 text-white';
-                }
-                
-                return (
-                  <div
-                    key={ticket.id}
-                    className={`relative p-4 rounded-lg border-2 text-center transition-all ${bgClass} ${borderClass} ${(isWinner || isBonus) ? 'shadow-lg' : ''}`}
-                  >
-                    {isWinner && (
-                      <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
-                        ★
-                      </div>
-                    )}
-                    {isLost && (
-                      <div className="absolute -top-2 -right-2 bg-gray-400 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                        ✗
-                      </div>
-                    )}
-                    {isWaitingForDraw && (
-                      <div className="absolute -top-2 -right-2 bg-orange-400 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                        ⏳
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-500 mb-1">Ticket</p>
-                    <p className={`text-lg font-bold ${isLost ? 'text-gray-400' : 'text-gray-900'}`}>{ticket.ticket_number}</p>
-                    <p className={`text-xs mt-1 font-medium ${statusColor}`}>
-                      {statusLabel}
-                    </p>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {tickets.map((ticket) => (
+                <TicketCardMini
+                  key={ticket.id}
+                  ticketNumber={ticket.ticket_number}
+                  campaignTitle={ticket.campaign_title}
+                  campaignImage={ticket.campaign_image}
+                  campaignStatus={ticket.campaign_status}
+                  ticketStatus={ticket.status}
+                  prizeCategory={ticket.prize_category}
+                  isWinner={ticket.is_winner}
+                  onClick={() => setSelectedTicket(ticket)}
+                />
+              ))}
             </div>
           )}
         </div>
       </main>
+
+      {/* Modal de prévisualisation du ticket */}
+      <TicketPreviewModal
+        isOpen={!!selectedTicket}
+        onClose={() => setSelectedTicket(null)}
+        ticketNumber={selectedTicket?.ticket_number}
+        ownerName={user?.name}
+        campaignTitle={selectedTicket?.campaign_title}
+        isWinner={selectedTicket?.is_winner || selectedTicket?.status === 'winner' || selectedTicket?.prize_category === 'main'}
+        prize={selectedTicket?.main_prize}
+        prizeCategory={selectedTicket?.prize_category}
+      />
     </div>
   );
 };

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { adminAPI } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export const AdminActionsPage = () => {
+  const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -86,12 +88,12 @@ export const AdminActionsPage = () => {
     };
 
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+      <div className={`rounded-xl shadow-lg p-6 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="flex items-start space-x-4">
           <div className="text-4xl">{icon}</div>
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-            <p className="text-gray-600 mb-4">{description}</p>
+            <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+            <p className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
             <button
               onClick={action}
               disabled={loading}
@@ -109,8 +111,8 @@ export const AdminActionsPage = () => {
     <AdminLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Actions Administratives</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Actions Administratives</h1>
+          <p className={`mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Gérez les opérations critiques de la plateforme
           </p>
         </div>
@@ -189,11 +191,11 @@ export const AdminActionsPage = () => {
         </div>
 
         {/* Informations de sécurité */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+        <div className={`border rounded-lg p-6 ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700' : 'bg-yellow-50 border-yellow-200'}`}>
+          <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-yellow-300' : 'text-yellow-900'}`}>
             Zone d'actions critiques
           </h3>
-          <p className="text-yellow-800">
+          <p className={isDarkMode ? 'text-yellow-200' : 'text-yellow-800'}>
             Toutes les actions effectuées sur cette page sont enregistrées dans le journal d'audit.
             Assurez-vous de comprendre les implications avant d'exécuter une action.
           </p>

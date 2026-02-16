@@ -247,9 +247,11 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
         isOpen={!!selectedWinnerTicket}
         onClose={() => setSelectedWinnerTicket(null)}
         ticketNumber={selectedWinnerTicket?.ticketNumber}
+        ownerName={selectedWinnerTicket?.ownerName}
         campaignTitle={selectedWinnerTicket?.campaignTitle}
         isWinner={true}
         prize={selectedWinnerTicket?.prizeName}
+        prizeCategory={selectedWinnerTicket?.prizeCategory}
       />
     </div>
   );

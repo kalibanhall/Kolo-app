@@ -1,152 +1,99 @@
-const CACHE_NAME = 'kolo-v1.0.0';
-const RUNTIME_CACHE = 'kolo-runtime';
+// KOLO Service Worker - Auto-versioned
+// This SW is designed to NEVER serve stale content.
+// Version timestamp forces cache invalidation on each deploy.
+const SW_VERSION = '2026-02-06-v2';
+const CACHE_NAME = `kolo-${SW_VERSION}`;
 
-// Assets to cache on install
+// Only cache the offline fallback page — everything else is network-first
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
   '/offline.html'
 ];
 
-// Install event - cache core assets
+// Install: cache only the offline page, then immediately activate
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
-  
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[ServiceWorker] Pre-caching app shell');
-        return cache.addAll(PRECACHE_URLS);
-      })
-      .then(() => self.skipWaiting())
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting()) // Don't wait, activate immediately
   );
 });
 
-// Activate event - clean up old caches
+// Activate: delete ALL old caches, then claim all clients
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
-  
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((cacheName) => {
-              return cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE;
-            })
-            .map((cacheName) => {
-              console.log('[ServiceWorker] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            })
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()) // Take control of all pages immediately
   );
 });
 
-// Fetch event - network first, falling back to cache
+// Fetch: NETWORK-FIRST for everything
+// Only falls back to cache when truly offline
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
+  const { request } = event;
 
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  // Skip non-GET and cross-origin requests
+  if (request.method !== 'GET') return;
+  if (!request.url.startsWith(self.location.origin)) return;
 
-  // API requests - network first
-  if (event.request.url.includes('/api/')) {
+  // API requests: network only, never cache API responses in SW
+  if (request.url.includes('/api/')) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          
-          // Cache successful responses
-          if (response.status === 200) {
-            caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(event.request);
-        })
+      fetch(request).catch(() => {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Vous êtes hors ligne' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
     );
     return;
   }
 
-  // Static assets - cache first
-  event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type === 'error') {
-              return response;
-            }
-
-            const responseToCache = response.clone();
-
-            caches.open(RUNTIME_CACHE)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Offline fallback page
-            if (event.request.destination === 'document') {
-              return caches.match('/offline.html');
-            }
-          });
-      })
-  );
-});
-
-// Background Sync - retry failed requests
-self.addEventListener('sync', (event) => {
-  console.log('[ServiceWorker] Background sync:', event.tag);
-  
-  if (event.tag === 'sync-tickets') {
-    event.waitUntil(syncTickets());
+  // HTML navigation requests: network-first, fallback to offline page
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(
+      fetch(request)
+        .catch(() => caches.match('/offline.html'))
+    );
+    return;
   }
+
+  // Static assets (JS/CSS with hash in filename): network-first with cache fallback
+  // Vite adds content hashes to filenames so each build = new URLs = no stale cache
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        // Only cache versioned assets (they have hashes in filename)
+        if (response.ok && request.url.match(/assets\/.*-[a-f0-9]{8}\./)) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
+  );
 });
 
 // Push notifications
 self.addEventListener('push', (event) => {
-  console.log('[ServiceWorker] Push received');
-  
   const options = {
-    body: event.data ? event.data.text() : 'New notification from KOLO',
-    icon: '/assets/logo-192.png',
-    badge: '/assets/logo-96.png',
+    body: event.data ? event.data.text() : 'Nouvelle notification KOLO',
+    icon: '/logo-kolo-192.png',
+    badge: '/logo-kolo-96.png',
     vibrate: [200, 100, 200],
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1
     },
     actions: [
-      {
-        action: 'explore',
-        title: 'View',
-      },
-      {
-        action: 'close',
-        title: 'Close',
-      },
+      { action: 'explore', title: 'Voir' },
+      { action: 'close', title: 'Fermer' }
     ]
   };
 
@@ -157,31 +104,21 @@ self.addEventListener('push', (event) => {
 
 // Notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[ServiceWorker] Notification click');
-  
   event.notification.close();
-
-  if (event.action === 'explore') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
+  if (event.action === 'explore' || !event.action) {
+    event.waitUntil(clients.openWindow('/'));
   }
 });
-
-// Helper functions
-async function syncTickets() {
-  try {
-    // Implement ticket sync logic
-    console.log('[ServiceWorker] Syncing tickets...');
-    // Fetch and update tickets from server
-  } catch (error) {
-    console.error('[ServiceWorker] Sync failed:', error);
-  }
-}
 
 // Message handler
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  // Force clear all caches (can be called from app code)
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
+    caches.keys().then((names) => {
+      names.forEach((name) => caches.delete(name));
+    });
   }
 });

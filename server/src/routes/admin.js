@@ -1385,8 +1385,7 @@ router.patch('/winners/:ticketId/delivery', [
         tracking_number,
         notes: delivery_notes
       },
-      req.ip,
-      req.get('user-agent')
+      req
     );
 
     res.json({
@@ -1467,8 +1466,7 @@ router.post('/winners/bulk-update', [
         new_status: delivery_status,
         notes: delivery_notes
       },
-      req.ip,
-      req.get('user-agent')
+      req
     );
 
     res.json({
@@ -2115,7 +2113,8 @@ router.put('/settings/:key', [
         'CREATE_SETTING',
         'setting',
         key,
-        { value }
+        { value },
+        req
       );
 
       return res.json({
@@ -2131,7 +2130,8 @@ router.put('/settings/:key', [
       'UPDATE_SETTING',
       'setting',
       key,
-      { new_value: value }
+      { new_value: value },
+      req
     );
 
     res.json({
@@ -2384,8 +2384,10 @@ router.post('/fix-missing-tickets', async (req, res) => {
     await logAdminAction(
       req.user.id,
       'FIX_MISSING_TICKETS',
-      `Fixed ${results.filter(r => !r.error).length} purchases with missing tickets`,
-      { results }
+      'purchase',
+      null,
+      { message: `Fixed ${results.filter(r => !r.error).length} purchases with missing tickets`, results },
+      req
     );
     
     res.json({

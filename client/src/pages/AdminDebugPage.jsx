@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { useTheme } from '../context/ThemeContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('kolo_token');
 
 const AdminDebugPage = () => {
+  const { isDarkMode } = useTheme();
   const [data, setData] = useState({
     purchases: null,
     tickets: null,
@@ -81,8 +83,8 @@ const AdminDebugPage = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Debug Admin</h1>
-            <p className="text-gray-600">Visualisation des données brutes</p>
+            <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Debug Admin</h1>
+            <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Visualisation des donn\u00e9es brutes</p>
           </div>
         </div>
 

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { adminAPI } from '../services/api';
 import { exportParticipants, formatDateForExport, formatBooleanForExport } from '../utils/exportUtils';
+import { useTheme } from '../context/ThemeContext';
 
 export const ParticipantsPage = () => {
+  const { isDarkMode } = useTheme();
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -77,15 +79,15 @@ export const ParticipantsPage = () => {
 
   return (
     <AdminLayout>
-      <div className="bg-white rounded-lg shadow-sm">
+      <div className={`rounded-lg shadow-sm ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Liste des participants
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Total : {pagination.total} participant{pagination.total > 1 ? 's' : ''}
               </p>
             </div>

@@ -10,9 +10,13 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-// Test database connection
+// Log first database connection only (avoid per-connection spam)
+let dbConnected = false;
 pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
+  if (!dbConnected) {
+    dbConnected = true;
+    console.log('✅ Connected to PostgreSQL database');
+  }
 });
 
 pool.on('error', (err) => {
@@ -20,16 +24,18 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
-// Query helper function
+// Query helper function — only logs slow queries (>500ms) to reduce noise
 const query = async (text, params) => {
   const start = Date.now();
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    if (duration > 500) {
+      console.warn('⚠️ Slow query', { text, duration, rows: res.rowCount });
+    }
     return res;
   } catch (error) {
-    console.error('Database query error:', error);
+    console.error('Database query error:', { text, error: error.message });
     throw error;
   }
 };

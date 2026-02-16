@@ -248,14 +248,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/profile/invoices"
-            element={
-              <ProtectedRoute userOnly={true}>
-                <UserInvoicesPage />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

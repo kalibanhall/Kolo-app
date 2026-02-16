@@ -20,8 +20,9 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/draws', label: 'Tirages', Icon: TargetIcon },
     { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon },
     { path: '/admin/promos', label: 'Promos', Icon: TicketIcon },
+    { path: '/admin/actions', label: 'Actions', Icon: SettingsIcon },
     { path: '/admin/logs', label: 'Journal', Icon: SettingsIcon },
-    { path: '/admin/debug', label: '🔧 Debug', Icon: SettingsIcon },
+    { path: '/admin/debug', label: 'Debug', Icon: SettingsIcon },
   ];
 
   const handleNavClick = () => {

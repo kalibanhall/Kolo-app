@@ -152,6 +152,39 @@ async function generateTicketsForPurchase(purchaseId) {
     
     return { tickets, invoiceNumber };
   });
+
+  // Generate PDF invoice after transaction completes
+  try {
+    console.log('📄 Generating invoice PDF for purchase:', purchaseId);
+    const pdfDoc = await generateInvoicePDF(purchaseId);
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const buffers = [];
+      pdfDoc.on('data', buffers.push.bind(buffers));
+      pdfDoc.on('end', () => resolve(Buffer.concat(buffers)));
+      pdfDoc.on('error', reject);
+      pdfDoc.end();
+    });
+
+    // Upload to Cloudinary
+    try {
+      const uploadResult = await uploadPDF(
+        pdfBuffer,
+        `invoice-${result.invoiceNumber}`,
+        'kolo/invoices'
+      );
+      await query(`UPDATE invoices SET pdf_url = $1 WHERE purchase_id = $2`, [
+        uploadResult.url,
+        purchaseId,
+      ]);
+      console.log('✅ Invoice PDF uploaded to Cloudinary');
+    } catch (uploadError) {
+      console.error('❌ Cloudinary upload error (non-blocking):', uploadError.message);
+    }
+  } catch (pdfError) {
+    console.error('❌ PDF generation error (non-blocking):', pdfError.message);
+  }
+
+  return result;
 }
 
 // Get payment status
@@ -695,6 +728,36 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
       } catch (firebaseError) {
         console.error('Firebase notification error:', firebaseError);
         // Don't fail the request if push notification fails
+      }
+
+      // Generate PDF invoice (non-blocking)
+      try {
+        console.log('📄 Generating invoice PDF for simulated purchase:', purchaseId);
+        const pdfDoc = await generateInvoicePDF(purchaseId);
+        const pdfBuffer = await new Promise((resolve, reject) => {
+          const buffers = [];
+          pdfDoc.on('data', buffers.push.bind(buffers));
+          pdfDoc.on('end', () => resolve(Buffer.concat(buffers)));
+          pdfDoc.on('error', reject);
+          pdfDoc.end();
+        });
+
+        try {
+          const uploadResult = await uploadPDF(
+            pdfBuffer,
+            `invoice-${invoiceNumber}`,
+            'kolo/invoices'
+          );
+          await query(`UPDATE invoices SET pdf_url = $1 WHERE purchase_id = $2`, [
+            uploadResult.url,
+            purchaseId,
+          ]);
+          console.log('✅ Invoice PDF uploaded to Cloudinary');
+        } catch (uploadError) {
+          console.error('❌ Cloudinary upload error (non-blocking):', uploadError.message);
+        }
+      } catch (pdfError) {
+        console.error('❌ PDF generation error (non-blocking):', pdfError.message);
       }
 
       res.json({
@@ -1601,6 +1664,36 @@ router.post('/paydrc/callback', async (req, res) => {
             details.ticket_count,
             ticketNumbers
           ).catch((err) => console.error('SMS error:', err));
+
+          // Generate PDF invoice (non-blocking)
+          try {
+            console.log('📄 Generating invoice PDF for PayDRC callback purchase:', purchase.id);
+            const pdfDoc = await generateInvoicePDF(purchase.id);
+            const pdfBuffer = await new Promise((resolve, reject) => {
+              const buffers = [];
+              pdfDoc.on('data', buffers.push.bind(buffers));
+              pdfDoc.on('end', () => resolve(Buffer.concat(buffers)));
+              pdfDoc.on('error', reject);
+              pdfDoc.end();
+            });
+
+            try {
+              const uploadResult = await uploadPDF(
+                pdfBuffer,
+                `invoice-${purchase.id}`,
+                'kolo/invoices'
+              );
+              await query(`UPDATE invoices SET pdf_url = $1 WHERE purchase_id = $2`, [
+                uploadResult.url,
+                purchase.id,
+              ]);
+              console.log('✅ Invoice PDF uploaded to Cloudinary');
+            } catch (uploadError) {
+              console.error('❌ Cloudinary upload error (non-blocking):', uploadError.message);
+            }
+          } catch (pdfError) {
+            console.error('❌ PDF generation error (non-blocking):', pdfError.message);
+          }
         }
       } catch (notifyError) {
         console.error('Notification error:', notifyError);

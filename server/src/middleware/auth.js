@@ -2,12 +2,14 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 
 // Verify JWT token
+// Simple in-memory cache for verified users (TTL: 5 minutes)
+const userCache = new Map();
+const USER_CACHE_TTL = 5 * 60 * 1000;
+
 const verifyToken = async (req, res, next) => {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
-    
-    console.log('🔐 verifyToken - authHeader:', authHeader ? 'Present' : 'Missing');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
@@ -17,31 +19,38 @@ const verifyToken = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    console.log('🔐 verifyToken - token extracted:', token ? 'Yes' : 'No');
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔐 verifyToken - decoded userId:', decoded.userId);
+    const userId = decoded.userId;
 
-    // Get user from database
-    const result = await query(
-      'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    // Check user cache to avoid DB query on every request
+    const cached = userCache.get(userId);
+    const now = Date.now();
+    let user;
 
-    console.log('🔐 verifyToken - DB query result rows:', result.rows.length);
+    if (cached && (now - cached.timestamp) < USER_CACHE_TTL) {
+      user = cached.user;
+    } else {
+      // Get user from database
+      const result = await query(
+        'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
+        [userId]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
+      if (result.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      user = result.rows[0];
+      userCache.set(userId, { user, timestamp: now });
     }
 
-    const user = result.rows[0];
-    console.log('🔐 verifyToken - user:', user.email, 'is_admin:', user.is_admin);
-
     if (!user.is_active) {
+      userCache.delete(userId); // Remove deactivated users from cache
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated'
@@ -50,12 +59,9 @@ const verifyToken = async (req, res, next) => {
 
     // Attach user to request
     req.user = user;
-    console.log('🔐 verifyToken - SUCCESS, user attached');
     next();
 
   } catch (error) {
-    console.error('❌ verifyToken ERROR:', error.message, error.name);
-    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
@@ -70,7 +76,6 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    console.error('Auth middleware error:', error);
     res.status(500).json({
       success: false,
       message: 'Authentication error'
@@ -114,14 +119,24 @@ const optionalAuth = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      const result = await query(
-        'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
-        [decoded.userId]
-      );
+      const userId = decoded.userId;
 
-      if (result.rows.length > 0) {
-        req.user = result.rows[0];
+      // Check user cache first
+      const cached = userCache.get(userId);
+      const now = Date.now();
+
+      if (cached && (now - cached.timestamp) < USER_CACHE_TTL) {
+        req.user = cached.user;
+      } else {
+        const result = await query(
+          'SELECT id, email, name, phone, is_admin, is_active FROM users WHERE id = $1',
+          [userId]
+        );
+
+        if (result.rows.length > 0) {
+          req.user = result.rows[0];
+          userCache.set(userId, { user: result.rows[0], timestamp: now });
+        }
       }
     }
 
