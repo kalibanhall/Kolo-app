@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 const { query, transaction } = require('../config/database');
 const { verifyToken, verifyAdmin, requireAdminLevel } = require('../middleware/auth');
 const { logAdminAction } = require('../utils/logger');
@@ -2634,6 +2635,253 @@ router.get('/admins', requireAdminLevel(3), async (req, res) => {
     });
   } catch (error) {
     console.error('List admins error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Create a new admin user directly (L3 only)
+router.post('/admins/create', requireAdminLevel(3), [
+  body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }),
+  body('phone').notEmpty().trim(),
+  body('admin_level').isInt({ min: 1, max: 3 }).withMessage('Niveau admin doit être 1, 2 ou 3')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  try {
+    const { name, email, password, phone, admin_level } = req.body;
+
+    // Check if email already exists
+    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Un utilisateur avec cet email existe déjà' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    // Create admin user
+    const result = await query(
+      `INSERT INTO users (name, email, password_hash, phone, is_admin, admin_level, is_active, email_verified)
+       VALUES ($1, $2, $3, $4, TRUE, $5, TRUE, TRUE)
+       RETURNING id, name, email, phone, admin_level, created_at`,
+      [name, email, passwordHash, phone, admin_level]
+    );
+
+    const newAdmin = result.rows[0];
+    const levelLabels = { 1: 'Opérateur (L1)', 2: 'Superviseur (L2)', 3: 'Administrateur (L3)' };
+
+    await logAdminAction(
+      req.user.id,
+      'ADMIN_CREATED',
+      'user',
+      newAdmin.id,
+      { target_name: name, target_email: email, admin_level, label: levelLabels[admin_level] },
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Administrateur ${name} créé en tant que ${levelLabels[admin_level]}`,
+      admin: newAdmin
+    });
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// INFLUENCER MANAGEMENT (Admin only)
+// ============================================================
+
+// Create influencer account (admin)
+router.post('/influencers/create', requireAdminLevel(1), [
+  body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }),
+  body('phone').notEmpty().trim()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  try {
+    const { name, email, password, phone } = req.body;
+
+    // Check if email already exists
+    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Un utilisateur avec cet email existe déjà' });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const result = await query(
+      `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified)
+       VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE)
+       RETURNING id, name, email, phone, created_at`,
+      [name, email, passwordHash, phone]
+    );
+
+    const newInfluencer = result.rows[0];
+
+    await logAdminAction(
+      req.user.id,
+      'INFLUENCER_CREATED',
+      'user',
+      newInfluencer.id,
+      { target_name: name, target_email: email },
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Compte influenceur créé pour ${name}`,
+      influencer: newInfluencer
+    });
+  } catch (error) {
+    console.error('Create influencer error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// List all influencers (admin)
+router.get('/influencers', requireAdminLevel(1), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.created_at,
+              (SELECT json_agg(json_build_object(
+                'id', pc.id, 'code', pc.code, 'discount_value', pc.discount_value,
+                'discount_type', pc.discount_type, 'commission_rate', COALESCE(pc.commission_rate, 0),
+                'is_active', pc.is_active, 'current_uses', COALESCE(pc.current_uses, 0)
+              )) FROM promo_codes pc WHERE pc.influencer_id = u.id) as promo_codes,
+              (SELECT COUNT(*) FROM promo_code_usage pcu
+               JOIN promo_codes pc2 ON pcu.promo_code_id = pc2.id
+               WHERE pc2.influencer_id = u.id) as total_code_uses,
+              (SELECT COALESCE(SUM(pcu.discount_applied), 0) FROM promo_code_usage pcu
+               JOIN promo_codes pc3 ON pcu.promo_code_id = pc3.id
+               WHERE pc3.influencer_id = u.id) as total_discount_given
+       FROM users u
+       WHERE u.is_influencer = TRUE
+       ORDER BY u.created_at DESC`
+    );
+
+    res.json({
+      success: true,
+      influencers: result.rows.map(i => ({
+        ...i,
+        total_code_uses: parseInt(i.total_code_uses) || 0,
+        total_discount_given: parseFloat(i.total_discount_given) || 0,
+        promo_codes: i.promo_codes || []
+      }))
+    });
+  } catch (error) {
+    console.error('List influencers error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Assign a promo code to an influencer (admin)
+router.post('/influencers/:influencerId/assign-promo', requireAdminLevel(1), [
+  body('code').notEmpty().trim().toUpperCase().isLength({ min: 3, max: 50 }),
+  body('discount_percent').isInt({ min: 1, max: 100 }),
+  body('commission_rate').optional().isFloat({ min: 0, max: 100 }),
+  body('max_uses').optional().isInt({ min: 1 }),
+  body('expires_at').optional()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  try {
+    const { influencerId } = req.params;
+    const { code, discount_percent, commission_rate, max_uses, expires_at, description } = req.body;
+
+    // Verify influencer exists
+    const influencer = await query('SELECT id, name FROM users WHERE id = $1 AND is_influencer = TRUE', [influencerId]);
+    if (influencer.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Influenceur non trouvé' });
+    }
+
+    // Check code uniqueness
+    const existing = await query('SELECT id FROM promo_codes WHERE UPPER(code) = $1', [code]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'Ce code promo existe déjà' });
+    }
+
+    const influencerName = influencer.rows[0].name;
+
+    const result = await query(
+      `INSERT INTO promo_codes 
+       (code, influencer_name, influencer_id, description, discount_type, discount_value, commission_rate, max_uses, expires_at, created_by)
+       VALUES ($1, $2, $3, $4, 'percentage', $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        code, influencerName, influencerId,
+        description || `Code promo de ${influencerName}`,
+        discount_percent,
+        commission_rate || 0,
+        max_uses || null,
+        expires_at || null,
+        req.user.id
+      ]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      'PROMO_ASSIGNED_TO_INFLUENCER',
+      'promo_code',
+      result.rows[0].id,
+      { influencer_id: influencerId, influencer_name: influencerName, code, discount_percent, commission_rate },
+      req
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Code promo ${code} attribué à ${influencerName}`,
+      promo: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Assign promo error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Delete / deactivate influencer account (admin L3)
+router.post('/influencers/:influencerId/deactivate', requireAdminLevel(3), async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+
+    const userResult = await query('SELECT id, name FROM users WHERE id = $1 AND is_influencer = TRUE', [influencerId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Influenceur non trouvé' });
+    }
+
+    await query('UPDATE users SET is_active = FALSE WHERE id = $1', [influencerId]);
+    // Deactivate their promo codes too
+    await query('UPDATE promo_codes SET is_active = FALSE WHERE influencer_id = $1', [influencerId]);
+
+    await logAdminAction(
+      req.user.id,
+      'INFLUENCER_DEACTIVATED',
+      'user',
+      parseInt(influencerId),
+      { target_name: userResult.rows[0].name },
+      req
+    );
+
+    res.json({ success: true, message: `Influenceur ${userResult.rows[0].name} désactivé` });
+  } catch (error) {
+    console.error('Deactivate influencer error:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

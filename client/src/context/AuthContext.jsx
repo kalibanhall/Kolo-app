@@ -202,6 +202,10 @@ export const AuthProvider = ({ children }) => {
     return user?.admin_level || 3; // Les anciens admins sans niveau = L3 (full access)
   };
 
+  const isInfluencer = () => {
+    return user?.is_influencer === true;
+  };
+
   const isAuthenticated = () => {
     return user !== null;
   };
@@ -217,6 +221,7 @@ export const AuthProvider = ({ children }) => {
     checkAuth,
     isAdmin,
     getAdminLevel,
+    isInfluencer,
     isAuthenticated,
   };
 

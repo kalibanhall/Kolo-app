@@ -5,7 +5,7 @@ import { LogoKoloFull } from '../components/LogoKolo';
 import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
 
 export const LoginPage = () => {
-  const { login, loginWithGoogle, loading, error, isAdmin } = useAuth();
+  const { login, loginWithGoogle, loading, error, isAdmin, isInfluencer } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -34,6 +34,8 @@ export const LoginPage = () => {
       console.debug('Login response:', response);
       if (isAdmin()) {
         navigate('/admin');
+      } else if (isInfluencer()) {
+        navigate('/influencer');
       } else {
         // Rediriger les clients vers l'accueil après connexion
         navigate('/');
@@ -52,6 +54,8 @@ export const LoginPage = () => {
       
       if (isAdmin()) {
         navigate('/admin');
+      } else if (isInfluencer()) {
+        navigate('/influencer');
       } else {
         navigate('/');
       }

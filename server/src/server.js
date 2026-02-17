@@ -101,6 +101,7 @@ app.use('/api/password-reset', passwordResetLimiter, require('./routes/passwordR
 app.use('/api/contact', contactLimiter, require('./routes/contact'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/promos', require('./routes/promos'));
+app.use('/api/influencer', require('./routes/influencer'));
 app.use('/api/location', require('./routes/location'));
 
 // Health check endpoint

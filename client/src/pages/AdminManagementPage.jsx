@@ -35,6 +35,8 @@ export const AdminManagementPage = () => {
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', phone: '', admin_level: 1 });
 
   const loadAdmins = useCallback(async () => {
     try {
@@ -134,6 +136,25 @@ export const AdminManagementPage = () => {
     }
   };
 
+  const handleCreateAdmin = async () => {
+    if (!createForm.name || !createForm.email || !createForm.password || !createForm.phone) {
+      setMessage({ type: 'error', text: 'Tous les champs sont obligatoires' });
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const response = await adminAPI.createAdmin(createForm);
+      setMessage({ type: 'success', text: response.message });
+      setShowCreateModal(false);
+      setCreateForm({ name: '', email: '', password: '', phone: '', admin_level: 1 });
+      loadAdmins();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Erreur lors de la création' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -147,15 +168,26 @@ export const AdminManagementPage = () => {
               Gérez les rôles et niveaux d'accès des administrateurs
             </p>
           </div>
-          <button
-            onClick={() => setShowPromoteModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Ajouter un Admin
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Créer un Admin
+            </button>
+            <button
+              onClick={() => setShowPromoteModal(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Promouvoir existant
+            </button>
+          </div>
         </div>
 
         {/* Message */}
@@ -382,6 +414,127 @@ export const AdminManagementPage = () => {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? 'Traitement...' : selectedUser?.is_admin ? 'Modifier le niveau' : 'Promouvoir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Créer un Admin */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-md rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Créer un Administrateur
+              </h3>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Créer un nouveau compte administrateur backoffice
+              </p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Nom complet *
+                </label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="Nom de l'administrateur"
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  placeholder="admin@kolo.cd"
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Mot de passe *
+                </label>
+                <input
+                  type="password"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  placeholder="Minimum 8 caractères"
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Téléphone
+                </label>
+                <input
+                  type="tel"
+                  value={createForm.phone}
+                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                  placeholder="+243 ..."
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Niveau d'accès *
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { level: 1, label: 'Niveau 1 — Opérateur', desc: 'Lecture seule, gestion basique' },
+                    { level: 2, label: 'Niveau 2 — Manager', desc: 'Gestion complète, rapports' },
+                    { level: 3, label: 'Niveau 3 — Super Admin', desc: 'Accès total, gestion des admins' }
+                  ].map(({ level, label, desc }) => (
+                    <label
+                      key={level}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        createForm.admin_level === level
+                          ? 'border-green-500 bg-green-500/10'
+                          : isDarkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="create_admin_level"
+                        value={level}
+                        checked={createForm.admin_level === level}
+                        onChange={() => setCreateForm({ ...createForm, admin_level: level })}
+                        className="mt-1 text-green-600 focus:ring-green-500"
+                      />
+                      <div>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{label}</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button
+                onClick={() => { setShowCreateModal(false); setCreateForm({ name: '', email: '', password: '', phone: '', admin_level: 1 }); }}
+                className={`px-4 py-2 rounded-lg font-medium ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreateAdmin}
+                disabled={!createForm.name || !createForm.email || !createForm.password || actionLoading}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? 'Création...' : 'Créer l\'administrateur'}
               </button>
             </div>
           </div>

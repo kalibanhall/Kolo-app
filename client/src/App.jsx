@@ -43,6 +43,8 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PaymentPendingPage = lazy(() => import('./pages/PaymentPendingPage'));
 const AdminPromosPage = lazy(() => import('./pages/AdminPromosPage'));
 const AdminManagementPage = lazy(() => import('./pages/AdminManagementPage'));
+const AdminInfluencersPage = lazy(() => import('./pages/AdminInfluencersPage'));
+const InfluencerDashboard = lazy(() => import('./pages/InfluencerDashboard'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -257,6 +259,25 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/influencers"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminInfluencersPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Influencer Routes */}
+          <Route
+            path="/influencer"
+            element={
+              <ProtectedRoute influencerOnly={true}>
+                <InfluencerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

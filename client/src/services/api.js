@@ -480,9 +480,47 @@ export const adminAPI = {
     });
   },
 
+  // Créer un admin directement (L3 only)
+  createAdmin: async (data) => {
+    return await request('/admin/admins/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Rechercher des utilisateurs pour promotion
   searchUsersForAdmin: async (q) => {
     return await request(`/admin/admins/search-users?q=${encodeURIComponent(q)}`);
+  },
+
+  // --- Gestion des Influenceurs ---
+
+  // Lister tous les influenceurs
+  getInfluencers: async () => {
+    return await request('/admin/influencers');
+  },
+
+  // Créer un influenceur
+  createInfluencer: async (data) => {
+    return await request('/admin/influencers/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Assigner un code promo à un influenceur
+  assignPromoToInfluencer: async (influencerId, data) => {
+    return await request(`/admin/influencers/${influencerId}/assign-promo`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Désactiver un influenceur
+  deactivateInfluencer: async (influencerId) => {
+    return await request(`/admin/influencers/${influencerId}/deactivate`, {
+      method: 'POST',
+    });
   },
 };
 
@@ -612,6 +650,17 @@ export const promosAPI = {
   },
 };
 
+// ======================
+// 🌟 INFLUENCEUR
+// ======================
+
+export const influencerAPI = {
+  // Tableau de bord influenceur
+  getDashboard: async () => {
+    return await request('/influencer/dashboard');
+  },
+};
+
 // Export par défaut
 const api = {
   auth: authAPI,
@@ -622,6 +671,7 @@ const api = {
   notifications: notificationsAPI,
   users: usersAPI,
   promos: promosAPI,
+  influencer: influencerAPI,
   
   // Generic POST method for multipart/form-data uploads
   post: async (endpoint, formData, options = {}) => {

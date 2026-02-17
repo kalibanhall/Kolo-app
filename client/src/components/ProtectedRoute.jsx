@@ -2,8 +2,8 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false, requiredLevel = 0 }) => {
-  const { user, loading, isAdmin, getAdminLevel } = useAuth();
+export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false, influencerOnly = false, requiredLevel = 0 }) => {
+  const { user, loading, isAdmin, getAdminLevel, isInfluencer } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -21,6 +21,11 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
     return <Navigate to="/login" replace />;
   }
 
+  // Route influenceur uniquement
+  if (influencerOnly && !isInfluencer() && !isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
+
   // Si route admin uniquement et user n'est pas admin
   if (adminOnly && !isAdmin()) {
     return <Navigate to="/" replace />;
@@ -36,8 +41,13 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
     return <Navigate to="/admin" replace />;
   }
 
+  // Si influenceur essaie d'accéder à une page utilisateur, rediriger vers son dashboard
+  if (userOnly && isInfluencer() && !isAdmin()) {
+    return <Navigate to="/influencer" replace />;
+  }
+
   // Si admin essaie d'accéder à une page qui n'autorise pas les admins
-  if (isAdmin() && !adminOnly && !allowAdmin) {
+  if (isAdmin() && !adminOnly && !allowAdmin && !influencerOnly) {
     return <Navigate to="/admin" replace />;
   }
 
