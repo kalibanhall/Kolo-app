@@ -1062,8 +1062,20 @@ router.post(
       // Use server-calculated amount (with promo applied) instead of trusting frontend
       const baseAmountUSD = parseFloat(campaign.ticket_price) * ticket_count;
       const discountedAmountUSD = baseAmountUSD - promoDiscountUSD;
+
+      // Fetch exchange rate from DB (same source as /api/campaigns/exchange-rate)
+      let exchangeRate = 2850;
+      try {
+        const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+        if (rateResult.rows.length > 0) {
+          exchangeRate = parseFloat(rateResult.rows[0].value);
+        }
+      } catch (rateErr) {
+        console.warn('Failed to fetch exchange rate, using default 2850:', rateErr.message);
+      }
+
       const total_amount = currency === 'CDF' 
-        ? Math.ceil(discountedAmountUSD * 2850) 
+        ? Math.ceil(discountedAmountUSD * exchangeRate) 
         : discountedAmountUSD;
 
       // If frontend sent a different amount, log warning but use server-calculated
@@ -1711,7 +1723,7 @@ router.post('/paydrc/callback', async (req, res) => {
       // Send confirmation email/SMS (non-blocking)
       try {
         const purchaseDetails = await query(
-          `SELECT p.*, u.name as user_name, u.email as user_email, u.phone_number,
+          `SELECT p.*, u.name as user_name, u.email as user_email, p.phone_number,
                   c.title as campaign_title
            FROM purchases p
            JOIN users u ON p.user_id = u.id

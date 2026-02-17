@@ -297,7 +297,8 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
     }
 
     const userId = req.user.id;
-    const { amount, phone_number } = req.body;
+    const { amount, phone_number, currency: requestedCurrency } = req.body;
+    const currency = requestedCurrency || 'CDF';
 
     // Get or create wallet
     let walletResult = await query(

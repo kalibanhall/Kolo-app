@@ -1,7 +1,7 @@
 // KOLO Service Worker - Auto-versioned
 // This SW is designed to NEVER serve stale content.
 // Version timestamp forces cache invalidation on each deploy.
-const SW_VERSION = '2026-02-17-v1';
+const SW_VERSION = '2026-02-17-v2';
 const CACHE_NAME = `kolo-${SW_VERSION}`;
 
 // Only cache the offline fallback page — everything else is network-first
@@ -119,6 +119,18 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
     caches.keys().then((names) => {
       names.forEach((name) => caches.delete(name));
+    }).then(() => {
+      // Notify all clients to reload
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'CACHES_CLEARED' }));
+      });
+    });
+  }
+  // Force update: unregister and re-register
+  if (event.data && event.data.type === 'FORCE_UPDATE') {
+    self.skipWaiting();
+    caches.keys().then((names) => {
+      return Promise.all(names.map((name) => caches.delete(name)));
     });
   }
 });
