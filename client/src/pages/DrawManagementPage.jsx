@@ -101,13 +101,18 @@ const DrawManagementPage = () => {
     setError('');
     
     try {
-      await adminAPI.performDraw({
+      const response = await adminAPI.performDraw({
         campaign_id: selectedCampaign.id,
         bonus_winners_count: parseInt(bonusWinnersCount),
         draw_method: drawMethod
       });
       
-      setSuccess(`Tirage effectué avec succès pour "${selectedCampaign.title}"`);
+      // Vérifier si c'est une demande de validation (L2)
+      if (response?.data?.pending_approval || response?.pending_approval) {
+        setSuccess(response?.data?.message || response?.message || 'Demande de tirage soumise pour validation par l\'Administrateur (L3)');
+      } else {
+        setSuccess(`Tirage effectué avec succès pour "${selectedCampaign.title}"`);
+      }
       closeDrawModal();
       await loadData();
       

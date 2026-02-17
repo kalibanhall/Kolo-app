@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
-const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin, requireAdminLevel } = require('../middleware/auth');
 const { logAdminAction } = require('../utils/logger');
 const router = express.Router();
 
@@ -457,6 +457,37 @@ router.post('/', verifyToken, verifyAdmin, [
       });
     }
 
+    const adminLevel = req.user.admin_level || 0;
+
+    // L1 (Opérateur): création soumise à validation L2
+    if (adminLevel < 2) {
+      const payload = {
+        title, description, total_tickets, ticket_price, ticket_prefix: ticket_prefix.toUpperCase(),
+        main_prize, image_url: image_url || null, start_date, end_date: end_date || null,
+        draw_date: draw_date || null, secondary_prizes: secondary_prizes || null,
+        third_prize: third_prize || null, rules: rules || null,
+        display_order: display_order || 0, is_featured: is_featured || false,
+        status: status || 'draft'
+      };
+
+      const validationResult2 = await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, payload, status)
+         VALUES ($1, 'create_campaign', 'campaign', $2, 'pending')
+         RETURNING *`,
+        [req.user.id, JSON.stringify(payload)]
+      );
+
+      await logAdminAction(req.user.id, 'REQUEST_CREATE_CAMPAIGN', 'validation', validationResult2.rows[0].id, { title }, req);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Demande de création soumise pour validation par un Superviseur (L2)',
+        pending_approval: true,
+        data: validationResult2.rows[0]
+      });
+    }
+
+    // L2+ : création directe
     // Auto-schedule: if status is 'open' but start_date is in the future, force 'scheduled'
     let effectiveStatus = status || 'draft';
     if (effectiveStatus === 'open' && start_date) {
@@ -616,6 +647,37 @@ router.put('/:id', verifyToken, verifyAdmin, [
       }
     }
 
+    const adminLevel = req.user.admin_level || 0;
+
+    // L1 (Opérateur): édition soumise à validation L2
+    if (adminLevel < 2) {
+      const payload = {
+        campaign_id: campaignId,
+        title, description, total_tickets, ticket_price,
+        ticket_prefix: ticket_prefix ? ticket_prefix.toUpperCase() : undefined,
+        main_prize, image_url, prize_image_url, start_date, end_date, draw_date, status
+      };
+      // Remove undefined values
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      const validationResult2 = await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, entity_id, payload, status)
+         VALUES ($1, 'edit_campaign', 'campaign', $2, $3, 'pending')
+         RETURNING *`,
+        [req.user.id, campaignId, JSON.stringify(payload)]
+      );
+
+      await logAdminAction(req.user.id, 'REQUEST_EDIT_CAMPAIGN', 'validation', validationResult2.rows[0].id, { campaign_id: campaignId, title }, req);
+
+      return res.json({
+        success: true,
+        message: 'Demande de modification soumise pour validation par un Superviseur (L2)',
+        pending_approval: true,
+        data: validationResult2.rows[0]
+      });
+    }
+
+    // L2+ : modification directe
     // Auto-schedule: if status is 'open' but start_date is in the future, force 'scheduled'
     let effectiveStatus = status;
     if (status === 'open' && start_date) {

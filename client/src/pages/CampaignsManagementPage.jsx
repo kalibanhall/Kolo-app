@@ -168,9 +168,12 @@ export const CampaignsManagementPage = () => {
     }
   };
 
+  const [successMessage, setSuccessMessage] = useState(null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     try {
       // Convert dates to ISO 8601 format for backend validation
@@ -183,15 +186,21 @@ export const CampaignsManagementPage = () => {
         draw_date: formData.draw_date ? new Date(formData.draw_date + 'T12:00:00').toISOString() : null,
       };
 
+      let response;
       if (editingCampaign) {
-        await campaignsAPI.update(editingCampaign.id, dataToSend);
+        response = await campaignsAPI.update(editingCampaign.id, dataToSend);
       } else {
-        await campaignsAPI.create(dataToSend);
+        response = await campaignsAPI.create(dataToSend);
       }
       
-      // Reset form and reload
-      resetForm();
-      loadCampaigns();
+      // Vérifier si c'est une demande de validation (L1)
+      if (response?.data?.pending_approval || response?.pending_approval) {
+        setSuccessMessage(response?.data?.message || response?.message || 'Demande soumise pour validation');
+        resetForm();
+      } else {
+        resetForm();
+        loadCampaigns();
+      }
     } catch (err) {
       setError(err.message || 'Erreur lors de la sauvegarde');
     }
@@ -368,6 +377,16 @@ export const CampaignsManagementPage = () => {
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-700">{error}</p>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex justify-between items-center">
+            <div>
+              <p className="text-green-800 font-medium">✓ Demande soumise</p>
+              <p className="text-green-700 text-sm">{successMessage}</p>
+            </div>
+            <button onClick={() => setSuccessMessage(null)} className="text-green-700 hover:text-green-900 font-bold text-lg">&times;</button>
           </div>
         )}
 

@@ -480,6 +480,52 @@ router.post('/draw', requireAdminLevel(2), drawLimiter, [
       });
     }
 
+    const adminLevel = req.user.admin_level || 0;
+
+    // L2 (Superviseur): tirage soumis à validation L3
+    if (adminLevel < 3) {
+      // Vérifier que la campagne existe et est prête pour un tirage
+      const campaignCheck = await query('SELECT id, title, status FROM campaigns WHERE id = $1', [campaign_id]);
+      if (campaignCheck.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Campagne introuvable' });
+      }
+      const campaign = campaignCheck.rows[0];
+      if (campaign.status === 'completed') {
+        return res.status(400).json({ success: false, message: 'Tirage déjà effectué pour cette campagne' });
+      }
+
+      // Vérifier qu'il n'y a pas déjà une demande en attente
+      const existingPending = await query(
+        `SELECT id FROM admin_validations 
+         WHERE action_type = 'launch_draw' AND entity_id = $1 AND status = 'pending'`,
+        [campaign_id]
+      );
+      if (existingPending.rows.length > 0) {
+        return res.status(400).json({ success: false, message: 'Une demande de tirage est déjà en attente pour cette campagne' });
+      }
+
+      const payload = { campaign_id, bonus_winners_count, draw_method, manual_ticket_number };
+
+      const validationResult2 = await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, entity_id, payload, status)
+         VALUES ($1, 'launch_draw', 'draw', $2, $3, 'pending')
+         RETURNING *`,
+        [req.user.id, campaign_id, JSON.stringify(payload)]
+      );
+
+      await logAdminAction(req.user.id, 'REQUEST_LAUNCH_DRAW', 'validation', validationResult2.rows[0].id,
+        { campaign_id, campaign_title: campaign.title, draw_method }, req);
+
+      return res.json({
+        success: true,
+        message: `Demande de tirage pour "${campaign.title}" soumise pour validation par l'Administrateur (L3)`,
+        pending_approval: true,
+        data: validationResult2.rows[0]
+      });
+    }
+
+    // L3 : exécution directe du tirage
+
     const winnerData = await transaction(async (client) => {
       // Check campaign exists and hasn't been drawn yet
       const campaignResult = await client.query(
@@ -854,6 +900,310 @@ router.get('/draws', async (req, res) => {
       success: false,
       message: 'Server error'
     });
+  }
+});
+
+// ============================
+// VALIDATION WORKFLOW ROUTES
+// ============================
+
+// Get pending validations (L2+ for campaigns, L3 for draws)
+router.get('/validations', async (req, res) => {
+  try {
+    const adminLevel = req.user.admin_level || 0;
+    const { status: filterStatus, action_type } = req.query;
+
+    let whereClause = '';
+    const params = [];
+    let paramIdx = 1;
+
+    // L2 voit les demandes de campagnes, L3 voit tout
+    if (adminLevel < 3) {
+      whereClause = `WHERE v.action_type IN ('create_campaign', 'edit_campaign')`;
+    }
+
+    if (filterStatus) {
+      whereClause += (whereClause ? ' AND' : ' WHERE') + ` v.status = $${paramIdx}`;
+      params.push(filterStatus);
+      paramIdx++;
+    }
+
+    if (action_type) {
+      whereClause += (whereClause ? ' AND' : ' WHERE') + ` v.action_type = $${paramIdx}`;
+      params.push(action_type);
+      paramIdx++;
+    }
+
+    const result = await query(
+      `SELECT v.*, 
+              u_req.name as requested_by_name, u_req.email as requested_by_email,
+              u_val.name as validated_by_name
+       FROM admin_validations v
+       LEFT JOIN users u_req ON v.requested_by = u_req.id
+       LEFT JOIN users u_val ON v.validated_by = u_val.id
+       ${whereClause}
+       ORDER BY v.created_at DESC
+       LIMIT 100`,
+      params
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get validations error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Approve a validation request
+router.post('/validations/:id/approve', async (req, res) => {
+  try {
+    const validationId = parseInt(req.params.id);
+    if (isNaN(validationId)) {
+      return res.status(400).json({ success: false, message: 'ID invalide' });
+    }
+
+    const adminLevel = req.user.admin_level || 0;
+
+    // Récupérer la demande
+    const valResult = await query('SELECT * FROM admin_validations WHERE id = $1', [validationId]);
+    if (valResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Demande introuvable' });
+    }
+
+    const validation = valResult.rows[0];
+
+    if (validation.status !== 'pending') {
+      return res.status(400).json({ success: false, message: `Cette demande a déjà été ${validation.status === 'approved' ? 'approuvée' : 'rejetée'}` });
+    }
+
+    // Ne peut pas approuver sa propre demande
+    if (validation.requested_by === req.user.id) {
+      return res.status(403).json({ success: false, message: 'Vous ne pouvez pas approuver votre propre demande' });
+    }
+
+    // Vérifier les permissions
+    if (['create_campaign', 'edit_campaign'].includes(validation.action_type) && adminLevel < 2) {
+      return res.status(403).json({ success: false, message: 'Niveau Superviseur (L2) requis pour approuver les campagnes' });
+    }
+    if (validation.action_type === 'launch_draw' && adminLevel < 3) {
+      return res.status(403).json({ success: false, message: 'Niveau Administrateur (L3) requis pour approuver les tirages' });
+    }
+
+    const payload = validation.payload;
+    let resultData = null;
+
+    // Exécuter l'action selon le type
+    if (validation.action_type === 'create_campaign') {
+      // Auto-schedule
+      let effectiveStatus = payload.status || 'draft';
+      if (effectiveStatus === 'open' && payload.start_date) {
+        if (new Date(payload.start_date) > new Date()) effectiveStatus = 'scheduled';
+      }
+
+      const createResult = await query(
+        `INSERT INTO campaigns (
+          title, description, status, total_tickets, ticket_price, ticket_prefix,
+          main_prize, image_url, start_date, end_date, draw_date,
+          secondary_prizes, third_prize, rules, display_order, is_featured, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *`,
+        [
+          payload.title, payload.description, effectiveStatus, payload.total_tickets,
+          payload.ticket_price, payload.ticket_prefix, payload.main_prize,
+          payload.image_url || null, payload.start_date, payload.end_date || null,
+          payload.draw_date || null, payload.secondary_prizes || null,
+          payload.third_prize || null, payload.rules || null,
+          payload.display_order || 0, payload.is_featured || false, validation.requested_by
+        ]
+      );
+      resultData = createResult.rows[0];
+
+      // Mettre à jour entity_id avec l'id de la campagne créée
+      await query('UPDATE admin_validations SET entity_id = $1 WHERE id = $2', [resultData.id, validationId]);
+
+    } else if (validation.action_type === 'edit_campaign') {
+      const p = payload;
+      const cleanStartDate = p.start_date === '' ? null : p.start_date;
+      const cleanEndDate = p.end_date === '' ? null : p.end_date;
+      const cleanDrawDate = p.draw_date === '' ? null : p.draw_date;
+
+      let effectiveStatus = p.status;
+      if (p.status === 'open' && p.start_date && new Date(p.start_date) > new Date()) {
+        effectiveStatus = 'scheduled';
+      }
+
+      const updateResult = await query(
+        `UPDATE campaigns 
+         SET title = COALESCE($1, title), description = COALESCE($2, description),
+             total_tickets = COALESCE($3, total_tickets), ticket_price = COALESCE($4, ticket_price),
+             main_prize = COALESCE($5, main_prize), image_url = COALESCE($6, image_url),
+             start_date = COALESCE($7, start_date), end_date = COALESCE($8, end_date),
+             draw_date = COALESCE($9, draw_date), status = COALESCE($10, status),
+             ticket_prefix = COALESCE($11, ticket_prefix), updated_at = CURRENT_TIMESTAMP
+         WHERE id = $12 RETURNING *`,
+        [
+          p.title, p.description, p.total_tickets, p.ticket_price, p.main_prize,
+          p.image_url, cleanStartDate, cleanEndDate, cleanDrawDate, effectiveStatus,
+          p.ticket_prefix || null, p.campaign_id
+        ]
+      );
+      resultData = updateResult.rows[0];
+
+    } else if (validation.action_type === 'launch_draw') {
+      // Exécuter le tirage via la même logique que POST /draw
+      // On fait un appel interne simplifié
+      const { campaign_id, bonus_winners_count, draw_method, manual_ticket_number } = payload;
+      
+      const drawResult = await transaction(async (client) => {
+        const campaignResult = await client.query('SELECT * FROM campaigns WHERE id = $1', [campaign_id]);
+        if (campaignResult.rows.length === 0) throw new Error('Campagne introuvable');
+        const campaign = campaignResult.rows[0];
+        if (campaign.status === 'completed') throw new Error('Tirage déjà effectué');
+
+        const ticketsResult = await client.query(
+          'SELECT * FROM tickets WHERE campaign_id = $1 AND status = $2', [campaign_id, 'active']
+        );
+        if (ticketsResult.rows.length === 0) throw new Error('Aucun ticket disponible');
+
+        const allTickets = ticketsResult.rows;
+        let mainWinner;
+        if (draw_method === 'manual') {
+          mainWinner = allTickets.find(t => t.ticket_number === manual_ticket_number);
+          if (!mainWinner) throw new Error(`Ticket ${manual_ticket_number} introuvable`);
+        } else {
+          const randomIndex = Math.floor(Math.random() * allTickets.length);
+          mainWinner = allTickets[randomIndex];
+        }
+
+        // Marquer le gagnant
+        await client.query(
+          `UPDATE tickets SET is_winner = true, prize_category = 'main', status = 'winner' WHERE id = $1`,
+          [mainWinner.id]
+        );
+
+        const drawRecord = await client.query(
+          `INSERT INTO draw_results (campaign_id, main_winner_ticket_id, draw_date, draw_method, verified_by)
+           VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4) RETURNING *`,
+          [campaign_id, mainWinner.id, draw_method || 'automatic', req.user.id]
+        );
+
+        // Bonus winners
+        let bonusWinners = [];
+        if (bonus_winners_count > 0) {
+          const eligibleTickets = allTickets.filter(t => t.id !== mainWinner.id);
+          const usedUserIds = new Set([mainWinner.user_id]);
+          const shuffled = [...eligibleTickets].sort(() => Math.random() - 0.5);
+
+          for (const ticket of shuffled) {
+            if (bonusWinners.length >= bonus_winners_count) break;
+            if (usedUserIds.has(ticket.user_id)) continue;
+            usedUserIds.add(ticket.user_id);
+
+            await client.query(
+              `UPDATE tickets SET is_winner = true, prize_category = 'bonus', status = 'winner' WHERE id = $1`,
+              [ticket.id]
+            );
+            await client.query(
+              `INSERT INTO bonus_winners (draw_result_id, ticket_id) VALUES ($1, $2)`,
+              [drawRecord.rows[0].id, ticket.id]
+            );
+            bonusWinners.push(ticket);
+          }
+        }
+
+        // Marquer les perdants
+        await client.query(
+          `UPDATE tickets SET status = 'lost' WHERE campaign_id = $1 AND status = 'active'`,
+          [campaign_id]
+        );
+
+        // Compléter la campagne
+        await client.query(
+          `UPDATE campaigns SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [campaign_id]
+        );
+
+        return { draw: drawRecord.rows[0], mainWinner, bonusWinners, campaign };
+      });
+
+      resultData = drawResult;
+    }
+
+    // Marquer comme approuvé
+    await query(
+      `UPDATE admin_validations SET status = 'approved', validated_by = $1, validated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [req.user.id, validationId]
+    );
+
+    await logAdminAction(req.user.id, 'APPROVE_VALIDATION', 'validation', validationId,
+      { action_type: validation.action_type, entity_type: validation.entity_type }, req);
+
+    res.json({
+      success: true,
+      message: `Demande approuvée et exécutée avec succès`,
+      data: resultData
+    });
+
+  } catch (error) {
+    console.error('Approve validation error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Server error' });
+  }
+});
+
+// Reject a validation request
+router.post('/validations/:id/reject', [
+  body('rejection_reason').notEmpty().withMessage('Le motif de rejet est requis').trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Le motif de rejet est requis', errors: errors.array() });
+    }
+
+    const validationId = parseInt(req.params.id);
+    if (isNaN(validationId)) {
+      return res.status(400).json({ success: false, message: 'ID invalide' });
+    }
+
+    const adminLevel = req.user.admin_level || 0;
+    const { rejection_reason } = req.body;
+
+    const valResult = await query('SELECT * FROM admin_validations WHERE id = $1', [validationId]);
+    if (valResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Demande introuvable' });
+    }
+
+    const validation = valResult.rows[0];
+
+    if (validation.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Cette demande a déjà été traitée' });
+    }
+
+    // Vérifier les permissions
+    if (['create_campaign', 'edit_campaign'].includes(validation.action_type) && adminLevel < 2) {
+      return res.status(403).json({ success: false, message: 'Niveau Superviseur (L2) requis' });
+    }
+    if (validation.action_type === 'launch_draw' && adminLevel < 3) {
+      return res.status(403).json({ success: false, message: 'Niveau Administrateur (L3) requis' });
+    }
+
+    await query(
+      `UPDATE admin_validations SET status = 'rejected', validated_by = $1, validated_at = CURRENT_TIMESTAMP, rejection_reason = $2 WHERE id = $3`,
+      [req.user.id, rejection_reason, validationId]
+    );
+
+    await logAdminAction(req.user.id, 'REJECT_VALIDATION', 'validation', validationId,
+      { action_type: validation.action_type, rejection_reason }, req);
+
+    res.json({
+      success: true,
+      message: 'Demande rejetée',
+      data: { id: validationId, status: 'rejected', rejection_reason }
+    });
+
+  } catch (error) {
+    console.error('Reject validation error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

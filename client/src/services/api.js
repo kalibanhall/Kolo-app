@@ -457,6 +457,29 @@ export const adminAPI = {
     });
   },
 
+  // ============ VALIDATIONS WORKFLOW ============
+
+  // Obtenir les demandes de validation
+  getValidations: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return await request(`/admin/validations${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Approuver une demande
+  approveValidation: async (id) => {
+    return await request(`/admin/validations/${id}/approve`, {
+      method: 'POST',
+    });
+  },
+
+  // Rejeter une demande
+  rejectValidation: async (id, rejection_reason) => {
+    return await request(`/admin/validations/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ rejection_reason }),
+    });
+  },
+
   // ============ ADMIN MANAGEMENT (L3) ============
 
   // Lister tous les administrateurs

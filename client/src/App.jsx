@@ -44,6 +44,7 @@ const PaymentPendingPage = lazy(() => import('./pages/PaymentPendingPage'));
 const AdminPromosPage = lazy(() => import('./pages/AdminPromosPage'));
 const AdminManagementPage = lazy(() => import('./pages/AdminManagementPage'));
 const AdminInfluencersPage = lazy(() => import('./pages/AdminInfluencersPage'));
+const AdminValidationsPage = lazy(() => import('./pages/AdminValidationsPage'));
 const InfluencerDashboard = lazy(() => import('./pages/InfluencerDashboard'));
 
 function App() {
@@ -264,6 +265,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AdminInfluencersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/validations"
+            element={
+              <ProtectedRoute adminOnly={true} requiredLevel={2}>
+                <AdminValidationsPage />
               </ProtectedRoute>
             }
           />

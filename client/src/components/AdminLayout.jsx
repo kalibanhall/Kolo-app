@@ -22,6 +22,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/campaigns', label: 'Campagnes', Icon: CampaignIcon, minLevel: 1 },
     { path: '/admin/promos', label: 'Promos', Icon: TicketIcon, minLevel: 1 },
     { path: '/admin/influencers', label: 'Influenceurs', Icon: StarIcon, minLevel: 1 },
+    { path: '/admin/validations', label: 'Validations', Icon: ShieldIcon, minLevel: 2 },
     { path: '/admin/transactions', label: 'Transactions', Icon: MoneyIcon, minLevel: 2 },
     { path: '/admin/draws', label: 'Tirages', Icon: TargetIcon, minLevel: 2 },
     { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon, minLevel: 2 },
