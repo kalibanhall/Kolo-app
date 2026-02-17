@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { useAuth } from '../context/AuthContext';
 import { campaignsAPI } from '../services/api';
 import { FilterPanel } from '../components/FilterPanel';
 import { exportCampaigns, formatDateForExport } from '../utils/exportUtils';
 
 export const CampaignsManagementPage = () => {
+  const { getAdminLevel } = useAuth();
+  const adminLevel = getAdminLevel();
   const [campaigns, setCampaigns] = useState([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -258,10 +261,16 @@ export const CampaignsManagementPage = () => {
     }
   };
 
+  const [successMessage, setSuccessMessage] = useState('');
+
   const handleStatusChange = async (id, newStatus) => {
     try {
-      await campaignsAPI.updateStatus(id, newStatus);
-      loadCampaigns();
+      const response = await campaignsAPI.updateStatus(id, newStatus);
+      if (response.pending_approval || response.data?.pending_approval) {
+        setSuccessMessage(response.message || 'Demande soumise pour validation par le Superviseur (L2)');
+      } else {
+        loadCampaigns();
+      }
     } catch (err) {
       setError('Erreur lors du changement de statut');
     }
@@ -866,12 +875,14 @@ export const CampaignsManagementPage = () => {
                               Éditer
                             </span>
                           )}
+                          {adminLevel >= 2 && (
                           <button
                             onClick={() => handleDelete(campaign.id)}
                             className="text-red-600 hover:text-red-900"
                           >
                             Supprimer
                           </button>
+                          )}
                           {campaign.status === 'draft' && (
                             <button
                               onClick={() => handleStatusChange(campaign.id, 'open')}

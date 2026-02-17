@@ -159,7 +159,7 @@ function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute adminOnly={true}>
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
                 <AdminDashboard />
               </ProtectedRoute>
             }

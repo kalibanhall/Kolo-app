@@ -917,9 +917,9 @@ router.get('/validations', async (req, res) => {
     const params = [];
     let paramIdx = 1;
 
-    // L2 voit les demandes de campagnes, L3 voit tout
+    // L2 voit les demandes de campagnes, promos et influenceurs, L3 voit tout
     if (adminLevel < 3) {
-      whereClause = `WHERE v.action_type IN ('create_campaign', 'edit_campaign')`;
+      whereClause = `WHERE v.action_type IN ('create_campaign', 'edit_campaign', 'create_promo', 'create_influencer', 'change_campaign_status', 'edit_promo')`;
     }
 
     if (filterStatus) {
@@ -982,8 +982,8 @@ router.post('/validations/:id/approve', async (req, res) => {
     }
 
     // Vérifier les permissions
-    if (['create_campaign', 'edit_campaign'].includes(validation.action_type) && adminLevel < 2) {
-      return res.status(403).json({ success: false, message: 'Niveau Superviseur (L2) requis pour approuver les campagnes' });
+    if (['create_campaign', 'edit_campaign', 'create_promo', 'create_influencer', 'change_campaign_status', 'edit_promo'].includes(validation.action_type) && adminLevel < 2) {
+      return res.status(403).json({ success: false, message: 'Niveau Superviseur (L2) requis pour approuver cette demande' });
     }
     if (validation.action_type === 'launch_draw' && adminLevel < 3) {
       return res.status(403).json({ success: false, message: 'Niveau Administrateur (L3) requis pour approuver les tirages' });
@@ -1127,12 +1127,143 @@ router.post('/validations/:id/approve', async (req, res) => {
       });
 
       resultData = drawResult;
+    } else if (validation.action_type === 'create_promo') {
+      // Créer le code promo
+      const p = payload;
+      const existingCode = await query('SELECT id FROM promo_codes WHERE UPPER(code) = $1', [p.code]);
+      if (existingCode.rows.length > 0) {
+        return res.status(400).json({ success: false, message: `Le code promo "${p.code}" existe déjà` });
+      }
+
+      const promoResult = await query(
+        `INSERT INTO promo_codes 
+         (code, influencer_name, description, discount_type, discount_value, min_purchase, max_discount, max_uses, expires_at, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          p.code, p.influencer_name || null,
+          p.description || `Code promo ${p.code}`,
+          p.discount_type || 'percentage', p.discount_value,
+          p.min_purchase || 0, p.max_discount || null,
+          p.max_uses || null, p.expires_at || null,
+          validation.requested_by
+        ]
+      );
+      resultData = promoResult.rows[0];
+      await query('UPDATE admin_validations SET entity_id = $1 WHERE id = $2', [resultData.id, validationId]);
+
+    } else if (validation.action_type === 'create_influencer') {
+      // Créer le compte influenceur
+      const p = payload;
+      const existingUser = await query('SELECT id FROM users WHERE email = $1', [p.email]);
+      if (existingUser.rows.length > 0) {
+        return res.status(400).json({ success: false, message: `Un utilisateur avec l'email "${p.email}" existe déjà` });
+      }
+
+      const salt = await bcrypt.genSalt(12);
+      const passwordHash = await bcrypt.hash(p.password, salt);
+
+      const influencerResult = await query(
+        `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified)
+         VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE)
+         RETURNING id, name, email, phone, created_at`,
+        [p.name, p.email, passwordHash, p.phone]
+      );
+      const newInfluencer = influencerResult.rows[0];
+
+      // Créer le code promo lié si fourni
+      if (p.promo_code) {
+        const existingCode = await query('SELECT id FROM promo_codes WHERE UPPER(code) = $1', [p.promo_code]);
+        if (existingCode.rows.length === 0) {
+          await query(
+            `INSERT INTO promo_codes (code, influencer_name, description, discount_type, discount_value, commission_rate, max_uses, expires_at, created_by, influencer_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+              p.promo_code, p.name, `Code promo pour ${p.name}`,
+              p.discount_type || 'percentage', p.discount_value || 10,
+              p.commission_rate || 5, p.max_uses || 100,
+              p.expires_at || null, validation.requested_by, newInfluencer.id
+            ]
+          );
+        }
+      }
+
+      resultData = newInfluencer;
+      await query('UPDATE admin_validations SET entity_id = $1 WHERE id = $2', [newInfluencer.id, validationId]);
+
+    } else if (validation.action_type === 'change_campaign_status') {
+      // Changer le statut de la campagne
+      const p = payload;
+      const updateResult = await query(
+        `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+        [p.new_status, p.campaign_id]
+      );
+      if (updateResult.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Campagne introuvable' });
+      }
+      resultData = updateResult.rows[0];
+
+    } else if (validation.action_type === 'edit_promo') {
+      // Modifier le code promo
+      const p = payload;
+      const promoId = p.promo_id;
+      delete p.promo_id;
+
+      if (p.discount_percent !== undefined) {
+        p.discount_value = p.discount_percent;
+        p.discount_type = 'percentage';
+        delete p.discount_percent;
+      }
+
+      const allowedFields = ['description', 'discount_type', 'discount_value', 'influencer_name',
+        'min_purchase', 'max_discount', 'max_uses', 'is_active', 'expires_at'];
+      const updates = [];
+      const values = [];
+      let paramCount = 1;
+      for (const field of allowedFields) {
+        if (p[field] !== undefined) {
+          updates.push(`${field} = $${paramCount++}`);
+          values.push(p[field]);
+        }
+      }
+      if (updates.length > 0) {
+        values.push(promoId);
+        const promoResult = await query(
+          `UPDATE promo_codes SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`,
+          values
+        );
+        resultData = promoResult.rows[0];
+      }
     }
 
     // Marquer comme approuvé
     await query(
       `UPDATE admin_validations SET status = 'approved', validated_by = $1, validated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [req.user.id, validationId]
+    );
+
+    // Notification d'approbation au demandeur
+    const approvalLabels = {
+      create_campaign: 'Création de campagne',
+      edit_campaign: 'Modification de campagne',
+      change_campaign_status: 'Changement de statut de campagne',
+      launch_draw: 'Lancement de tirage',
+      create_promo: 'Création de code promo',
+      edit_promo: 'Modification de code promo',
+      create_influencer: 'Création d\'influenceur'
+    };
+    const approvalLabel = approvalLabels[validation.action_type] || validation.action_type;
+    const approvalTitle = payload?.title || payload?.code || payload?.name || '';
+
+    await query(
+      `INSERT INTO notifications (user_id, type, title, message, data)
+       VALUES ($1, 'validation_approved', $2, $3, $4)`,
+      [
+        validation.requested_by,
+        `Demande approuvée: ${approvalLabel}`,
+        `Votre demande "${approvalTitle}" a été approuvée et exécutée avec succès.`,
+        JSON.stringify({ validation_id: validationId, action_type: validation.action_type })
+      ]
     );
 
     await logAdminAction(req.user.id, 'APPROVE_VALIDATION', 'validation', validationId,
@@ -1180,7 +1311,7 @@ router.post('/validations/:id/reject', [
     }
 
     // Vérifier les permissions
-    if (['create_campaign', 'edit_campaign'].includes(validation.action_type) && adminLevel < 2) {
+    if (['create_campaign', 'edit_campaign', 'create_promo', 'create_influencer', 'change_campaign_status', 'edit_promo'].includes(validation.action_type) && adminLevel < 2) {
       return res.status(403).json({ success: false, message: 'Niveau Superviseur (L2) requis' });
     }
     if (validation.action_type === 'launch_draw' && adminLevel < 3) {
@@ -1191,6 +1322,57 @@ router.post('/validations/:id/reject', [
       `UPDATE admin_validations SET status = 'rejected', validated_by = $1, validated_at = CURRENT_TIMESTAMP, rejection_reason = $2 WHERE id = $3`,
       [req.user.id, rejection_reason, validationId]
     );
+
+    // Notification au demandeur avec le motif de rejet
+    const actionLabels = {
+      create_campaign: 'Création de campagne',
+      edit_campaign: 'Modification de campagne',
+      change_campaign_status: 'Changement de statut de campagne',
+      launch_draw: 'Lancement de tirage',
+      create_promo: 'Création de code promo',
+      edit_promo: 'Modification de code promo',
+      create_influencer: 'Création d\'influenceur'
+    };
+    const actionLabel = actionLabels[validation.action_type] || validation.action_type;
+    const payloadTitle = validation.payload?.title || validation.payload?.code || validation.payload?.name || '';
+
+    await query(
+      `INSERT INTO notifications (user_id, type, title, message, data)
+       VALUES ($1, 'validation_rejected', $2, $3, $4)`,
+      [
+        validation.requested_by,
+        `Demande rejetée: ${actionLabel}`,
+        `Votre demande "${payloadTitle}" a été rejetée. Motif: ${rejection_reason}`,
+        JSON.stringify({ validation_id: validationId, action_type: validation.action_type, rejection_reason })
+      ]
+    );
+
+    // Envoyer une notification push Firebase au demandeur
+    try {
+      const fcmResult = await query('SELECT token FROM fcm_tokens WHERE user_id = $1', [validation.requested_by]);
+      if (fcmResult.rows.length > 0) {
+        const { isInitialized } = require('../services/firebaseNotifications');
+        if (isInitialized()) {
+          const admin = require('firebase-admin');
+          for (const row of fcmResult.rows) {
+            try {
+              await admin.messaging().send({
+                token: row.token,
+                notification: {
+                  title: `❌ Demande rejetée: ${actionLabel}`,
+                  body: `Votre demande "${payloadTitle}" a été rejetée. Motif: ${rejection_reason}`
+                },
+                data: { type: 'validation_rejected', validation_id: String(validationId) }
+              });
+            } catch (pushErr) {
+              console.log('Push notification error (rejection):', pushErr.message);
+            }
+          }
+        }
+      }
+    } catch (fcmError) {
+      console.log('FCM lookup error:', fcmError.message);
+    }
 
     await logAdminAction(req.user.id, 'REJECT_VALIDATION', 'validation', validationId,
       { action_type: validation.action_type, rejection_reason }, req);
@@ -3055,7 +3237,13 @@ router.post('/influencers/create', requireAdminLevel(1), [
   body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
-  body('phone').notEmpty().trim()
+  body('phone').notEmpty().trim(),
+  body('promo_code').optional().trim().toUpperCase(),
+  body('discount_type').optional().isIn(['percentage', 'fixed']),
+  body('discount_value').optional().isFloat({ min: 0 }),
+  body('commission_rate').optional().isFloat({ min: 0, max: 50 }),
+  body('max_uses').optional().isInt({ min: 1 }),
+  body('expires_at').optional()
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -3063,12 +3251,37 @@ router.post('/influencers/create', requireAdminLevel(1), [
   }
 
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, promo_code, discount_type, discount_value, commission_rate, max_uses, expires_at } = req.body;
 
     // Check if email already exists
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ success: false, message: 'Un utilisateur avec cet email existe déjà' });
+    }
+
+    // L1: soumission pour validation par L2
+    const adminLevel = req.user.admin_level || 0;
+    if (adminLevel < 2) {
+      const payload = {
+        name, email, password, phone,
+        promo_code: promo_code || null,
+        discount_type: discount_type || 'percentage',
+        discount_value: discount_value || 10,
+        commission_rate: commission_rate || 5,
+        max_uses: max_uses || 100,
+        expires_at: expires_at || null
+      };
+
+      await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, payload, status)
+         VALUES ($1, 'create_influencer', 'influencer', $2, 'pending')`,
+        [req.user.id, JSON.stringify(payload)]
+      );
+      return res.status(202).json({
+        success: true,
+        pending_approval: true,
+        message: 'Demande de création d\'influenceur soumise pour validation par le Superviseur (L2)'
+      });
     }
 
     const salt = await bcrypt.genSalt(12);
@@ -3083,12 +3296,29 @@ router.post('/influencers/create', requireAdminLevel(1), [
 
     const newInfluencer = result.rows[0];
 
+    // If promo_code provided, create it and link
+    if (promo_code) {
+      const existingCode = await query('SELECT id FROM promo_codes WHERE UPPER(code) = $1', [promo_code]);
+      if (existingCode.rows.length === 0) {
+        await query(
+          `INSERT INTO promo_codes (code, influencer_name, description, discount_type, discount_value, commission_rate, max_uses, expires_at, created_by, influencer_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            promo_code, name, `Code promo pour ${name}`,
+            discount_type || 'percentage', discount_value || 10,
+            commission_rate || 5, max_uses || 100,
+            expires_at || null, req.user.id, newInfluencer.id
+          ]
+        );
+      }
+    }
+
     await logAdminAction(
       req.user.id,
       'INFLUENCER_CREATED',
       'user',
       newInfluencer.id,
-      { target_name: name, target_email: email },
+      { target_name: name, target_email: email, promo_code },
       req
     );
 

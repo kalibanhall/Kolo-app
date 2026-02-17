@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
-const { verifyToken, verifyAdmin } = require('../middleware/auth');
+const { verifyToken, verifyAdmin, requireAdminLevel } = require('../middleware/auth');
 const router = express.Router();
 
 // Validate a promo code (public - for users)
@@ -224,6 +224,33 @@ router.post('/admin', verifyToken, verifyAdmin, [
       });
     }
 
+    // L1: soumission pour validation par L2
+    const adminLevel = req.user.admin_level || 0;
+    if (adminLevel < 2) {
+      const payload = {
+        code, influencer_name, description,
+        discount_type: finalDiscountType,
+        discount_value: finalDiscountValue,
+        min_purchase: min_purchase || 0,
+        max_discount: max_discount || null,
+        max_uses: max_uses || null,
+        expires_at: expires_at || null
+      };
+      // Remove undefined values
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, payload, status)
+         VALUES ($1, 'create_promo', 'promo_code', $2, 'pending')`,
+        [req.user.id, JSON.stringify(payload)]
+      );
+      return res.status(202).json({
+        success: true,
+        pending_approval: true,
+        message: 'Demande de création de code promo soumise pour validation par le Superviseur (L2)'
+      });
+    }
+
     const result = await query(
       `INSERT INTO promo_codes 
        (code, influencer_name, description, discount_type, discount_value, min_purchase, max_discount, max_uses, expires_at, created_by)
@@ -317,8 +344,8 @@ router.put('/admin/:id', verifyToken, verifyAdmin, [
   }
 });
 
-// Delete promo code (admin)
-router.delete('/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
+// Delete promo code (admin - L2+ only, L1 cannot delete)
+router.delete('/admin/:id', verifyToken, verifyAdmin, requireAdminLevel(2), async (req, res) => {
   try {
     const { id } = req.params;
 

@@ -16,7 +16,7 @@ const AdminInfluencersPage = () => {
   const [selectedInfluencer, setSelectedInfluencer] = useState(null);
 
   // Formulaires
-  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', phone: '', promo_code: '', discount_type: 'percentage', discount_value: 10, commission_rate: 5, max_uses: 100, expires_at: '' });
   const [promoForm, setPromoForm] = useState({
     code: '',
     discount_type: 'percentage',
@@ -47,13 +47,21 @@ const AdminInfluencersPage = () => {
       setMessage({ type: 'error', text: 'Nom, email et mot de passe sont requis' });
       return;
     }
+    if (!createForm.promo_code) {
+      setMessage({ type: 'error', text: 'Le code promo est requis pour lier l\'influenceur' });
+      return;
+    }
     try {
       setActionLoading(true);
-      await adminAPI.createInfluencer(createForm);
-      setMessage({ type: 'success', text: 'Influenceur créé avec succès' });
+      const response = await adminAPI.createInfluencer(createForm);
+      if (response.pending_approval || response.data?.pending_approval) {
+        setMessage({ type: 'success', text: response.message || response.data?.message || 'Demande soumise pour validation par le Superviseur (L2)' });
+      } else {
+        setMessage({ type: 'success', text: 'Influenceur créé avec succès' });
+        await loadInfluencers();
+      }
       setShowCreateModal(false);
-      setCreateForm({ name: '', email: '', password: '', phone: '' });
-      await loadInfluencers();
+      setCreateForm({ name: '', email: '', password: '', phone: '', promo_code: '', discount_type: 'percentage', discount_value: 10, commission_rate: 5, max_uses: 100, expires_at: '' });
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -312,18 +320,83 @@ const AdminInfluencersPage = () => {
                   className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
                 />
               </div>
+
+              {/* Code Promo lié */}
+              <div className={`p-3 rounded-lg border ${isDarkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                  Code Promo associé *
+                </p>
+                <div>
+                  <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Code *
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.promo_code}
+                    onChange={(e) => setCreateForm({ ...createForm, promo_code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                    placeholder="Ex: KOLO2026"
+                    className={`w-full px-3 py-2 rounded-lg border font-mono uppercase ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Réduction (%)
+                    </label>
+                    <input
+                      type="number" min="1" max="100"
+                      value={createForm.discount_value}
+                      onChange={(e) => setCreateForm({ ...createForm, discount_value: parseInt(e.target.value) || 0 })}
+                      className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Commission (%)
+                    </label>
+                    <input
+                      type="number" min="0" max="50" step="0.5"
+                      value={createForm.commission_rate}
+                      onChange={(e) => setCreateForm({ ...createForm, commission_rate: parseFloat(e.target.value) || 0 })}
+                      className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Max utilisations
+                    </label>
+                    <input
+                      type="number" min="1"
+                      value={createForm.max_uses}
+                      onChange={(e) => setCreateForm({ ...createForm, max_uses: parseInt(e.target.value) || 100 })}
+                      className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Expiration
+                    </label>
+                    <input
+                      type="date"
+                      value={createForm.expires_at}
+                      onChange={(e) => setCreateForm({ ...createForm, expires_at: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <button
-                onClick={() => { setShowCreateModal(false); setCreateForm({ name: '', email: '', password: '', phone: '' }); }}
+                onClick={() => { setShowCreateModal(false); setCreateForm({ name: '', email: '', password: '', phone: '', promo_code: '', discount_type: 'percentage', discount_value: 10, commission_rate: 5, max_uses: 100, expires_at: '' }); }}
                 className={`px-4 py-2 rounded-lg font-medium ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
               >
                 Annuler
               </button>
               <button
                 onClick={handleCreateInfluencer}
-                disabled={!createForm.name || !createForm.email || !createForm.password || actionLoading}
+                disabled={!createForm.name || !createForm.email || !createForm.password || !createForm.promo_code || actionLoading}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? 'Création...' : 'Créer l\'influenceur'}

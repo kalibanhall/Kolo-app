@@ -5,6 +5,7 @@ import { walletAPI } from '../services/api';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { MoneyIcon, TicketIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
+import { validatePhoneNumber, detectOperator } from '../utils/phoneValidation';
 
 const WalletPage = () => {
   const { user } = useAuth();
@@ -18,6 +19,9 @@ const WalletPage = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [currency, setCurrency] = useState('CDF');
+  const [phoneError, setPhoneError] = useState('');
+  const [detectedOperator, setDetectedOperator] = useState(null);
   const [message, setMessage] = useState(null);
   const [pendingDeposit, setPendingDeposit] = useState(null);
 
@@ -73,15 +77,41 @@ const WalletPage = () => {
     }
   };
 
+  const handlePhoneChange = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 9);
+    setPhoneNumber(digits);
+    setPhoneError('');
+    setDetectedOperator(null);
+    if (digits.length === 9) {
+      const result = validatePhoneNumber('+243' + digits);
+      if (result.valid) {
+        setDetectedOperator(result.operator);
+      } else {
+        setPhoneError(result.message);
+      }
+    }
+  };
+
+  const getMinAmount = () => currency === 'USD' ? 1 : 1000;
+  const getCurrencyLabel = () => currency === 'USD' ? 'USD' : 'FC';
+  const getQuickAmounts = () => currency === 'USD' ? [1, 2, 5, 10, 20] : [1000, 2000, 5000, 10000];
+
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount);
-    if (!amount || amount < 1000) {
-      setMessage({ type: 'error', text: 'Montant minimum: 1 000 FC' });
+    const minAmount = getMinAmount();
+    if (!amount || amount < minAmount) {
+      setMessage({ type: 'error', text: `Montant minimum: ${minAmount.toLocaleString()} ${getCurrencyLabel()}` });
       return;
     }
 
-    if (!phoneNumber || phoneNumber.length < 9) {
-      setMessage({ type: 'error', text: 'Veuillez entrer un numéro de téléphone valide' });
+    if (!phoneNumber || phoneNumber.length !== 9) {
+      setMessage({ type: 'error', text: 'Veuillez entrer un numéro de téléphone valide (9 chiffres)' });
+      return;
+    }
+
+    const phoneValidation = validatePhoneNumber('+243' + phoneNumber);
+    if (!phoneValidation.valid) {
+      setMessage({ type: 'error', text: phoneValidation.message });
       return;
     }
 
@@ -89,7 +119,8 @@ const WalletPage = () => {
       setProcessing(true);
       const response = await walletAPI.initiateDeposit({
         amount,
-        phone_number: phoneNumber
+        phone_number: '+243' + phoneNumber,
+        currency
       });
       
       if (response.success) {
@@ -227,7 +258,7 @@ const WalletPage = () => {
     }
   };
 
-  const quickAmounts = [500, 1000, 2000, 5000, 10000];
+  const quickAmounts = getQuickAmounts();
 
   if (loading) {
     return (
@@ -493,6 +524,30 @@ const WalletPage = () => {
             </div>
 
             <div className="p-6">
+              {/* Currency Toggle */}
+              <div className="mb-6">
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Devise
+                </label>
+                <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                  {['CDF', 'USD'].map(cur => (
+                    <button
+                      key={cur}
+                      onClick={() => { setCurrency(cur); setDepositAmount(''); }}
+                      className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                        currency === cur
+                          ? 'bg-blue-600 text-white'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {cur === 'CDF' ? 'Franc Congolais (FC)' : 'Dollar US ($)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Quick amounts */}
               <div className="mb-6">
                 <label className={`block text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -511,7 +566,7 @@ const WalletPage = () => {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {formatCurrency(amount)}
+                      {currency === 'USD' ? `$${amount}` : formatCurrency(amount)}
                     </button>
                   ))}
                 </div>
@@ -527,8 +582,8 @@ const WalletPage = () => {
                     type="number"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="1000"
-                    min="1000"
+                    placeholder={currency === 'USD' ? '5' : '1000'}
+                    min={getMinAmount()}
                     className={`w-full px-4 py-3 pr-16 rounded-xl border text-lg font-bold ${
                       isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-white'
@@ -538,11 +593,11 @@ const WalletPage = () => {
                   <span className={`absolute right-4 top-1/2 -translate-y-1/2 font-medium ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
-                    FC
+                    {getCurrencyLabel()}
                   </span>
                 </div>
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Minimum: 1 000 FC
+                  Minimum: {currency === 'USD' ? '$1' : '1 000 FC'}
                 </p>
               </div>
 
@@ -560,18 +615,28 @@ const WalletPage = () => {
                   <input
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="972148867"
                     className={`w-full pl-16 pr-4 py-3 rounded-xl border text-lg ${
-                      isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-gray-50 border-gray-300 text-gray-900'
-                    }`}
+                      phoneError
+                        ? 'border-red-500'
+                        : detectedOperator
+                          ? 'border-green-500'
+                          : isDarkMode
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-gray-50 border-gray-300 text-gray-900'
+                    } ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-900'}`}
                   />
                 </div>
-                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Ex: 097/098/099xxxxxxx (Airtel), 081/082/083xxxxxxx (Vodacom), 084/085/089xxxxxxx (Orange), 090/091xxxxxxx (Africell)
-                </p>
+                {phoneError ? (
+                  <p className="text-xs mt-1 text-red-500">{phoneError}</p>
+                ) : detectedOperator ? (
+                  <p className="text-xs mt-1 text-green-500">✓ {detectedOperator} détecté</p>
+                ) : (
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Préfixes: 081-083 (Vodacom), 084/085/089 (Orange), 097-099 (Airtel), 090/091 (Africell)
+                  </p>
+                )}
               </div>
 
               {/* Payment methods */}
@@ -607,7 +672,7 @@ const WalletPage = () => {
                 </button>
                 <button
                   onClick={handleDeposit}
-                  disabled={processing || !depositAmount || parseFloat(depositAmount) < 1000 || !phoneNumber || phoneNumber.length < 9}
+                  disabled={processing || !depositAmount || parseFloat(depositAmount) < getMinAmount() || !phoneNumber || phoneNumber.length !== 9 || !!phoneError}
                   className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processing ? (

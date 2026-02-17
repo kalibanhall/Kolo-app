@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import AdminLayout from '../components/AdminLayout';
 import { promosAPI } from '../services/api';
 
@@ -15,6 +16,8 @@ const generatePromoCode = () => {
 
 export const AdminPromosPage = () => {
   const { isDarkMode } = useTheme();
+  const { getAdminLevel } = useAuth();
+  const adminLevel = getAdminLevel();
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -76,7 +79,10 @@ export const AdminPromosPage = () => {
         expires_at: formData.expires_at || null
       });
 
-      if (response.success) {
+      if (response.pending_approval || response.data?.pending_approval) {
+        setSuccess(response.message || 'Demande de création soumise pour validation par le Superviseur (L2)');
+        resetForm();
+      } else if (response.success) {
         setSuccess(`Code promo "${formData.code}" créé avec succès pour ${formData.influencer_name}`);
         resetForm();
         loadPromos();
@@ -102,8 +108,12 @@ export const AdminPromosPage = () => {
 
   const handleToggleActive = async (id, currentStatus) => {
     try {
-      await promosAPI.update(id, { is_active: !currentStatus });
-      loadPromos();
+      const response = await promosAPI.update(id, { is_active: !currentStatus });
+      if (response.pending_approval || response.data?.pending_approval) {
+        setSuccess(response.message || 'Demande soumise pour validation par le Superviseur (L2)');
+      } else {
+        loadPromos();
+      }
     } catch (err) {
       setError('Erreur lors de la mise à jour');
     }
@@ -139,7 +149,10 @@ export const AdminPromosPage = () => {
         expires_at: formData.expires_at || null
       });
 
-      if (response.success) {
+      if (response.pending_approval || response.data?.pending_approval) {
+        setSuccess(response.message || 'Demande de modification soumise pour validation par le Superviseur (L2)');
+        resetForm();
+      } else if (response.success) {
         setSuccess(`Code promo "${formData.code}" mis à jour avec succès`);
         resetForm();
         loadPromos();
@@ -462,6 +475,7 @@ export const AdminPromosPage = () => {
                               </svg>
                             )}
                           </button>
+                          {adminLevel >= 2 && (
                           <button
                             onClick={() => handleDeletePromo(promo.id)}
                             className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg"
@@ -471,6 +485,7 @@ export const AdminPromosPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>

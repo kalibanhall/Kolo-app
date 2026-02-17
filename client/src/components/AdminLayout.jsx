@@ -14,11 +14,14 @@ export const AdminLayout = ({ children }) => {
 
   const adminLevel = getAdminLevel();
 
-  // L1: Dashboard + Campagnes + Promos
-  // L2: + Transactions + Tirages + Livraisons
-  // L3: Full Access (+ Participants, Actions, Journal, Debug)
+  // L1: Campagnes + Promos + Influenceurs
+  // L2: + Validations + Transactions + Tirages + Livraisons
+  // L3: Full Access (Dashboard, Participants, Actions, Journal, Debug)
+  // L1: Opérateur - Campagnes + Promos + Influenceurs uniquement (pas de tableau de bord)
+  // L2: Manager/Superviseur - + Validations + Transactions + Tirages + Livraisons (pas de tableau de bord)
+  // L3: Administrateur Général - Full Access (Dashboard, Participants, Actions, Journal, Debug)
   const navItems = [
-    { path: '/admin', label: 'Tableau de bord', Icon: ChartIcon, minLevel: 1 },
+    { path: '/admin', label: 'Tableau de bord', Icon: ChartIcon, minLevel: 3 },
     { path: '/admin/campaigns', label: 'Campagnes', Icon: CampaignIcon, minLevel: 1 },
     { path: '/admin/promos', label: 'Promos', Icon: TicketIcon, minLevel: 1 },
     { path: '/admin/influencers', label: 'Influenceurs', Icon: StarIcon, minLevel: 1 },

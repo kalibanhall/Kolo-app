@@ -558,6 +558,27 @@ router.patch('/:id/status', verifyToken, verifyAdmin, [
       return res.status(400).json({ success: false, message: 'Invalid campaign ID' });
     }
     const { status } = req.body;
+
+    // L1: soumission pour validation par L2
+    const adminLevel = req.user.admin_level || 0;
+    if (adminLevel < 2) {
+      const campaignResult = await query('SELECT id, title, status FROM campaigns WHERE id = $1', [campaignId]);
+      if (campaignResult.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Campaign not found' });
+      }
+      const campaign = campaignResult.rows[0];
+      const payload = { campaign_id: campaignId, title: campaign.title, old_status: campaign.status, new_status: status };
+      await query(
+        `INSERT INTO admin_validations (requested_by, action_type, entity_type, entity_id, payload, status)
+         VALUES ($1, 'change_campaign_status', 'campaign', $2, $3, 'pending')`,
+        [req.user.id, campaignId, JSON.stringify(payload)]
+      );
+      return res.status(202).json({
+        success: true,
+        pending_approval: true,
+        message: 'Demande de changement de statut soumise pour validation par le Superviseur (L2)'
+      });
+    }
     
     const result = await query(
       `UPDATE campaigns 
@@ -749,8 +770,8 @@ router.put('/:id', verifyToken, verifyAdmin, [
   }
 });
 
-// Delete campaign (admin only)
-router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
+// Delete campaign (admin only - L2+)
+router.delete('/:id', verifyToken, verifyAdmin, requireAdminLevel(2), async (req, res) => {
   try {
     const campaignId = parseInt(req.params.id);
     if (isNaN(campaignId) || campaignId <= 0) {

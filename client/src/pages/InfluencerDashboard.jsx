@@ -108,7 +108,7 @@ const InfluencerDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow`}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
@@ -137,20 +137,6 @@ const InfluencerDashboard = () => {
             </p>
             <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
               {summary.unique_users || 0} utilisateurs uniques
-            </p>
-          </div>
-
-          <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow`}>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Revenu Généré</p>
-            </div>
-            <p className={`text-2xl font-bold text-green-500`}>
-              ${parseFloat(summary.total_revenue || 0).toFixed(2)}
             </p>
           </div>
 
@@ -244,13 +230,7 @@ const InfluencerDashboard = () => {
                           {promo.unique_users || 0}
                         </p>
                       </div>
-                      <div>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Revenu généré</p>
-                        <p className="text-lg font-bold text-green-500">
-                          ${parseFloat(promo.total_revenue || 0).toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
+                      <div className="col-span-2">
                         <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission ({promo.commission_rate || 0}%)</p>
                         <p className="text-lg font-bold text-purple-500">
                           ${parseFloat(promo.commission_earned || 0).toFixed(2)}
@@ -386,7 +366,6 @@ const InfluencerDashboard = () => {
                           <th className="px-4 py-3 text-left">Mois</th>
                           <th className="px-4 py-3 text-right">Utilisations</th>
                           <th className="px-4 py-3 text-right">Utilisateurs</th>
-                          <th className="px-4 py-3 text-right">Revenu</th>
                           <th className="px-4 py-3 text-right">Commission</th>
                         </tr>
                       </thead>
@@ -402,9 +381,6 @@ const InfluencerDashboard = () => {
                             <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                               {stat.unique_users}
                             </td>
-                            <td className="px-4 py-3 text-sm text-right text-green-500 font-medium">
-                              ${parseFloat(stat.revenue || 0).toFixed(2)}
-                            </td>
                             <td className="px-4 py-3 text-sm text-right text-purple-500 font-medium">
                               ${parseFloat(stat.commission || 0).toFixed(2)}
                             </td>
@@ -418,9 +394,6 @@ const InfluencerDashboard = () => {
                             {monthlyStats.reduce((acc, s) => acc + parseInt(s.uses || 0), 0)}
                           </td>
                           <td className="px-4 py-3 text-sm text-right">—</td>
-                          <td className="px-4 py-3 text-sm text-right text-green-500">
-                            ${monthlyStats.reduce((acc, s) => acc + parseFloat(s.revenue || 0), 0).toFixed(2)}
-                          </td>
                           <td className="px-4 py-3 text-sm text-right text-purple-500">
                             ${monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission || 0), 0).toFixed(2)}
                           </td>

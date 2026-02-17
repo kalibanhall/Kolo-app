@@ -339,7 +339,7 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
     // Initiate PayDRC transaction
     const paymentResponse = await paydrc.initiatePayIn({
       amount,
-      currency: 'CDF',
+      currency,
       customerNumber: normalizedPhone,
       firstName,
       lastName,

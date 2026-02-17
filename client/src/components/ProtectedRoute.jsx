@@ -33,12 +33,17 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
 
   // Si un niveau admin minimum est requis
   if (requiredLevel > 0 && getAdminLevel() < requiredLevel) {
-    return <Navigate to="/admin" replace />;
+    // Rediriger vers la première page accessible selon le niveau
+    const level = getAdminLevel();
+    const defaultPage = level >= 3 ? '/admin' : level >= 2 ? '/admin/validations' : '/admin/campaigns';
+    return <Navigate to={defaultPage} replace />;
   }
 
   // Si route utilisateur uniquement et user est admin, rediriger vers tableau de bord admin
   if (userOnly && isAdmin()) {
-    return <Navigate to="/admin" replace />;
+    const level = getAdminLevel();
+    const defaultPage = level >= 3 ? '/admin' : level >= 2 ? '/admin/validations' : '/admin/campaigns';
+    return <Navigate to={defaultPage} replace />;
   }
 
   // Si influenceur essaie d'accéder à une page utilisateur, rediriger vers son dashboard
@@ -48,7 +53,9 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
 
   // Si admin essaie d'accéder à une page qui n'autorise pas les admins
   if (isAdmin() && !adminOnly && !allowAdmin && !influencerOnly) {
-    return <Navigate to="/admin" replace />;
+    const level = getAdminLevel();
+    const defaultPage = level >= 3 ? '/admin' : level >= 2 ? '/admin/validations' : '/admin/campaigns';
+    return <Navigate to={defaultPage} replace />;
   }
 
   return children;

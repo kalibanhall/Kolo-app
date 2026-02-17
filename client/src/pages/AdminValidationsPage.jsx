@@ -80,7 +80,11 @@ const AdminValidationsPage = () => {
     switch (type) {
       case 'create_campaign': return 'Création de campagne';
       case 'edit_campaign': return 'Modification de campagne';
+      case 'change_campaign_status': return 'Changement de statut';
       case 'launch_draw': return 'Lancement de tirage';
+      case 'create_promo': return 'Création de code promo';
+      case 'edit_promo': return 'Modification de code promo';
+      case 'create_influencer': return 'Création d\'influenceur';
       default: return type;
     }
   };
@@ -89,7 +93,11 @@ const AdminValidationsPage = () => {
     switch (type) {
       case 'create_campaign': return 'bg-blue-100 text-blue-700';
       case 'edit_campaign': return 'bg-yellow-100 text-yellow-700';
+      case 'change_campaign_status': return 'bg-orange-100 text-orange-700';
       case 'launch_draw': return 'bg-purple-100 text-purple-700';
+      case 'create_promo': return 'bg-green-100 text-green-700';
+      case 'edit_promo': return 'bg-teal-100 text-teal-700';
+      case 'create_influencer': return 'bg-pink-100 text-pink-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -119,9 +127,9 @@ const AdminValidationsPage = () => {
 
   const canApprove = (validation) => {
     if (validation.status !== 'pending') return false;
-    if (['create_campaign', 'edit_campaign'].includes(validation.action_type)) return adminLevel >= 2;
+    if (['create_campaign', 'edit_campaign', 'create_promo', 'create_influencer', 'change_campaign_status', 'edit_promo'].includes(validation.action_type)) return adminLevel >= 2;
     if (validation.action_type === 'launch_draw') return adminLevel >= 3;
-    return false;
+    return adminLevel >= 2;
   };
 
   const pendingCount = validations.filter(v => v.status === 'pending').length;
@@ -225,7 +233,13 @@ const AdminValidationsPage = () => {
                         </span>
                       </div>
                       <p className={`text-sm font-medium mt-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {v.payload?.title || (v.action_type === 'launch_draw' ? `Tirage campagne #${v.entity_id}` : `Campagne #${v.entity_id || '(nouvelle)'}`)}
+                        {v.payload?.title || v.payload?.code || v.payload?.name || 
+                          (v.action_type === 'launch_draw' ? `Tirage campagne #${v.entity_id}` : 
+                          v.action_type === 'create_promo' || v.action_type === 'edit_promo' ? `Code promo: ${v.payload?.code || '#' + (v.entity_id || 'nouveau')}` :
+                          v.action_type === 'create_influencer' ? `Influenceur: ${v.payload?.name || '#' + (v.entity_id || 'nouveau')}` :
+                          v.action_type === 'change_campaign_status' ? `Campagne "${v.payload?.title}" → ${v.payload?.new_status}` :
+                          `Campagne #${v.entity_id || '(nouvelle)'}`)
+                        }
                       </p>
                       <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                         Par {v.requested_by_name} • {new Date(v.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
