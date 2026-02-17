@@ -1,7 +1,7 @@
 // KOLO Service Worker - Auto-versioned
 // This SW is designed to NEVER serve stale content.
 // Version timestamp forces cache invalidation on each deploy.
-const SW_VERSION = '2026-02-06-v2';
+const SW_VERSION = '2026-02-17-v1';
 const CACHE_NAME = `kolo-${SW_VERSION}`;
 
 // Only cache the offline fallback page — everything else is network-first

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon } from './Icons';
+import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon, ShieldIcon } from './Icons';
 import { LogoKolo } from './LogoKolo';
 
 export const AdminLayout = ({ children }) => {
@@ -25,6 +25,7 @@ export const AdminLayout = ({ children }) => {
     { path: '/admin/draws', label: 'Tirages', Icon: TargetIcon, minLevel: 2 },
     { path: '/admin/delivery', label: 'Livraisons', Icon: TrophyIcon, minLevel: 2 },
     { path: '/admin/participants', label: 'Participants', Icon: UsersIcon, minLevel: 3 },
+    { path: '/admin/manage-admins', label: 'Admins', Icon: ShieldIcon, minLevel: 3 },
     { path: '/admin/actions', label: 'Actions', Icon: SettingsIcon, minLevel: 3 },
     { path: '/admin/logs', label: 'Journal', Icon: SettingsIcon, minLevel: 3 },
     { path: '/admin/debug', label: 'Debug', Icon: SettingsIcon, minLevel: 3 },

@@ -42,6 +42,7 @@ const UserTransactionsPage = lazy(() => import('./pages/UserTransactionsPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PaymentPendingPage = lazy(() => import('./pages/PaymentPendingPage'));
 const AdminPromosPage = lazy(() => import('./pages/AdminPromosPage'));
+const AdminManagementPage = lazy(() => import('./pages/AdminManagementPage'));
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -245,6 +246,14 @@ function App() {
             element={
               <ProtectedRoute adminOnly={true}>
                 <AdminPromosPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/manage-admins"
+            element={
+              <ProtectedRoute adminOnly={true} requiredLevel={3}>
+                <AdminManagementPage />
               </ProtectedRoute>
             }
           />

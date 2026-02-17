@@ -2602,4 +2602,179 @@ router.get('/validations/pending-count', async (req, res) => {
   }
 });
 
+// ============================================================
+// ADMIN MANAGEMENT (L3 only) - Gestion des administrateurs
+// ============================================================
+
+// List all admins (L3 only)
+router.get('/admins', requireAdminLevel(3), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, email, phone, admin_level, is_admin, is_active, created_at,
+              (SELECT COUNT(*) FROM admin_validations WHERE requested_by = users.id) as validations_submitted,
+              (SELECT COUNT(*) FROM admin_validations WHERE validated_by = users.id) as validations_processed
+       FROM users
+       WHERE is_admin = true
+       ORDER BY admin_level DESC, name ASC`
+    );
+
+    res.json({
+      success: true,
+      admins: result.rows.map(a => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        phone: a.phone,
+        admin_level: a.admin_level || 3,
+        is_active: a.is_active,
+        created_at: a.created_at,
+        validations_submitted: parseInt(a.validations_submitted),
+        validations_processed: parseInt(a.validations_processed)
+      }))
+    });
+  } catch (error) {
+    console.error('List admins error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Promote a user to admin with a specific level (L3 only)
+router.post('/admins/promote', requireAdminLevel(3), [
+  body('user_id').isInt({ min: 1 }).withMessage('ID utilisateur requis'),
+  body('admin_level').isInt({ min: 1, max: 3 }).withMessage('Niveau admin doit être 1, 2 ou 3')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  try {
+    const { user_id, admin_level } = req.body;
+
+    // Cannot modify self
+    if (user_id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'Vous ne pouvez pas modifier votre propre niveau' });
+    }
+
+    // Check user exists
+    const userResult = await query('SELECT id, name, email, is_admin, admin_level FROM users WHERE id = $1', [user_id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Update user to admin with specified level
+    await query(
+      'UPDATE users SET is_admin = true, admin_level = $1 WHERE id = $2',
+      [admin_level, user_id]
+    );
+
+    const levelLabels = { 1: 'Opérateur (L1)', 2: 'Superviseur (L2)', 3: 'Administrateur (L3)' };
+
+    await logAdminAction(
+      req.user.id,
+      targetUser.is_admin ? 'ADMIN_LEVEL_CHANGED' : 'ADMIN_PROMOTED',
+      'user',
+      user_id,
+      {
+        target_name: targetUser.name,
+        target_email: targetUser.email,
+        previous_level: targetUser.admin_level,
+        new_level: admin_level,
+        label: levelLabels[admin_level]
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: targetUser.is_admin
+        ? `Niveau de ${targetUser.name} changé en ${levelLabels[admin_level]}`
+        : `${targetUser.name} promu en tant que ${levelLabels[admin_level]}`,
+      admin: {
+        id: user_id,
+        name: targetUser.name,
+        email: targetUser.email,
+        admin_level
+      }
+    });
+  } catch (error) {
+    console.error('Promote admin error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Remove admin privileges (L3 only)
+router.post('/admins/demote', requireAdminLevel(3), [
+  body('user_id').isInt({ min: 1 }).withMessage('ID utilisateur requis')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  try {
+    const { user_id } = req.body;
+
+    // Cannot demote self
+    if (user_id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'Vous ne pouvez pas vous retirer vos propres droits admin' });
+    }
+
+    const userResult = await query('SELECT id, name, email, admin_level FROM users WHERE id = $1 AND is_admin = true', [user_id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Administrateur non trouvé' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    await query('UPDATE users SET is_admin = false, admin_level = NULL WHERE id = $1', [user_id]);
+
+    await logAdminAction(
+      req.user.id,
+      'ADMIN_DEMOTED',
+      'user',
+      user_id,
+      { target_name: targetUser.name, target_email: targetUser.email, previous_level: targetUser.admin_level },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: `Droits admin retirés pour ${targetUser.name}`
+    });
+  } catch (error) {
+    console.error('Demote admin error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Search users for promotion (L3 only) - search by email or name
+router.get('/admins/search-users', requireAdminLevel(3), async (req, res) => {
+  try {
+    const search = req.query.q || '';
+    if (search.length < 2) {
+      return res.json({ success: true, users: [] });
+    }
+
+    const result = await query(
+      `SELECT id, name, email, phone, is_admin, admin_level
+       FROM users
+       WHERE (LOWER(name) LIKE $1 OR LOWER(email) LIKE $1)
+       ORDER BY name ASC
+       LIMIT 20`,
+      [`%${search.toLowerCase()}%`]
+    );
+
+    res.json({
+      success: true,
+      users: result.rows
+    });
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

@@ -456,6 +456,34 @@ export const adminAPI = {
       method: 'POST',
     });
   },
+
+  // ============ ADMIN MANAGEMENT (L3) ============
+
+  // Lister tous les administrateurs
+  getAdmins: async () => {
+    return await request('/admin/admins');
+  },
+
+  // Promouvoir un utilisateur en admin
+  promoteAdmin: async (user_id, admin_level) => {
+    return await request('/admin/admins/promote', {
+      method: 'POST',
+      body: JSON.stringify({ user_id, admin_level }),
+    });
+  },
+
+  // Retirer les droits admin
+  demoteAdmin: async (user_id) => {
+    return await request('/admin/admins/demote', {
+      method: 'POST',
+      body: JSON.stringify({ user_id }),
+    });
+  },
+
+  // Rechercher des utilisateurs pour promotion
+  searchUsersForAdmin: async (q) => {
+    return await request(`/admin/admins/search-users?q=${encodeURIComponent(q)}`);
+  },
 };
 
 // ======================
