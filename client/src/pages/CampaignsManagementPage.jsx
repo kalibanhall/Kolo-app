@@ -261,8 +261,6 @@ export const CampaignsManagementPage = () => {
     }
   };
 
-  const [successMessage, setSuccessMessage] = useState('');
-
   const handleStatusChange = async (id, newStatus) => {
     try {
       const response = await campaignsAPI.updateStatus(id, newStatus);
