@@ -93,26 +93,47 @@ if [ -d "$APP_DIR" ]; then
 fi
 
 # Download as ZIP (no Git authentication needed)
-log_info "Telechargement depuis GitHub..."
+log_info "Telechargement depuis GitHub (cela peut prendre 1-2 minutes)..."
 cd /tmp
 rm -f kolo-main.zip 2>/dev/null
-wget -q --show-progress https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip -O kolo-main.zip
+
+# Try with curl first (better progress)
+curl -L --progress-bar --max-time 300 -o kolo-main.zip https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip
 
 if [ $? -ne 0 ]; then
-    log_error "Echec du telechargement depuis GitHub"
+    log_warn "Echec avec curl, essai avec wget..."
+    wget --timeout=300 --tries=3 https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip -O kolo-main.zip
+    
+    if [ $? -ne 0 ]; then
+        log_error "Echec du telechargement depuis GitHub"
+        exit 1
+    fi
+fi
+
+# Verify download
+if [ ! -f "kolo-main.zip" ] || [ ! -s "kolo-main.zip" ]; then
+    log_error "Fichier ZIP non telecharge ou vide"
     exit 1
 fi
+
+log_info "Telechargement termine ($(du -h kolo-main.zip | cut -f1))"
 
 # Extract
 log_info "Extraction..."
 unzip -q kolo-main.zip
 
+if [ $? -ne 0 ]; then
+    log_error "Echec de l'extraction"
+    exit 1
+fi
+
 # Move to destination
+log_info "Installation dans $APP_DIR..."
 mkdir -p /var/www
 mv Kolo-app-main $APP_DIR
 rm kolo-main.zip
 
-log_info "✅ Repository telecharge et extrait"
+log_info "✅ Repository telecharge et installe"
 cd $APP_DIR
 
 # 7. Configure backend
