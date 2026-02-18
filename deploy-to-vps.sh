@@ -40,7 +40,7 @@ apt update && apt upgrade -y
 
 # 2. Install essentials
 log_step "2/10 - Installation des outils de base"
-apt install -y curl wget git nginx ufw build-essential software-properties-common
+apt install -y curl wget git nginx ufw build-essential software-properties-common unzip
 
 # 3. Install Node.js
 log_step "3/10 - Installation de Node.js ${NODE_VERSION}"
@@ -83,8 +83,8 @@ EOF
 
 log_info "✅ Base de données créée: ${DB_NAME}"
 
-# 6. Clone or update repository
-log_step "6/10 - Clone du repository KOLO"
+# 6. Download repository
+log_step "6/10 - Telechargement du repository KOLO"
 
 # Remove old directory if exists
 if [ -d "$APP_DIR" ]; then
@@ -92,19 +92,27 @@ if [ -d "$APP_DIR" ]; then
     rm -rf $APP_DIR
 fi
 
-# Configure Git to not ask for credentials for this public repo
-git config --global credential.helper ""
-export GIT_TERMINAL_PROMPT=0
-
-log_info "Clonage du repository depuis GitHub..."
-git clone https://github.com/kalibanhall/Kolo-app.git $APP_DIR
+# Download as ZIP (no Git authentication needed)
+log_info "Telechargement depuis GitHub..."
+cd /tmp
+rm -f kolo-main.zip 2>/dev/null
+wget -q --show-progress https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip -O kolo-main.zip
 
 if [ $? -ne 0 ]; then
-    log_error "Echec du clonage. Reessai sans cache..."
-    rm -rf $APP_DIR
-    GIT_TERMINAL_PROMPT=0 git clone --depth 1 https://github.com/kalibanhall/Kolo-app.git $APP_DIR
+    log_error "Echec du telechargement depuis GitHub"
+    exit 1
 fi
 
+# Extract
+log_info "Extraction..."
+unzip -q kolo-main.zip
+
+# Move to destination
+mkdir -p /var/www
+mv Kolo-app-main $APP_DIR
+rm kolo-main.zip
+
+log_info "✅ Repository telecharge et extrait"
 cd $APP_DIR
 
 # 7. Configure backend
