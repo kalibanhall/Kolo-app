@@ -84,7 +84,7 @@ EOF
 log_info "✅ Base de données créée: ${DB_NAME}"
 
 # 6. Download repository
-log_step "6/10 - Telechargement du repository KOLO"
+log_step "6/10 - Clone du repository KOLO"
 
 # Remove old directory if exists
 if [ -d "$APP_DIR" ]; then
@@ -92,65 +92,16 @@ if [ -d "$APP_DIR" ]; then
     rm -rf $APP_DIR
 fi
 
-# Download as ZIP (no Git authentication needed)
-log_info "Telechargement depuis GitHub (cela peut prendre 1-2 minutes)..."
-cd /tmp
-rm -f main.zip 2>/dev/null
-
-# Use GitHub API for reliable download
-REPO_URL="https://api.github.com/repos/kalibanhall/Kolo-app/zipball/main"
-
-# Try with curl first
-curl -L --progress-bar --max-time 300 -H "Accept: application/vnd.github+json" -o main.zip "$REPO_URL"
-
-if [ $? -ne 0 ] || [ ! -s "main.zip" ]; then
-    log_warn "Echec avec API, essai direct..."
-    rm -f main.zip
-    curl -L --progress-bar --max-time 300 -o main.zip "https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip"
-fi
-
-# Verify download
-if [ ! -f "main.zip" ] || [ ! -s "main.zip" ]; then
-    log_error "Fichier ZIP non telecharge ou vide"
-    exit 1
-fi
-
-FILE_SIZE=$(du -h main.zip | cut -f1)
-log_info "Telechargement termine ($FILE_SIZE)"
-
-# Verify it's a real ZIP file
-if ! file main.zip | grep -q "Zip archive"; then
-    log_error "Le fichier telecharge n'est pas un ZIP valide"
-    log_error "Contenu: $(head -1 main.zip)"
-    exit 1
-fi
-
-# Extract
-log_info "Extraction..."
-unzip -q main.zip
+# Simple git clone (repo is public now)
+log_info "Clone depuis GitHub..."
+git clone https://github.com/kalibanhall/Kolo-app.git $APP_DIR
 
 if [ $? -ne 0 ]; then
-    log_error "Echec de l'extraction"
-    ls -lh main.zip
+    log_error "Echec du clone"
     exit 1
 fi
 
-# Find extracted directory (GitHub API creates dynamic names)
-EXTRACTED_DIR=$(ls -d kalibanhall-Kolo-app-* 2>/dev/null || ls -d Kolo-app-main 2>/dev/null)
-
-if [ -z "$EXTRACTED_DIR" ]; then
-    log_error "Repertoire extrait non trouve"
-    ls -la
-    exit 1
-fi
-
-# Move to destination
-log_info "Installation dans $APP_DIR..."
-mkdir -p /var/www
-mv "$EXTRACTED_DIR" $APP_DIR
-rm main.zip
-
-log_info "✅ Repository telecharge et installe"
+log_info "✅ Repository clone avec succes"
 cd $APP_DIR
 
 # 7. Configure backend
