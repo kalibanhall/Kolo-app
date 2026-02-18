@@ -95,43 +95,60 @@ fi
 # Download as ZIP (no Git authentication needed)
 log_info "Telechargement depuis GitHub (cela peut prendre 1-2 minutes)..."
 cd /tmp
-rm -f kolo-main.zip 2>/dev/null
+rm -f main.zip 2>/dev/null
 
-# Try with curl first (better progress)
-curl -L --progress-bar --max-time 300 -o kolo-main.zip https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip
+# Use GitHub API for reliable download
+REPO_URL="https://api.github.com/repos/kalibanhall/Kolo-app/zipball/main"
 
-if [ $? -ne 0 ]; then
-    log_warn "Echec avec curl, essai avec wget..."
-    wget --timeout=300 --tries=3 https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip -O kolo-main.zip
-    
-    if [ $? -ne 0 ]; then
-        log_error "Echec du telechargement depuis GitHub"
-        exit 1
-    fi
+# Try with curl first
+curl -L --progress-bar --max-time 300 -H "Accept: application/vnd.github+json" -o main.zip "$REPO_URL"
+
+if [ $? -ne 0 ] || [ ! -s "main.zip" ]; then
+    log_warn "Echec avec API, essai direct..."
+    rm -f main.zip
+    curl -L --progress-bar --max-time 300 -o main.zip "https://github.com/kalibanhall/Kolo-app/archive/refs/heads/main.zip"
 fi
 
 # Verify download
-if [ ! -f "kolo-main.zip" ] || [ ! -s "kolo-main.zip" ]; then
+if [ ! -f "main.zip" ] || [ ! -s "main.zip" ]; then
     log_error "Fichier ZIP non telecharge ou vide"
     exit 1
 fi
 
-log_info "Telechargement termine ($(du -h kolo-main.zip | cut -f1))"
+FILE_SIZE=$(du -h main.zip | cut -f1)
+log_info "Telechargement termine ($FILE_SIZE)"
+
+# Verify it's a real ZIP file
+if ! file main.zip | grep -q "Zip archive"; then
+    log_error "Le fichier telecharge n'est pas un ZIP valide"
+    log_error "Contenu: $(head -1 main.zip)"
+    exit 1
+fi
 
 # Extract
 log_info "Extraction..."
-unzip -q kolo-main.zip
+unzip -q main.zip
 
 if [ $? -ne 0 ]; then
     log_error "Echec de l'extraction"
+    ls -lh main.zip
+    exit 1
+fi
+
+# Find extracted directory (GitHub API creates dynamic names)
+EXTRACTED_DIR=$(ls -d kalibanhall-Kolo-app-* 2>/dev/null || ls -d Kolo-app-main 2>/dev/null)
+
+if [ -z "$EXTRACTED_DIR" ]; then
+    log_error "Repertoire extrait non trouve"
+    ls -la
     exit 1
 fi
 
 # Move to destination
 log_info "Installation dans $APP_DIR..."
 mkdir -p /var/www
-mv Kolo-app-main $APP_DIR
-rm kolo-main.zip
+mv "$EXTRACTED_DIR" $APP_DIR
+rm main.zip
 
 log_info "✅ Repository telecharge et installe"
 cd $APP_DIR
