@@ -85,14 +85,27 @@ log_info "✅ Base de données créée: ${DB_NAME}"
 
 # 6. Clone or update repository
 log_step "6/10 - Clone du repository KOLO"
+
+# Remove old directory if exists
 if [ -d "$APP_DIR" ]; then
-    log_warn "Le répertoire existe déjà, mise à jour..."
-    cd $APP_DIR
-    git pull origin main
-else
-    git clone https://github.com/kalibanhall/Kolo-app.git $APP_DIR
-    cd $APP_DIR
+    log_warn "Suppression de l'ancien repertoire..."
+    rm -rf $APP_DIR
 fi
+
+# Configure Git to not ask for credentials for this public repo
+git config --global credential.helper ""
+export GIT_TERMINAL_PROMPT=0
+
+log_info "Clonage du repository depuis GitHub..."
+git clone https://github.com/kalibanhall/Kolo-app.git $APP_DIR
+
+if [ $? -ne 0 ]; then
+    log_error "Echec du clonage. Reessai sans cache..."
+    rm -rf $APP_DIR
+    GIT_TERMINAL_PROMPT=0 git clone --depth 1 https://github.com/kalibanhall/Kolo-app.git $APP_DIR
+fi
+
+cd $APP_DIR
 
 # 7. Configure backend
 log_step "7/10 - Configuration du backend"
