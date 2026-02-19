@@ -609,57 +609,13 @@ const BuyTicketsPage = () => {
   }
 
   if (error && !campaign) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${
-        isDarkMode 
-          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
-          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
-      }`}>
-        <div className={`max-w-md w-full rounded-2xl shadow-xl p-8 text-center ${
-          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
-        }`}>
-          <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Erreur de chargement
-          </h2>
-          <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {error}
-          </p>
-          <Link
-            to="/dashboard"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
-          >
-            Retour au tableau de bord
-          </Link>
-        </div>
-      </div>
-    );
+    navigate('/');
+    return null;
   }
 
   if (!campaign || !['open', 'active'].includes(campaign.status)) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${
-        isDarkMode 
-          ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900' 
-          : 'bg-gradient-to-br from-blue-50 to-indigo-100'
-      }`}>
-        <div className={`max-w-md w-full rounded-2xl shadow-xl p-8 text-center ${
-          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
-        }`}>
-          <h2 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Aucune campagne active
-          </h2>
-          <p className={`mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Il n'y a pas de tombola ouverte pour le moment. Revenez plus tard !
-          </p>
-          <Link
-            to="/dashboard"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all"
-          >
-            Retour au tableau de bord
-          </Link>
-        </div>
-      </div>
-    );
+    navigate('/');
+    return null;
   }
 
   const totalPrice = ticketCount * (campaign.ticket_price || 0);
