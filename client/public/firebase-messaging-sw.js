@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 // IMPORTANT: Remplacer avec vos vraies credentials Firebase
 firebase.initializeApp({
   apiKey: "AIzaSyCfvYQVtT_JZV35XTTT8R-mXOHlVFiFOWw",
-  authDomain: "kolo-26.firebaseapp.com",
+  authDomain: "www.kolo.cd",
   projectId: "kolo-26",
   storageBucket: "kolo-26.firebasestorage.app",
   messagingSenderId: "244369331313",
