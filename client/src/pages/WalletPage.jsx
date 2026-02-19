@@ -504,7 +504,7 @@ const WalletPage = () => {
       {/* Deposit Modal */}
       {showDepositModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl overflow-hidden shadow-2xl ${
+          <div className={`w-full max-w-md rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto ${
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           }`}>
             <div className={`px-6 py-4 border-b flex items-center justify-between ${
