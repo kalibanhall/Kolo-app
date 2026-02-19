@@ -5,12 +5,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 // Firebase configuration
 // IMPORTANT: Remplacer avec vos vraies credentials Firebase
 firebase.initializeApp({
-  apiKey: "AIzaSyCAiYvJFyps22vtwxjbD8GxTQ87dS6Vvw0",
-  authDomain: "kolo-e4711.firebaseapp.com",
-  projectId: "kolo-e4711",
-  storageBucket: "kolo-e4711.firebasestorage.app",
-  messagingSenderId: "556561408264",
-  appId: "1:556561408264:web:f061f8eeaa21a13efa0cbd"
+  apiKey: "AIzaSyCfvYQVtT_JZV35XTTT8R-mXOHlVFiFOWw",
+  authDomain: "www.kolo.cd",
+  projectId: "kolo-26",
+  storageBucket: "kolo-26.firebasestorage.app",
+  messagingSenderId: "244369331313",
+  appId: "1:244369331313:web:52ab5f0239c69cfddb37d0"
 });
 
 const messaging = firebase.messaging();
