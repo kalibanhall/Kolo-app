@@ -301,6 +301,7 @@ const AdminInfluencersPage = () => {
                 </label>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   value={createForm.password}
                   onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                   placeholder="Minimum 8 caractères"

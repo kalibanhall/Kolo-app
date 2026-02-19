@@ -224,7 +224,7 @@ export const RegisterPage = () => {
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Jean Dupont"
+                placeholder="Kabila Mwamba"
               />
             </div>
 
@@ -235,6 +235,7 @@ export const RegisterPage = () => {
               <input
                 type="email"
                 name="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -353,6 +354,7 @@ export const RegisterPage = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
                   required
@@ -381,6 +383,7 @@ export const RegisterPage = () => {
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
+                  autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required

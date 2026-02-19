@@ -38,39 +38,35 @@ function Write-Error($message) {
 }
 
 if ($Help) {
-    Write-Host @"
-KOLO VPS Deployment Script - Windows PowerShell
-
-USAGE:
-    .\deploy-vps.ps1 [OPTIONS]
-
-OPTIONS:
-    -VpsIp <ip>         IP du VPS (défaut: 158.220.108.42)
-    -SshUser <user>     Utilisateur SSH (défaut: root)
-    -UploadOnly         Transférer le script uniquement, sans exécuter
-    -Help               Afficher cette aide
-
-EXEMPLES:
-    .\deploy-vps.ps1
-    .\deploy-vps.ps1 -VpsIp 192.168.1.100 -SshUser admin
-    .\deploy-vps.ps1 -UploadOnly
-
-PRÉREQUIS:
-    - OpenSSH Client installé (inclus dans Windows 10/11)
-    - Accès SSH au VPS configuré
-    - Git Bash ou WSL recommandé
-
-"@
+    Write-Host "KOLO VPS Deployment Script - Windows PowerShell"
+    Write-Host ""
+    Write-Host "USAGE:"
+    Write-Host "    .\deploy-vps.ps1 [OPTIONS]"
+    Write-Host ""
+    Write-Host "OPTIONS:"
+    Write-Host "    -VpsIp [ip]         IP du VPS (defaut: 158.220.108.42)"
+    Write-Host "    -SshUser [user]     Utilisateur SSH (defaut: root)"
+    Write-Host "    -UploadOnly         Transferer le script uniquement"
+    Write-Host "    -Help               Afficher cette aide"
+    Write-Host ""
+    Write-Host "EXEMPLES:"
+    Write-Host "    .\deploy-vps.ps1"
+    Write-Host "    .\deploy-vps.ps1 -VpsIp 192.168.1.100 -SshUser admin"
+    Write-Host "    .\deploy-vps.ps1 -UploadOnly"
+    Write-Host ""
+    Write-Host "PREREQUIS:"
+    Write-Host "    - OpenSSH Client installe (inclus dans Windows 10/11)"
+    Write-Host "    - Acces SSH au VPS configure"
+    Write-Host ""
     exit 0
 }
 
 Clear-Host
 
-Write-Host @"
-╔════════════════════════════════════════╗
-║   KOLO VPS Deployment - PowerShell    ║
-╚════════════════════════════════════════╝
-"@
+Write-Host "=========================================="
+Write-Host "   KOLO VPS Deployment - PowerShell"
+Write-Host "=========================================="
+Write-Host ""
 
 Write-Info "VPS IP: $VpsIp"
 Write-Info "SSH User: $SshUser"
@@ -80,9 +76,9 @@ Write-Host ""
 Write-Step "Vérification des prérequis"
 
 if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
-    Write-Error "OpenSSH Client n'est pas installé!"
+    Write-Error "OpenSSH Client n'est pas installe!"
     Write-Info "Pour l'installer:"
-    Write-Info "  1. Paramètres Windows > Applications > Fonctionnalités facultatives"
+    Write-Info "  1. Parametres Windows - Applications - Fonctionnalites facultatives"
     Write-Info "  2. Ajouter 'Client OpenSSH'"
     Write-Info "Ou utilisez Git Bash / WSL"
     exit 1
@@ -108,9 +104,9 @@ $testConnection = ssh -o BatchMode=yes -o ConnectTimeout=5 "$SshUser@$VpsIp" "ec
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Impossible de se connecter au VPS"
-    Write-Info "Vérifiez:"
+    Write-Info "Verifiez:"
     Write-Info "  1. L'IP est correcte: $VpsIp"
-    Write-Info "  2. Vous avez configuré une clé SSH ou connaissez le mot de passe"
+    Write-Info "  2. Vous avez configure une cle SSH ou connaissez le mot de passe"
     Write-Info "  3. Le port SSH est ouvert (22)"
     Write-Host ""
     Write-Info "Pour configurer SSH:"
@@ -132,65 +128,65 @@ try {
         throw "Erreur lors du transfert SCP"
     }
     
-    Write-Success "Script transféré vers $remotePath"
+    Write-Success "Script transfere vers $remotePath"
 } catch {
-    Write-Error "Échec du transfert du script"
+    Write-Error "Echec du transfert du script"
     Write-Error $_.Exception.Message
     exit 1
 }
 
 if ($UploadOnly) {
     Write-Host ""
-    Write-Success "Script transféré avec succès!"
-    Write-Info "Pour l'exécuter manuellement:"
+    Write-Success "Script transfere avec succes!"
+    Write-Info "Pour l'executer manuellement:"
     Write-Info "  ssh $SshUser@$VpsIp"
     Write-Info "  sudo bash $remotePath"
     exit 0
 }
 
-# Exécuter le déploiement
-Write-Step "Démarrage du déploiement sur le VPS"
+# Start deployment on VPS
+Write-Step "Demarrage du deploiement sur le VPS"
 Write-Info "Cela peut prendre 10-15 minutes..."
 Write-Info "N'interrompez pas le processus!"
 Write-Host ""
 
 $confirm = Read-Host "Voulez-vous continuer? (O/n)"
 if ($confirm -eq 'n' -or $confirm -eq 'N') {
-    Write-Info "Déploiement annulé"
+    Write-Info "Deploiement annule"
     exit 0
 }
 
 Write-Host ""
-Write-Info "Connexion au VPS et exécution du script..."
+Write-Info "Connexion au VPS et execution du script..."
 Write-Host ""
 
-# Exécuter le script sur le VPS
-ssh -t "$SshUser@$VpsIp" "chmod +x $remotePath && sudo bash $remotePath"
+# Execute on VPS - use semicolon instead of &&
+ssh -t "$SshUser@$VpsIp" "chmod +x $remotePath; sudo bash $remotePath"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
-    Write-Host "╔════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "║   ✅ DÉPLOIEMENT RÉUSSI !             ║" -ForegroundColor Green
-    Write-Host "╚════════════════════════════════════════╝" -ForegroundColor Green
+    Write-Host "==========================================" -ForegroundColor Green
+    Write-Host "   DEPLOIEMENT REUSSI !" -ForegroundColor Green
+    Write-Host "==========================================" -ForegroundColor Green
     Write-Host ""
-    Write-Success "Application KOLO déployée sur http://$VpsIp"
+    Write-Success "Application KOLO deployee sur http://$VpsIp"
     Write-Host ""
     Write-Info "Compte Admin:"
     Write-Host "  Email: admin@kolo.com"
     Write-Host "  Mot de passe: Admin@2025"
-    Write-Host "  Niveau: L3 (Accès complet)"
+    Write-Host "  Niveau: L3 (Acces complet)"
     Write-Host ""
     Write-Info "Commandes utiles:"
     Write-Host "  ssh $SshUser@$VpsIp 'pm2 logs kolo-api'      # Voir les logs"
-    Write-Host "  ssh $SshUser@$VpsIp 'pm2 restart kolo-api'   # Redémarrer"
+    Write-Host "  ssh $SshUser@$VpsIp 'pm2 restart kolo-api'   # Redemarrer"
     Write-Host "  ssh $SshUser@$VpsIp 'pm2 status'             # Statut"
     Write-Host ""
     Write-Info "Ouvrez http://$VpsIp dans votre navigateur!"
     Write-Host ""
 } else {
     Write-Host ""
-    Write-Error "Le déploiement a échoué"
-    Write-Info "Consultez les logs ci-dessus pour plus de détails"
-    Write-Info "Pour réessayer: .\deploy-vps.ps1"
+    Write-Error "Le deploiement a echoue"
+    Write-Info "Consultez les logs ci-dessus pour plus de details"
+    Write-Info "Pour reessayer: .\deploy-vps.ps1"
     exit 1
 }
