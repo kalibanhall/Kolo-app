@@ -53,7 +53,11 @@ const AdminInfluencersPage = () => {
     }
     try {
       setActionLoading(true);
-      const response = await adminAPI.createInfluencer(createForm);
+      const dataToSend = {
+        ...createForm,
+        phone: createForm.phone ? `+243${createForm.phone.replace(/^\+?243/, '')}` : ''
+      };
+      const response = await adminAPI.createInfluencer(dataToSend);
       if (response.pending_approval || response.data?.pending_approval) {
         setMessage({ type: 'success', text: response.message || response.data?.message || 'Demande soumise pour validation par le Superviseur (L2)' });
       } else {
@@ -313,13 +317,25 @@ const AdminInfluencersPage = () => {
                 <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Téléphone
                 </label>
-                <input
-                  type="tel"
-                  value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  placeholder="+243 ..."
-                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                />
+                <div className="flex">
+                  <span className={`inline-flex items-center px-3 rounded-l-lg border border-r-0 text-sm ${isDarkMode ? 'bg-gray-600 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>
+                    +243
+                  </span>
+                  <input
+                    type="tel"
+                    value={createForm.phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      setCreateForm({ ...createForm, phone: val });
+                    }}
+                    placeholder="812345678"
+                    maxLength="9"
+                    className={`w-full px-3 py-2 rounded-r-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                  />
+                </div>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  081-083 (Vodacom), 084/085/089 (Orange), 097-099 (Airtel), 090/091 (Africell)
+                </p>
               </div>
 
               {/* Code Promo lié */}

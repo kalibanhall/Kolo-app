@@ -1198,8 +1198,8 @@ router.post(
       const purchase = purchaseResult.rows[0];
 
       // Build callback URL
-      const callbackUrl = `${
-        process.env.API_URL || 'https://kolo-api.onrender.com'
+      const callbackUrl = process.env.PAYDRC_CALLBACK_URL || `${
+        process.env.APP_URL || process.env.API_URL || 'https://kolo.cd'
       }/api/payments/paydrc/callback`;
 
       // Split user name into first and last name

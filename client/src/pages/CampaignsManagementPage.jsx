@@ -64,10 +64,11 @@ export const CampaignsManagementPage = () => {
     draw_date: '',
     status: 'draft',
     image_url: '',
-    prize_image_url: ''
+    prize_image_url: '',
+    prize_images: []
   });
   const [imagePreview, setImagePreview] = useState(null);
-  const [prizeImagePreview, setPrizeImagePreview] = useState(null);
+  const [prizeImagePreviews, setPrizeImagePreviews] = useState([]);
 
   useEffect(() => {
     loadCampaigns();
@@ -162,13 +163,38 @@ export const CampaignsManagementPage = () => {
         if (type === 'campaign') {
           setImagePreview(reader.result);
           setFormData(prev => ({ ...prev, image_url: reader.result }));
-        } else {
-          setPrizeImagePreview(reader.result);
-          setFormData(prev => ({ ...prev, prize_image_url: reader.result }));
         }
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePrizeImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    const remaining = 6 - prizeImagePreviews.length;
+    const filesToAdd = files.slice(0, remaining);
+    
+    filesToAdd.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPrizeImagePreviews(prev => {
+          if (prev.length >= 6) return prev;
+          const updated = [...prev, reader.result];
+          setFormData(prevForm => ({ ...prevForm, prize_images: updated, prize_image_url: updated[0] || '' }));
+          return updated;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removePrizeImage = (index) => {
+    setPrizeImagePreviews(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      setFormData(prevForm => ({ ...prevForm, prize_images: updated, prize_image_url: updated[0] || '' }));
+      return updated;
+    });
   };
 
   const [successMessage, setSuccessMessage] = useState(null);
@@ -231,7 +257,8 @@ export const CampaignsManagementPage = () => {
       prize_image_url: campaign.prize_image_url || ''
     });
     setImagePreview(campaign.image_url);
-    setPrizeImagePreview(campaign.prize_image_url);
+    const existingPrizeImages = campaign.prize_images || (campaign.prize_image_url ? [campaign.prize_image_url] : []);
+    setPrizeImagePreviews(existingPrizeImages);
     setShowForm(true);
   };
 
@@ -295,7 +322,7 @@ export const CampaignsManagementPage = () => {
       prize_image_url: ''
     });
     setImagePreview(null);
-    setPrizeImagePreview(null);
+    setPrizeImagePreviews([]);
     setEditingCampaign(null);
     setShowForm(false);
     setError(null);
@@ -432,15 +459,22 @@ export const CampaignsManagementPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Titre de la campagne *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Ex: Tombola Kolo Mutuka 2025"
-                />
+                >
+                  <option value="">-- Sélectionner un titre --</option>
+                  <option value="Tombola Kolo Mutuka">Tombola Kolo Mutuka</option>
+                  <option value="Tombola Kolo Tahombo">Tombola Kolo Tahombo</option>
+                  <option value="Tombola Kolo Ndako">Tombola Kolo Ndako</option>
+                  <option value="Tombola Kolo Lopango">Tombola Kolo Lopango</option>
+                  <option value="Tombola Kolo Moto">Tombola Kolo Moto</option>
+                  <option value="Tombola Kolo Ordinateur">Tombola Kolo Ordinateur</option>
+                  <option value="Tombola Kolo Générateur solaire">Tombola Kolo Générateur solaire</option>
+                </select>
               </div>
 
               {/* Description */}
@@ -462,7 +496,7 @@ export const CampaignsManagementPage = () => {
               {/* Prix */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  1er Prix *
+                  Désignation Produit *
                 </label>
                 <input
                   type="text"
@@ -520,36 +554,7 @@ export const CampaignsManagementPage = () => {
                 />
               </div>
 
-              {/* Display Order & Featured */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ordre d'affichage (0 = premier)
-                  </label>
-                  <input
-                    type="number"
-                    name="display_order"
-                    value={formData.display_order}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
 
-                <div className="flex items-center pt-8">
-                  <input
-                    type="checkbox"
-                    name="is_featured"
-                    id="is_featured"
-                    checked={formData.is_featured}
-                    onChange={(e) => setFormData(prev => ({ ...prev, is_featured: e.target.checked }))}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-900">
-                    ⭐ Campagne en vedette (affichée en premier)
-                  </label>
-                </div>
-              </div>
 
               {/* Images */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -584,32 +589,41 @@ export const CampaignsManagementPage = () => {
                   </div>
                 </div>
 
-                {/* Image du prix */}
+                {/* Photos du prix (max 6) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Photo du prix
+                    Photos du prix ({prizeImagePreviews.length}/6)
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    {prizeImagePreview ? (
-                      <div className="relative">
-                        <img src={prizeImagePreview} alt="Prize Preview" className="w-full h-48 object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={() => { setPrizeImagePreview(null); setFormData(prev => ({ ...prev, prize_image_url: '' })); }}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-                        >
-                          ✕
-                        </button>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    {prizeImagePreviews.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {prizeImagePreviews.map((img, index) => (
+                          <div key={index} className="relative">
+                            <img src={img} alt={`Prix ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                            <button
+                              type="button"
+                              onClick={() => removePrizeImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <div>
-                        <p className="text-gray-600 mb-2">Ajouter une image du prix</p>
+                    )}
+                    {prizeImagePreviews.length < 6 && (
+                      <div className="text-center">
+                        <p className="text-gray-600 mb-2 text-sm">
+                          {prizeImagePreviews.length === 0 ? 'Ajouter des photos du prix' : 'Ajouter plus de photos'}
+                        </p>
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleImageChange(e, 'prize')}
+                          multiple
+                          onChange={handlePrizeImagesChange}
                           className="text-sm"
                         />
+                        <p className="text-xs text-gray-400 mt-1">Maximum 6 photos</p>
                       </div>
                     )}
                   </div>
