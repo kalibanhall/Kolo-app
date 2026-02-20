@@ -54,11 +54,7 @@ export const CampaignsManagementPage = () => {
     ticket_price: 1,
     ticket_prefix: '',
     main_prize: '',
-    secondary_prizes: '',
-    third_prize: '',
     rules: '',
-    display_order: 0,
-    is_featured: false,
     start_date: '',
     end_date: '',
     draw_date: '',
@@ -244,11 +240,7 @@ export const CampaignsManagementPage = () => {
       ticket_price: campaign.ticket_price || 1,
       ticket_prefix: campaign.ticket_prefix || '',
       main_prize: campaign.main_prize || '',
-      secondary_prizes: campaign.secondary_prizes || '',
-      third_prize: campaign.third_prize || '',
       rules: campaign.rules || '',
-      display_order: campaign.display_order || 0,
-      is_featured: campaign.is_featured || false,
       start_date: campaign.start_date ? campaign.start_date.split('T')[0] : '',
       end_date: campaign.end_date ? campaign.end_date.split('T')[0] : '',
       draw_date: campaign.draw_date ? campaign.draw_date.split('T')[0] : '',
@@ -309,11 +301,7 @@ export const CampaignsManagementPage = () => {
       ticket_price: 1,
       ticket_prefix: '',
       main_prize: '',
-      secondary_prizes: '',
-      third_prize: '',
       rules: '',
-      display_order: 0,
-      is_featured: false,
       start_date: '',
       end_date: '',
       draw_date: '',
@@ -509,35 +497,7 @@ export const CampaignsManagementPage = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    2ème Prix (optionnel)
-                  </label>
-                  <input
-                    type="text"
-                    name="secondary_prizes"
-                    value={formData.secondary_prizes}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Ex: iPhone 15 Pro Max"
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    3ème Prix (optionnel)
-                  </label>
-                  <input
-                    type="text"
-                    name="third_prize"
-                    value={formData.third_prize}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Ex: Ordinateur portable"
-                  />
-                </div>
-              </div>
 
               {/* Règlement */}
               <div>
