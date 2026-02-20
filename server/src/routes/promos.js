@@ -231,6 +231,7 @@ router.post('/admin', verifyToken, verifyAdmin, [
         code, influencer_name, description,
         discount_type: finalDiscountType,
         discount_value: finalDiscountValue,
+        commission_rate: req.body.commission_rate || 5,
         min_purchase: min_purchase || 0,
         max_discount: max_discount || null,
         max_uses: max_uses || null,
@@ -251,17 +252,31 @@ router.post('/admin', verifyToken, verifyAdmin, [
       });
     }
 
+    // Look up influencer user by name to set influencer_id
+    let influencerId = null;
+    if (influencer_name) {
+      const influencerResult = await query(
+        `SELECT id FROM users WHERE LOWER(name) = LOWER($1) AND is_influencer = TRUE LIMIT 1`,
+        [influencer_name.trim()]
+      );
+      if (influencerResult.rows.length > 0) {
+        influencerId = influencerResult.rows[0].id;
+      }
+    }
+
     const result = await query(
       `INSERT INTO promo_codes 
-       (code, influencer_name, description, discount_type, discount_value, min_purchase, max_discount, max_uses, expires_at, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (code, influencer_name, influencer_id, description, discount_type, discount_value, commission_rate, min_purchase, max_discount, max_uses, expires_at, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         code, 
         influencer_name || null,
+        influencerId,
         description || `Code promo pour ${influencer_name || 'influenceur'}`,
         finalDiscountType,
         finalDiscountValue,
+        req.body.commission_rate || 5, // default 5% commission
         min_purchase || 0, 
         max_discount || null, 
         max_uses || null, 

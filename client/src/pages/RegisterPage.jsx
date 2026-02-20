@@ -5,6 +5,7 @@ import { LogoKoloFull } from '../components/LogoKolo';
 import { EyeIcon, EyeOffIcon, GoogleIcon, LocationIcon } from '../components/Icons';
 import { validatePhoneNumber, formatPhoneDisplay } from '../utils/phoneValidation';
 import { useFormPersistence } from '../hooks/useFormPersistence';
+import { useRecaptcha } from '../hooks/useRecaptcha';
 import { DRC_CITIES, getUserLocation, getProvinceFromCity } from '../services/geolocationService';
 
 export const RegisterPage = () => {
@@ -32,6 +33,8 @@ export const RegisterPage = () => {
   const [phoneValidation, setPhoneValidation] = useState({ valid: false, operator: null, message: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const { executeRecaptcha, isReady: recaptchaReady } = useRecaptcha();
   
   // Valider le téléphone au chargement si déjà rempli
   useEffect(() => {
@@ -169,6 +172,21 @@ export const RegisterPage = () => {
       setLocalError('Vous devez avoir au moins 18 ans pour participer à la tombola');
       return;
     }
+    // Vérifier l'acceptation des CGU
+    if (!acceptedTerms) {
+      setLocalError('Vous devez accepter les conditions générales d\'utilisation');
+      return;
+    }
+
+    // Obtenir le token reCAPTCHA
+    let recaptchaToken = null;
+    if (recaptchaReady) {
+      recaptchaToken = await executeRecaptcha('register');
+      if (!recaptchaToken) {
+        setLocalError('Vérification de sécurité échouée. Veuillez réessayer.');
+        return;
+      }
+    }
 
     try {
       // Send full phone number with +243 prefix
@@ -178,7 +196,8 @@ export const RegisterPage = () => {
         password: formData.password,
         phone: `+243${formData.phone}`,
         city: formData.city,
-        date_of_birth: formData.date_of_birth
+        date_of_birth: formData.date_of_birth,
+        recaptchaToken,
       });
       // Effacer les données persistées après inscription réussie
       clearFormData();
@@ -406,11 +425,33 @@ export const RegisterPage = () => {
               )}
             </div>
 
+            {/* Accepter les termes et conditions */}
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="acceptTerms"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer">
+                J'accepte les{' '}
+                <Link to="/terms" target="_blank" className="text-blue-600 hover:text-blue-700 underline font-medium">
+                  conditions générales d'utilisation
+                </Link>
+                {' '}et la politique de confidentialité de KOLO.
+              </label>
+            </div>
+
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              disabled={loading || !acceptedTerms}
+              className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                acceptedTerms 
+                  ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white' 
+                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
             >
               {loading ? 'Inscription...' : 'S\'inscrire'}
             </button>

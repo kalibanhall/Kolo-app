@@ -9,6 +9,28 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/e
 const { authLimiter, registrationLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
+// Vérification reCAPTCHA v3
+const verifyRecaptcha = async (token) => {
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
+  if (!secret) {
+    console.warn('⚠️ RECAPTCHA_SECRET_KEY not configured, skipping verification');
+    return { success: true, score: 1.0 };
+  }
+
+  try {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`,
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+    return { success: false, score: 0 };
+  }
+};
+
 // Register new user
 router.post('/register', registrationLimiter, [
   body('name').notEmpty().trim().isLength({ min: 2, max: 100 }),
@@ -28,7 +50,27 @@ router.post('/register', registrationLimiter, [
       });
     }
 
-    const { name, email, password, phone, city, date_of_birth } = req.body;
+    const { name, email, password, phone, city, date_of_birth, recaptchaToken } = req.body;
+
+    // Vérifier reCAPTCHA
+    if (process.env.RECAPTCHA_SECRET_KEY) {
+      if (!recaptchaToken) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vérification de sécurité requise'
+        });
+      }
+
+      const recaptchaResult = await verifyRecaptcha(recaptchaToken);
+      if (!recaptchaResult.success || recaptchaResult.score < 0.3) {
+        console.warn('⚠️ reCAPTCHA failed:', { score: recaptchaResult.score, success: recaptchaResult.success });
+        return res.status(403).json({
+          success: false,
+          message: 'Vérification de sécurité échouée. Veuillez réessayer.'
+        });
+      }
+      console.log('✅ reCAPTCHA passed, score:', recaptchaResult.score);
+    }
 
     // Verify user is at least 18 years old
     const birthDate = new Date(date_of_birth);

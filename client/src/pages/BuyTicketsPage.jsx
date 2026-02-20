@@ -81,10 +81,10 @@ const BuyTicketsPage = () => {
     // En mode manuel, vérifier les tickets sélectionnés, sinon le compteur
     const actualTicketCount = selectionMode === 'manual' ? selectedNumbers.length : ticketCount;
     
-    if (actualTicketCount < 3 && promoDiscount) {
+    if (actualTicketCount < 1 && promoDiscount) {
       setPromoDiscount(null);
       setPromoCode('');
-      setPromoError('Le code promo a été retiré car vous avez moins de 3 tickets');
+      setPromoError('Le code promo a été retiré car vous n\'avez aucun ticket');
     }
   }, [ticketCount, selectedNumbers.length, selectionMode]);
 
@@ -92,7 +92,7 @@ const BuyTicketsPage = () => {
   useEffect(() => {
     if (!promoDiscount || !campaign) return;
     const actualTicketCount = selectionMode === 'manual' ? selectedNumbers.length : ticketCount;
-    if (actualTicketCount < 3) return;
+    if (actualTicketCount < 1) return;
 
     const price = campaign.ticket_price || 0;
     let discountPerTicket;
@@ -361,7 +361,7 @@ const BuyTicketsPage = () => {
     );
   }, [availableNumbers, numberSearchTerm]);
 
-  // Valider le code promo (minimum 3 tickets requis)
+  // Valider le code promo (minimum 1 ticket requis)
   const validatePromoCode = async () => {
     if (!promoCode.trim()) return;
     
@@ -369,11 +369,11 @@ const BuyTicketsPage = () => {
     // En mode auto, vérifier le compteur
     const actualTicketCount = selectionMode === 'manual' ? selectedNumbers.length : ticketCount;
     
-    // Vérifier le minimum de 3 tickets
-    if (actualTicketCount < 3) {
+    // Vérifier le minimum de 1 ticket
+    if (actualTicketCount < 1) {
       setPromoError(selectionMode === 'manual' 
-        ? `Sélectionnez au moins 3 tickets pour utiliser un code promo (actuellement: ${actualTicketCount})` 
-        : 'Le code promo est valable à partir de 3 tickets');
+        ? 'Sélectionnez au moins 1 ticket pour utiliser un code promo' 
+        : 'Sélectionnez au moins 1 ticket');
       return;
     }
     
@@ -1233,7 +1233,7 @@ const BuyTicketsPage = () => {
                   <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Avez-vous un code promo ?
                     <span className={`text-xs ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                      (valable à partir de 3 tickets {selectionMode === 'manual' ? 'sélectionnés' : ''})
+                      (valable dès 1 ticket)
                     </span>
                   </label>
                   {!promoDiscount ? (
@@ -1242,10 +1242,10 @@ const BuyTicketsPage = () => {
                         type="text"
                         value={promoCode}
                         onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                        placeholder={(selectionMode === 'manual' ? selectedNumbers.length < 3 : ticketCount < 3) 
-                          ? `Sélectionnez ${selectionMode === 'manual' ? `encore ${3 - selectedNumbers.length}` : `${3 - ticketCount}`} ticket(s)` 
+                        placeholder={(selectionMode === 'manual' ? selectedNumbers.length < 1 : ticketCount < 1) 
+                          ? 'Sélectionnez au moins 1 ticket' 
                           : 'Entrez votre code'}
-                        disabled={(selectionMode === 'manual' ? selectedNumbers.length < 3 : ticketCount < 3)}
+                        disabled={(selectionMode === 'manual' ? selectedNumbers.length < 1 : ticketCount < 1)}
                         className={`flex-1 min-w-0 px-3 py-2 rounded-lg border text-sm ${
                           isDarkMode 
                             ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-500 disabled:bg-gray-900 disabled:text-gray-600' 
@@ -1255,7 +1255,7 @@ const BuyTicketsPage = () => {
                       <button
                         type="button"
                         onClick={validatePromoCode}
-                        disabled={promoLoading || !promoCode.trim() || (selectionMode === 'manual' ? selectedNumbers.length < 3 : ticketCount < 3)}
+                        disabled={promoLoading || !promoCode.trim() || (selectionMode === 'manual' ? selectedNumbers.length < 1 : ticketCount < 1)}
                         className={`px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap flex-shrink-0 transition-all ${
                           isDarkMode
                             ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
