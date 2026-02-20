@@ -3,12 +3,15 @@ import { AdminLayout } from '../components/AdminLayout';
 import { adminAPI } from '../services/api';
 import { exportParticipants, formatDateForExport, formatBooleanForExport } from '../utils/exportUtils';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 export const ParticipantsPage = () => {
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [expandedParticipant, setExpandedParticipant] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -130,47 +133,47 @@ export const ParticipantsPage = () => {
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className={`border-b ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   #
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer ${isDarkMode ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'}`}
                   onClick={() => handleSort('name')}
                 >
                   Nom {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer ${isDarkMode ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'}`}
                   onClick={() => handleSort('email')}
                 >
                   Email {sortBy === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Téléphone
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer ${isDarkMode ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'}`}
                   onClick={() => handleSort('tickets')}
                 >
                   Tickets {sortBy === 'tickets' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Participation
                 </th>
                 <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer ${isDarkMode ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'}`}
                   onClick={() => handleSort('amount')}
                 >
                   Montant {sortBy === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Statut
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className={`divide-y ${isDarkMode ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}`}>
               {loading ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center">
@@ -186,57 +189,176 @@ export const ParticipantsPage = () => {
                 </tr>
               ) : (
                 participants.map((participant, index) => (
-                  <tr key={participant.user_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {(pagination.page - 1) * pagination.limit + index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{participant.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {participant.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {participant.phone || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 rounded-full">
-                        {participant.ticket_count}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {participant.campaigns_participation && participant.campaigns_participation.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {participant.campaigns_participation.map((cp, i) => (
-                            <span 
-                              key={i} 
-                              className="px-2 py-0.5 text-xs bg-purple-50 text-purple-700 rounded-full"
-                              title={cp.campaign_title}
-                            >
-                              {cp.campaign_title?.substring(0, 15)}{cp.campaign_title?.length > 15 ? '...' : ''}: {cp.tickets}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
+                  <React.Fragment key={participant.user_id}>
+                    <tr 
+                      className={`cursor-pointer transition-colors ${
+                        expandedParticipant === participant.user_id
+                          ? isDarkMode ? 'bg-blue-900/30' : 'bg-blue-50'
+                          : isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => setExpandedParticipant(
+                        expandedParticipant === participant.user_id ? null : participant.user_id
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      {participant.currency === 'CDF' 
-                        ? `${parseFloat(participant.total_spent).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC`
-                        : `$${parseFloat(participant.total_spent).toFixed(2)}`
-                      }
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                        participant.is_active
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {participant.is_active ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                  </tr>
+                    >
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <div className="flex items-center gap-2">
+                          <svg className={`w-4 h-4 transition-transform ${expandedParticipant === participant.user_id ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          {(pagination.page - 1) * pagination.limit + index + 1}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{participant.name}</div>
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {participant.email}
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {participant.phone || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-700 rounded-full">
+                          {participant.ticket_count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {participant.campaigns_participation && participant.campaigns_participation.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {participant.campaigns_participation.map((cp, i) => (
+                              <span 
+                                key={i} 
+                                className="px-2 py-0.5 text-xs bg-purple-50 text-purple-700 rounded-full"
+                                title={cp.campaign_title}
+                              >
+                                {cp.campaign_title?.substring(0, 15)}{cp.campaign_title?.length > 15 ? '...' : ''}: {cp.tickets}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
+                        )}
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {participant.currency === 'CDF' 
+                          ? `${parseFloat(participant.total_spent).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC`
+                          : `$${parseFloat(participant.total_spent).toFixed(2)}`
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          participant.is_active
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {participant.is_active ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                    </tr>
+
+                    {/* Expanded participant detail */}
+                    {expandedParticipant === participant.user_id && (
+                      <tr>
+                        <td colSpan="8" className={`px-0 py-0 ${isDarkMode ? 'bg-gray-750' : 'bg-gray-50'}`}>
+                          <div className={`px-8 py-5 border-t border-b ${isDarkMode ? 'border-gray-600 bg-gray-800/50' : 'border-blue-100 bg-blue-50/50'}`}>
+                            {/* Participant Summary */}
+                            <div className="flex items-center gap-4 mb-4">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                                {participant.name?.charAt(0)?.toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {participant.name}
+                                </h3>
+                                <div className={`flex flex-wrap gap-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  <span>{participant.email}</span>
+                                  {participant.phone && <span>• {participant.phone}</span>}
+                                  {participant.join_date && (
+                                    <span>• Inscrit le {new Date(participant.join_date).toLocaleDateString('fr-FR')}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                              <div className={`rounded-lg p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} shadow-sm`}>
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total tickets</p>
+                                <p className={`text-xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{participant.ticket_count}</p>
+                              </div>
+                              <div className={`rounded-lg p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} shadow-sm`}>
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Achats</p>
+                                <p className={`text-xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>{participant.purchases}</p>
+                              </div>
+                              <div className={`rounded-lg p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} shadow-sm`}>
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Montant dépensé</p>
+                                <p className={`text-xl font-bold ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                                  ${parseFloat(participant.total_spent).toFixed(2)}
+                                </p>
+                              </div>
+                              <div className={`rounded-lg p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} shadow-sm`}>
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Campagnes</p>
+                                <p className={`text-xl font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                                  {participant.campaigns_participation?.length || 0}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Campaigns Detail */}
+                            <h4 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              Détails des participations aux campagnes
+                            </h4>
+                            {participant.campaigns_participation && participant.campaigns_participation.length > 0 ? (
+                              <div className="space-y-2">
+                                {participant.campaigns_participation.map((cp, i) => (
+                                  <div 
+                                    key={i} 
+                                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                                      isDarkMode 
+                                        ? 'bg-gray-700 hover:bg-gray-600 border border-gray-600' 
+                                        : 'bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300'
+                                    } hover:shadow-md`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/campaigns/${cp.campaign_id}`);
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-purple-600' : 'bg-purple-100'}`}>
+                                        <svg className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-purple-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                                        </svg>
+                                      </div>
+                                      <div>
+                                        <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                          {cp.campaign_title}
+                                        </p>
+                                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                          {cp.tickets} ticket{cp.tickets > 1 ? 's' : ''} acheté{cp.tickets > 1 ? 's' : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-3 py-1 text-sm font-semibold bg-purple-100 text-purple-700 rounded-full">
+                                        {cp.tickets} 🎫
+                                      </span>
+                                      <svg className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className={`text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                Aucune participation enregistrée
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -245,8 +367,8 @@ export const ParticipantsPage = () => {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
+          <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
+            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Page {pagination.page} sur {pagination.totalPages}
             </div>
             <div className="flex space-x-2">
