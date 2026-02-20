@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { campaignsAPI } from '../services/api';
 import { Navbar } from '../components/Navbar';
@@ -8,8 +8,10 @@ import Footer from '../components/Footer';
 
 export const HomePage = () => {
   const { user, isAuthenticated, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export const HomePage = () => {
 
   const goToSlide = useCallback((index) => {
     setCurrentIndex(index);
+    setCurrentImageIndex(0);
   }, []);
 
   const goToPrevious = useCallback(() => {
@@ -110,46 +113,94 @@ export const HomePage = () => {
 
               {/* Campaign Card */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-all duration-500">
-                {/* Hero Image Section */}
-                <Link 
-                  to={`/campaigns/${currentCampaign.id}`}
-                  className="block relative h-44 sm:h-60 md:h-72 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden cursor-pointer group">
-                  {currentCampaign.image_url ? (
-                    <img
-                      src={currentCampaign.image_url}
-                      alt={currentCampaign.title}
-                      className="w-full h-full object-cover object-center opacity-90 group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center text-white">
-                        <TrophyIcon className="w-14 sm:w-20 md:w-28 h-14 sm:h-20 md:h-28 mx-auto mb-2" />
-                        <p className="text-base sm:text-xl font-bold">Grande Tombola KOLO</p>
-                      </div>
+                {/* Hero Image Section - Prize Images Carousel */}
+                {(() => {
+                  const allImages = [];
+                  const prizeImgs = typeof currentCampaign.prize_images === 'string'
+                    ? ((() => { try { return JSON.parse(currentCampaign.prize_images); } catch { return []; } })())
+                    : (currentCampaign.prize_images || []);
+                  allImages.push(...prizeImgs);
+                  if (currentCampaign.image_url && !allImages.includes(currentCampaign.image_url)) {
+                    allImages.push(currentCampaign.image_url);
+                  }
+
+                  return (
+                    <div className="relative h-44 sm:h-60 md:h-72 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">
+                      {allImages.length > 0 ? (
+                        <>
+                          <Link to={`/campaigns/${currentCampaign.id}`} className="block w-full h-full group cursor-pointer">
+                            <img
+                              src={allImages[currentImageIndex % allImages.length] || allImages[0]}
+                              alt={`${currentCampaign.title} - Photo ${(currentImageIndex % allImages.length) + 1}`}
+                              className="w-full h-full object-cover object-center opacity-90 group-hover:scale-105 transition-transform duration-500"
+                            />
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
+                                Voir les détails →
+                              </span>
+                            </div>
+                          </Link>
+
+                          {/* Navigation arrows for prize images */}
+                          {allImages.length > 1 && (
+                            <>
+                              <button
+                                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(prev => (prev + 1) % allImages.length); }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                              {/* Dots */}
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                                {allImages.map((_, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={(e) => { e.preventDefault(); setCurrentImageIndex(idx); }}
+                                    className={`h-1.5 rounded-full transition-all ${
+                                      idx === (currentImageIndex % allImages.length)
+                                        ? 'w-5 bg-white'
+                                        : 'w-1.5 bg-white/50 hover:bg-white/70'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <Link to={`/campaigns/${currentCampaign.id}`} className="absolute inset-0 flex items-center justify-center group cursor-pointer">
+                          <div className="text-center text-white">
+                            <TrophyIcon className="w-14 sm:w-20 md:w-28 h-14 sm:h-20 md:h-28 mx-auto mb-2" />
+                            <p className="text-base sm:text-xl font-bold">Grande Tombola KOLO</p>
+                          </div>
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
+                              Voir les détails →
+                            </span>
+                          </div>
+                        </Link>
+                      )}
+                      
+                      {/* Campaign Counter Badge */}
+                      {campaigns.length > 1 && (
+                        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full z-10">
+                          <p className="text-xs font-medium">{currentIndex + 1} / {campaigns.length}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  
-                  {/* Featured Badge */}
-                  {currentCampaign.is_featured && (
-                    <div className="absolute top-3 left-3 bg-yellow-400 text-gray-900 px-3 py-1 rounded-full shadow-lg">
-                      <p className="text-xs font-bold">⭐ EN VEDETTE</p>
-                    </div>
-                  )}
-                  
-                  {/* Campaign Counter Badge */}
-                  {campaigns.length > 1 && (
-                    <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full">
-                      <p className="text-xs font-medium">{currentIndex + 1} / {campaigns.length}</p>
-                    </div>
-                  )}
-                  
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
-                      Voir les détails →
-                    </span>
-                  </div>
-                </Link>
+                  );
+                })()}
 
                 {/* CTA Button */}
                 <div className="px-4 sm:px-8 -mt-5 sm:-mt-7 relative z-10">

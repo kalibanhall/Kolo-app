@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { LoadingSpinner } from './LoadingSpinner';
 import TicketPreviewModal from './TicketPreviewModal';
 
-export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]' }) => {
+export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]', onClose }) => {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -16,6 +18,47 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
   
   const [expandedNotifications, setExpandedNotifications] = useState(new Set());
   const [selectedWinnerTicket, setSelectedWinnerTicket] = useState(null); // Pour la prévisualisation du ticket gagnant
+
+  const handleNotificationClick = (notification) => {
+    // Mark as read
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+    
+    // Parse notification data
+    const data = notification.data 
+      ? (typeof notification.data === 'string' ? (() => { try { return JSON.parse(notification.data); } catch { return {}; } })() : notification.data)
+      : {};
+    
+    // Navigate based on type
+    switch (notification.type) {
+      case 'purchase_confirmation':
+      case 'payment_success':
+        if (data.campaign_id) {
+          navigate(`/campaigns/${data.campaign_id}`);
+        } else {
+          navigate('/profile');
+        }
+        break;
+      case 'winner':
+        // Stay on notification to see winner details
+        return;
+      case 'promotion':
+        if (data.campaign_id) {
+          navigate(`/campaigns/${data.campaign_id}`);
+        } else {
+          navigate('/');
+        }
+        break;
+      default:
+        if (data.campaign_id) {
+          navigate(`/campaigns/${data.campaign_id}`);
+        }
+        return;
+    }
+    // Close panel after navigation
+    if (onClose) onClose();
+  };
 
   const toggleExpanded = (notificationId) => {
     setExpandedNotifications(prev => {
@@ -111,7 +154,8 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`border-l-4 p-4 transition-colors hover:bg-opacity-75 ${getNotificationColor(notification.type)} ${
+                onClick={() => handleNotificationClick(notification)}
+                className={`border-l-4 p-4 transition-colors hover:bg-opacity-75 cursor-pointer ${getNotificationColor(notification.type)} ${
                   !notification.read ? 'font-medium' : ''
                 }`}
               >

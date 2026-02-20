@@ -11,7 +11,7 @@ router.get('/active', async (req, res) => {
     const result = await query(
       `SELECT id, title, description, status, total_tickets, sold_tickets, 
               ticket_price, main_prize, secondary_prizes, third_prize,
-              image_url, start_date, end_date, draw_date, display_order, is_featured, ticket_prefix
+              image_url, prize_images, start_date, end_date, draw_date, display_order, is_featured, ticket_prefix
        FROM campaigns 
        WHERE status IN ('open', 'active')
        ORDER BY is_featured DESC, display_order ASC, created_at DESC`
@@ -37,7 +37,7 @@ router.get('/current', async (req, res) => {
     const result = await query(
       `SELECT id, title, description, status, total_tickets, sold_tickets, 
               ticket_price, main_prize, secondary_prizes, third_prize,
-              image_url, start_date, end_date, draw_date, ticket_prefix
+              image_url, prize_images, start_date, end_date, draw_date, ticket_prefix
        FROM campaigns 
        WHERE status IN ('open', 'active')
        ORDER BY is_featured DESC, display_order ASC, created_at DESC 
@@ -440,7 +440,7 @@ router.post('/', verifyToken, verifyAdmin, [
 
     const { 
       title, description, total_tickets, ticket_price, ticket_prefix,
-      main_prize, image_url, start_date, end_date,
+      main_prize, image_url, prize_images, start_date, end_date,
       status, draw_date, secondary_prizes, third_prize, rules,
       display_order, is_featured
     } = req.body;
@@ -500,13 +500,13 @@ router.post('/', verifyToken, verifyAdmin, [
     const result = await query(
       `INSERT INTO campaigns (
         title, description, status, total_tickets, ticket_price, ticket_prefix,
-        main_prize, image_url, start_date, end_date, draw_date,
+        main_prize, image_url, prize_images, start_date, end_date, draw_date,
         secondary_prizes, third_prize, rules, display_order, is_featured, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         title, description, effectiveStatus, total_tickets, ticket_price, ticket_prefix.toUpperCase(),
-        main_prize, image_url || null, start_date, end_date || null, draw_date || null,
+        main_prize, image_url || null, prize_images ? JSON.stringify(prize_images) : null, start_date, end_date || null, draw_date || null,
         secondary_prizes || null, third_prize || null, rules || null, 
         display_order || 0, is_featured || false, req.user.id
       ]
@@ -650,7 +650,7 @@ router.put('/:id', verifyToken, verifyAdmin, [
     }
     const { 
       title, description, total_tickets, ticket_price, ticket_prefix,
-      main_prize, image_url, prize_image_url, start_date, 
+      main_prize, image_url, prize_images, start_date, 
       end_date, draw_date, status 
     } = req.body;
 
@@ -676,7 +676,7 @@ router.put('/:id', verifyToken, verifyAdmin, [
         campaign_id: campaignId,
         title, description, total_tickets, ticket_price,
         ticket_prefix: ticket_prefix ? ticket_prefix.toUpperCase() : undefined,
-        main_prize, image_url, prize_image_url, start_date, end_date, draw_date, status
+        main_prize, image_url, prize_images: prize_images ? JSON.stringify(prize_images) : undefined, start_date, end_date, draw_date, status
       };
       // Remove undefined values
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -721,17 +721,18 @@ router.put('/:id', verifyToken, verifyAdmin, [
            ticket_price = COALESCE($4, ticket_price),
            main_prize = COALESCE($5, main_prize),
            image_url = COALESCE($6, image_url),
-           start_date = COALESCE($7, start_date),
-           end_date = COALESCE($8, end_date),
-           draw_date = COALESCE($9, draw_date),
-           status = COALESCE($10, status),
-           ticket_prefix = COALESCE($11, ticket_prefix),
+           prize_images = COALESCE($7, prize_images),
+           start_date = COALESCE($8, start_date),
+           end_date = COALESCE($9, end_date),
+           draw_date = COALESCE($10, draw_date),
+           status = COALESCE($11, status),
+           ticket_prefix = COALESCE($12, ticket_prefix),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $12
+       WHERE id = $13
        RETURNING *`,
       [
         title, description, total_tickets, ticket_price, main_prize,
-        image_url, cleanStartDate, cleanEndDate, cleanDrawDate, effectiveStatus,
+        image_url, prize_images ? JSON.stringify(prize_images) : null, cleanStartDate, cleanEndDate, cleanDrawDate, effectiveStatus,
         ticket_prefix ? ticket_prefix.toUpperCase() : null, campaignId
       ]
     );

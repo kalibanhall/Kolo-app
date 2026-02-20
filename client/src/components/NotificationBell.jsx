@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { notificationsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const NotificationBell = ({ compact = false }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -205,7 +207,19 @@ export const NotificationBell = ({ compact = false }) => {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                    onClick={() => {
+                      if (!notification.read) handleMarkAsRead(notification.id);
+                      const data = notification.data
+                        ? (typeof notification.data === 'string' ? (() => { try { return JSON.parse(notification.data); } catch { return {}; } })() : notification.data)
+                        : {};
+                      if (notification.type === 'purchase_confirmation' || notification.type === 'payment_success') {
+                        navigate(data.campaign_id ? `/campaigns/${data.campaign_id}` : '/profile');
+                      } else if (data.campaign_id) {
+                        navigate(`/campaigns/${data.campaign_id}`);
+                      }
+                      setShowDropdown(false);
+                    }}
+                    className={`p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer ${
                       !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
                   >
@@ -221,7 +235,7 @@ export const NotificationBell = ({ compact = false }) => {
                             {notification.title}
                           </p>
                           <button
-                            onClick={() => handleDelete(notification.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(notification.id); }}
                             className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex-shrink-0 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                             aria-label="Supprimer"
                           >
@@ -243,7 +257,7 @@ export const NotificationBell = ({ compact = false }) => {
                           </span>
                           {!notification.read && (
                             <button
-                              onClick={() => handleMarkAsRead(notification.id)}
+                              onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notification.id); }}
                               className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
                             >
                               Marquer comme lu
