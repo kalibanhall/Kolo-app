@@ -468,7 +468,7 @@ export const CampaignsManagementPage = () => {
                 >
                   <option value="">-- Sélectionner un titre --</option>
                   <option value="Tombola Kolo Mutuka">Tombola Kolo Mutuka</option>
-                  <option value="Tombola Kolo Tahombo">Tombola Kolo Tahombo</option>
+                  <option value="Tombola Kolo Tshombo">Tombola Kolo Tshombo</option>
                   <option value="Tombola Kolo Ndako">Tombola Kolo Ndako</option>
                   <option value="Tombola Kolo Lopango">Tombola Kolo Lopango</option>
                   <option value="Tombola Kolo Moto">Tombola Kolo Moto</option>
