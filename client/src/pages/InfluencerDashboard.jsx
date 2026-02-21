@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { influencerAPI } from '../services/api';
+import { influencerAPI, campaignsAPI } from '../services/api';
 import { LogoKolo } from '../components/LogoKolo';
 
 const InfluencerDashboard = () => {
@@ -13,12 +13,26 @@ const InfluencerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [exchangeRate, setExchangeRate] = useState(2850);
+  const [activeCampaignId, setActiveCampaignId] = useState(null);
 
   const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       const response = await influencerAPI.getDashboard();
       setDashboard(response.data);
+      if (response.data?.exchange_rate) {
+        setExchangeRate(response.data.exchange_rate);
+      }
+      // Load active campaign for buy button
+      try {
+        const campRes = await campaignsAPI.getAll();
+        const campaigns = campRes.data || campRes.campaigns || [];
+        const active = campaigns.find(c => c.status === 'active');
+        if (active) setActiveCampaignId(active.id);
+      } catch (e) {
+        // Not critical
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,12 +78,27 @@ const InfluencerDashboard = () => {
   const recentUses = dashboard?.recent_uses || [];
   const monthlyStats = dashboard?.monthly_stats || [];
 
+  // Format FC amount
+  const formatFC = (usdAmount) => {
+    const fc = Math.round(parseFloat(usdAmount || 0) * exchangeRate);
+    return fc.toLocaleString('fr-FR') + ' FC';
+  };
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Top Navigation */}
       <header className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b sticky top-0 z-30 shadow-sm`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/')}
+              className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+              title="Retour à l'accueil"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
             <LogoKolo size="small" />
             <div>
               <h1 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -80,7 +109,19 @@ const InfluencerDashboard = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {activeCampaignId && (
+              <Link
+                to={`/buy/${activeCampaignId}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg text-sm font-medium transition-all hover:scale-105 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                <span className="hidden sm:inline">Acheter mes Tickets</span>
+                <span className="sm:hidden">Tickets</span>
+              </Link>
+            )}
             <button
               onClick={toggleDarkMode}
               className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
@@ -150,7 +191,10 @@ const InfluencerDashboard = () => {
               <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Ma Commission</p>
             </div>
             <p className={`text-2xl font-bold text-purple-500`}>
-              ${parseFloat(summary.total_commission || 0).toFixed(2)}
+              ${parseFloat(summary.total_commission || summary.total_commission_earned || 0).toFixed(2)}
+            </p>
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
+              ≈ {formatFC(summary.total_commission || summary.total_commission_earned || 0)}
             </p>
           </div>
         </div>
@@ -234,6 +278,9 @@ const InfluencerDashboard = () => {
                         <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission ({promo.commission_rate || 0}%)</p>
                         <p className="text-lg font-bold text-purple-500">
                           ${parseFloat(promo.commission_earned || 0).toFixed(2)}
+                        </p>
+                        <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
+                          ≈ {formatFC(promo.commission_earned || 0)}
                         </p>
                       </div>
                     </div>
@@ -366,7 +413,8 @@ const InfluencerDashboard = () => {
                           <th className="px-4 py-3 text-left">Mois</th>
                           <th className="px-4 py-3 text-right">Utilisations</th>
                           <th className="px-4 py-3 text-right">Utilisateurs</th>
-                          <th className="px-4 py-3 text-right">Commission</th>
+                          <th className="px-4 py-3 text-right">Commission (USD)</th>
+                          <th className="px-4 py-3 text-right">Commission (FC)</th>
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
@@ -384,6 +432,9 @@ const InfluencerDashboard = () => {
                             <td className="px-4 py-3 text-sm text-right text-purple-500 font-medium">
                               ${parseFloat(stat.commission || 0).toFixed(2)}
                             </td>
+                            <td className={`px-4 py-3 text-sm text-right font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
+                              {formatFC(stat.commission || 0)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -396,6 +447,9 @@ const InfluencerDashboard = () => {
                           <td className="px-4 py-3 text-sm text-right">—</td>
                           <td className="px-4 py-3 text-sm text-right text-purple-500">
                             ${monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission || 0), 0).toFixed(2)}
+                          </td>
+                          <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
+                            {formatFC(monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission || 0), 0))}
                           </td>
                         </tr>
                       </tfoot>

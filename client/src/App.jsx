@@ -125,7 +125,7 @@ function App() {
           <Route
             path="/buy/:campaignId?"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <BuyTicketsPage />
               </ProtectedRoute>
             }
@@ -149,7 +149,7 @@ function App() {
           <Route
             path="/payment/pending"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <PaymentPendingPage />
               </ProtectedRoute>
             }

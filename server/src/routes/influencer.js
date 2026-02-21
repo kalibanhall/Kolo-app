@@ -38,11 +38,15 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           summary: {
             total_codes: 0,
             total_uses: 0,
+            unique_users: 0,
             total_users: 0,
             total_discount_given: 0,
+            total_commission: 0,
             total_commission_earned: 0,
             total_revenue_generated: 0
           },
+          exchange_rate: 2850,
+          promo_stats: [],
           promo_codes: [],
           recent_uses: [],
           monthly_stats: []
@@ -79,6 +83,34 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
       [promoIds]
     );
 
+    // Get revenue per promo code (for individual commission calculation)
+    const revenuePerCodeResult = await query(
+      `SELECT p.promo_code_id,
+              COALESCE(SUM(p.total_amount), 0) as revenue
+       FROM purchases p
+       WHERE p.promo_code_id = ANY($1) AND p.payment_status = 'completed'
+       GROUP BY p.promo_code_id`,
+      [promoIds]
+    );
+
+    const revenuePerCode = {};
+    revenuePerCodeResult.rows.forEach(row => {
+      revenuePerCode[row.promo_code_id] = parseFloat(row.revenue) || 0;
+    });
+
+    // Get exchange rate
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query(
+        `SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1`
+      );
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
+      }
+    } catch (e) {
+      // Fallback to default
+    }
+
     const revenue = revenueResult.rows[0];
 
     // Get recent uses (last 20)
@@ -103,9 +135,11 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         COUNT(*) as uses,
         COUNT(DISTINCT pcu.user_id) as unique_users,
         SUM(pcu.discount_applied) as discount_total,
-        COALESCE(SUM(p.total_amount), 0) as revenue
+        COALESCE(SUM(p.total_amount), 0) as revenue,
+        COALESCE(SUM(p.total_amount * pc.commission_rate / 100), 0) as commission
        FROM promo_code_usage pcu
        LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
        WHERE pcu.promo_code_id = ANY($1)
          AND pcu.used_at >= NOW() - INTERVAL '6 months'
        GROUP BY TO_CHAR(pcu.used_at, 'YYYY-MM')
@@ -146,12 +180,35 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         summary: {
           total_codes: promoCodes.length,
           total_uses: totalUses,
+          unique_users: parseInt(revenue.unique_buyers) || 0,
           total_users: parseInt(revenue.unique_buyers) || 0,
           total_discount_given: totalDiscountGiven,
+          total_commission: totalCommissionEarned,
           total_commission_earned: totalCommissionEarned,
           total_revenue_generated: totalRevenueGenerated,
           total_purchases: parseInt(revenue.total_purchases) || 0
         },
+        exchange_rate: exchangeRate,
+        promo_stats: promoCodes.map(pc => {
+          const pcRevenue = revenuePerCode[pc.id] || 0;
+          const commissionEarned = pcRevenue * (parseFloat(pc.commission_rate) || 0) / 100;
+          return {
+            code_id: pc.id,
+            code: pc.code,
+            discount_type: pc.discount_type,
+            discount_value: parseFloat(pc.discount_value),
+            commission_rate: parseFloat(pc.commission_rate) || 0,
+            is_active: pc.is_active,
+            total_uses: usageMap[pc.id] ? parseInt(usageMap[pc.id].total_uses) : parseInt(pc.current_uses) || 0,
+            max_uses: pc.max_uses,
+            unique_users: usageMap[pc.id] ? parseInt(usageMap[pc.id].unique_users) : 0,
+            commission_earned: commissionEarned,
+            revenue: pcRevenue,
+            created_at: pc.created_at,
+            expires_at: pc.expires_at,
+            usage_by_month: {}
+          };
+        }),
         promo_codes: promoCodes.map(pc => ({
           id: pc.id,
           code: pc.code,
@@ -177,6 +234,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           user_name: r.user_name,
           user_email: r.user_email,
           discount_applied: parseFloat(r.discount_applied),
+          amount: r.purchase_amount ? parseFloat(r.purchase_amount) : null,
           purchase_amount: r.purchase_amount ? parseFloat(r.purchase_amount) : null,
           commission_earned: r.purchase_amount && r.commission_rate
             ? parseFloat(r.purchase_amount) * (parseFloat(r.commission_rate) / 100)
@@ -188,7 +246,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           uses: parseInt(m.uses),
           unique_users: parseInt(m.unique_users),
           discount_total: parseFloat(m.discount_total),
-          revenue: parseFloat(m.revenue)
+          revenue: parseFloat(m.revenue),
+          commission: parseFloat(m.commission) || 0
         }))
       }
     });

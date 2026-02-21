@@ -96,7 +96,7 @@ export const TermsPage = () => {
                   Le prix du ticket est indiqué en dollars américains (USD) et peut être payé :
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Via le portefeuille KOLO (en Francs Congolais - CDF)</li>
+                  <li>Via le portefeuille KOLO (en Francs Congolais - CDF et/ou en Dollars américains - USD)</li>
                   <li>Via Mobile Money (Orange Money, M-Pesa, Airtel Money, Afrimoney)</li>
                 </ul>
                 <p className="leading-relaxed mt-2">
@@ -113,7 +113,6 @@ export const TermsPage = () => {
                 </h3>
                 <p className="leading-relaxed">
                   Le tirage au sort est effectué de manière aléatoire et transparente. 
-                  La date du tirage est communiquée sur la page de la campagne. 
                   Le gagnant sera notifié par email et/ou par téléphone. 
                   Les résultats seront publiés sur la plateforme.
                 </p>
