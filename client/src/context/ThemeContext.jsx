@@ -58,12 +58,15 @@ export const ThemeProvider = ({ children }) => {
     localStorage.setItem('kolo-theme', 'dark');
   };
 
+  const isDarkMode = theme === 'dark';
+
   const value = {
     theme,
     toggleTheme,
     setLightTheme,
     setDarkTheme,
-    isDark: theme === 'dark',
+    isDark: isDarkMode,
+    isDarkMode,
   };
 
   return (

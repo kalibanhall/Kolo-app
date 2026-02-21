@@ -1071,6 +1071,7 @@ router.post('/purchase', verifyToken, [
           `Vos ${ticket_count} ticket(s) ont été achetés avec succès via votre portefeuille.`,
           JSON.stringify({
             purchase_id: purchase.id,
+            campaign_id: campaign_id,
             ticket_numbers: tickets.map(t => t.ticket_number),
             payment_method: 'wallet'
           })

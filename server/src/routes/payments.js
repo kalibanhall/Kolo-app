@@ -142,6 +142,7 @@ async function generateTicketsForPurchase(purchaseId) {
         `Vos ${purchase.ticket_count} ticket(s) ont été générés avec succès.`,
         JSON.stringify({
           purchase_id: purchase.id,
+          campaign_id: purchase.campaign_id,
           ticket_numbers: tickets.map(t => t.ticket_number),
         }),
       ]
@@ -423,6 +424,7 @@ router.post('/webhook', async (req, res) => {
             `Vos ${purchase.ticket_count} ticket(s) ont été générés avec succès.`,
             JSON.stringify({
               purchase_id: purchase.id,
+              campaign_id: purchase.campaign_id,
               ticket_numbers: tickets.map((t) => t.ticket_number),
             }),
           ]
@@ -725,6 +727,7 @@ router.post('/simulate/:purchaseId', verifyToken, async (req, res) => {
           `Vos ${purchase.ticket_count} ticket(s) ont été générés avec succès.`,
           JSON.stringify({
             purchase_id: purchaseId,
+            campaign_id: purchase.campaign_id,
             ticket_count: purchase.ticket_count,
             tickets: tickets.map((t) => t.ticket_number),
           }),
@@ -1693,6 +1696,7 @@ router.post('/paydrc/callback', async (req, res) => {
             `Vos ${purchase.ticket_count} ticket(s) ont été générés avec succès.`,
             JSON.stringify({
               purchase_id: purchase.id,
+              campaign_id: purchase.campaign_id,
               ticket_numbers: tickets.map((t) => t.ticket_number),
             }),
           ]
@@ -1808,6 +1812,7 @@ router.post('/paydrc/callback', async (req, res) => {
           "Votre paiement n'a pas abouti. Veuillez réessayer.",
           JSON.stringify({
             purchase_id: purchase.id,
+            campaign_id: purchase.campaign_id,
             reason: callbackData.Trans_Status_Description,
           }),
         ]
