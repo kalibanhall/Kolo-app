@@ -301,7 +301,7 @@ router.post('/webhook', async (req, res) => {
 
     // Find the purchase by transaction ID
     const purchaseResult = await query(
-      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status
+      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, promo_code_id, discount_amount
        FROM purchases
        WHERE transaction_id = $1`,
       [transaction_id]
@@ -1498,7 +1498,7 @@ router.post('/paydrc/callback', async (req, res) => {
 
     // Find the purchase
     let purchaseResult = await query(
-      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers
+      `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers, promo_code_id, discount_amount
        FROM purchases
        WHERE transaction_id = $1 OR transaction_id LIKE $2`,
       [reference, `%${reference}%`]
@@ -1508,7 +1508,7 @@ router.post('/paydrc/callback', async (req, res) => {
       console.error('❌ Purchase not found for reference:', reference);
       // Try finding by PayDRC transaction ID
       purchaseResult = await query(
-        `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers
+        `SELECT id, user_id, campaign_id, ticket_count, total_amount, payment_status, selected_numbers, promo_code_id, discount_amount
          FROM purchases
          WHERE transaction_id = $1`,
         [transactionId]

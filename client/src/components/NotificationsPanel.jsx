@@ -36,11 +36,7 @@ export const NotificationsPanel = ({ className = '', maxHeight = 'max-h-[600px]'
     switch (notification.type) {
       case 'purchase_confirmation':
       case 'payment_success':
-        if (data.campaign_id) {
-          navigate(`/campaigns/${data.campaign_id}`);
-        } else {
-          navigate('/profile');
-        }
+        navigate('/profile');
         break;
       case 'winner':
         // Stay on notification to see winner details

@@ -213,7 +213,7 @@ export const NotificationBell = ({ compact = false }) => {
                         ? (typeof notification.data === 'string' ? (() => { try { return JSON.parse(notification.data); } catch { return {}; } })() : notification.data)
                         : {};
                       if (notification.type === 'purchase_confirmation' || notification.type === 'payment_success') {
-                        navigate(data.campaign_id ? `/campaigns/${data.campaign_id}` : '/profile');
+                        navigate('/profile');
                       } else if (data.campaign_id) {
                         navigate(`/campaigns/${data.campaign_id}`);
                       }

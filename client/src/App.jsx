@@ -109,7 +109,7 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <UserProfilePage />
               </ProtectedRoute>
             }
@@ -117,7 +117,7 @@ function App() {
           <Route
             path="/profile/invoices"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <UserInvoicesPage />
               </ProtectedRoute>
             }
@@ -133,7 +133,7 @@ function App() {
           <Route
             path="/wallet"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <WalletPage />
               </ProtectedRoute>
             }
@@ -141,7 +141,7 @@ function App() {
           <Route
             path="/transactions"
             element={
-              <ProtectedRoute userOnly={true}>
+              <ProtectedRoute userOnly={true} allowInfluencer={true}>
                 <UserTransactionsPage />
               </ProtectedRoute>
             }
