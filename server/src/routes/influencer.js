@@ -168,11 +168,14 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
       }
     });
 
-    // Calculate actual commission from revenue
+    // Calculate actual commission from revenue - PER promo code with its own rate
     const totalRevenueGenerated = parseFloat(revenue.total_revenue) || 0;
-    // Recalculate commission: avg commission rate * total revenue
-    const avgCommission = promoCodes.reduce((sum, pc) => sum + (parseFloat(pc.commission_rate) || 0), 0) / (promoCodes.length || 1);
-    totalCommissionEarned = totalRevenueGenerated * (avgCommission / 100);
+    // Commission = sum of (revenue per code × that code's commission_rate)
+    totalCommissionEarned = promoCodes.reduce((sum, pc) => {
+      const pcRevenue = revenuePerCode[pc.id] || 0;
+      const commRate = parseFloat(pc.commission_rate) || 0;
+      return sum + (pcRevenue * commRate / 100);
+    }, 0);
 
     res.json({
       success: true,
