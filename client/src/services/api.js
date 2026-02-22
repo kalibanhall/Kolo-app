@@ -545,6 +545,18 @@ export const adminAPI = {
       method: 'POST',
     });
   },
+
+  // Payout management
+  getInfluencerPayouts: async (status) => {
+    const qs = status ? `?status=${status}` : '';
+    return await request(`/admin/influencer-payouts${qs}`);
+  },
+  validatePayout: async (payoutId, data) => {
+    return await request(`/admin/influencer-payouts/${payoutId}/validate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ======================
@@ -678,10 +690,11 @@ export const promosAPI = {
 // ======================
 
 export const influencerAPI = {
-  // Tableau de bord influenceur
-  getDashboard: async () => {
-    return await request('/influencer/dashboard');
-  },
+  getDashboard: async () => request('/influencer/dashboard'),
+  getProfile: async () => request('/influencer/profile'),
+  changePassword: async (data) => request('/influencer/change-password', { method: 'POST', body: JSON.stringify(data) }),
+  requestPayout: async (data) => request('/influencer/payout-request', { method: 'POST', body: JSON.stringify(data) }),
+  getPayouts: async () => request('/influencer/payouts'),
 };
 
 // Export par défaut

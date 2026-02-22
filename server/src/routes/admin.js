@@ -1163,11 +1163,16 @@ router.post('/validations/:id/approve', async (req, res) => {
       const salt = await bcrypt.genSalt(12);
       const passwordHash = await bcrypt.hash(p.password, salt);
 
+      // Generate influencer_uid
+      const countResult = await query('SELECT COUNT(*) as cnt FROM users WHERE is_influencer = TRUE');
+      const nextSeq = parseInt(countResult.rows[0].cnt) + 1;
+      const influencerUid = 'INF-' + String(nextSeq).padStart(3, '0');
+
       const influencerResult = await query(
-        `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified)
-         VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE)
-         RETURNING id, name, email, phone, created_at`,
-        [p.name, p.email, passwordHash, p.phone]
+        `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified, influencer_uid, must_change_password)
+         VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE, $5, TRUE)
+         RETURNING id, name, email, phone, influencer_uid, created_at`,
+        [p.name, p.email, passwordHash, p.phone, influencerUid]
       );
       const newInfluencer = influencerResult.rows[0];
 
@@ -3287,11 +3292,16 @@ router.post('/influencers/create', requireAdminLevel(1), [
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Generate influencer_uid
+    const countResult = await query('SELECT COUNT(*) as cnt FROM users WHERE is_influencer = TRUE');
+    const nextSeq = parseInt(countResult.rows[0].cnt) + 1;
+    const influencerUid = 'INF-' + String(nextSeq).padStart(3, '0');
+
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified)
-       VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE)
-       RETURNING id, name, email, phone, created_at`,
-      [name, email, passwordHash, phone]
+      `INSERT INTO users (name, email, password_hash, phone, is_admin, is_influencer, is_active, email_verified, influencer_uid, must_change_password)
+       VALUES ($1, $2, $3, $4, FALSE, TRUE, TRUE, TRUE, $5, TRUE)
+       RETURNING id, name, email, phone, influencer_uid, created_at`,
+      [name, email, passwordHash, phone, influencerUid]
     );
 
     const newInfluencer = result.rows[0];
@@ -3337,7 +3347,7 @@ router.post('/influencers/create', requireAdminLevel(1), [
 router.get('/influencers', requireAdminLevel(1), async (req, res) => {
   try {
     const result = await query(
-      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.created_at, u.influencer_uid,
               (SELECT json_agg(json_build_object(
                 'id', pc.id, 'code', pc.code, 'discount_value', pc.discount_value,
                 'discount_type', pc.discount_type, 'commission_rate', COALESCE(pc.commission_rate, 0),
@@ -3462,6 +3472,83 @@ router.post('/influencers/:influencerId/deactivate', requireAdminLevel(3), async
     res.json({ success: true, message: `Influenceur ${userResult.rows[0].name} désactivé` });
   } catch (error) {
     console.error('Deactivate influencer error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// INFLUENCER PAYOUT MANAGEMENT (Admin)
+// ============================================================
+
+// List all payout requests
+router.get('/influencer-payouts', requireAdminLevel(1), async (req, res) => {
+  try {
+    const { status } = req.query;
+    let whereClause = '';
+    const params = [];
+    if (status) {
+      whereClause = ' WHERE ip.status = $1';
+      params.push(status);
+    }
+    const result = await query(
+      `SELECT ip.*, u.name as influencer_name, u.email as influencer_email,
+              v.name as validated_by_name
+       FROM influencer_payouts ip
+       JOIN users u ON ip.influencer_id = u.id
+       LEFT JOIN users v ON ip.validated_by = v.id
+       ${whereClause}
+       ORDER BY ip.requested_at DESC`,
+      params
+    );
+    res.json({ success: true, payouts: result.rows });
+  } catch (error) {
+    console.error('List payouts error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Approve or reject payout
+router.post('/influencer-payouts/:payoutId/validate', requireAdminLevel(2), async (req, res) => {
+  try {
+    const { payoutId } = req.params;
+    const { action, rejection_reason } = req.body; // action: 'approve' or 'reject'
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Action invalide' });
+    }
+
+    const payout = await query('SELECT * FROM influencer_payouts WHERE id = $1', [payoutId]);
+    if (payout.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Demande de versement non trouvée' });
+    }
+
+    if (payout.rows[0].status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Cette demande a déjà été traitée' });
+    }
+
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    await query(
+      `UPDATE influencer_payouts 
+       SET status = $1, validated_by = $2, validated_at = CURRENT_TIMESTAMP, rejection_reason = $3
+       WHERE id = $4`,
+      [newStatus, req.user.id, action === 'reject' ? (rejection_reason || 'Rejeté') : null, payoutId]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      action === 'approve' ? 'PAYOUT_APPROVED' : 'PAYOUT_REJECTED',
+      'influencer_payout',
+      parseInt(payoutId),
+      { influencer_id: payout.rows[0].influencer_id, amount: payout.rows[0].amount, currency: payout.rows[0].currency },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: action === 'approve' ? 'Versement approuvé' : 'Versement rejeté'
+    });
+  } catch (error) {
+    console.error('Validate payout error:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

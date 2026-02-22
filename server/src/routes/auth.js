@@ -201,7 +201,7 @@ router.post('/login', authLimiter, [
     
     // Find user
     const result = await query(
-      'SELECT id, email, name, phone, password_hash, is_admin, admin_level, is_influencer, is_active FROM users WHERE email = $1',
+      'SELECT id, email, name, phone, password_hash, is_admin, admin_level, is_influencer, is_active, must_change_password, influencer_uid FROM users WHERE email = $1',
       [email]
     );
 
@@ -259,7 +259,9 @@ router.post('/login', authLimiter, [
         phone: user.phone,
         is_admin: user.is_admin,
         admin_level: user.admin_level,
-        is_influencer: user.is_influencer
+        is_influencer: user.is_influencer,
+        must_change_password: user.must_change_password || false,
+        influencer_uid: user.influencer_uid || null
       }
     });
 
@@ -289,7 +291,7 @@ router.get('/verify', async (req, res) => {
 
     // Get user from database
     const result = await query(
-      'SELECT id, email, name, phone, photo_url, is_admin, admin_level, is_influencer, is_active FROM users WHERE id = $1',
+      'SELECT id, email, name, phone, photo_url, is_admin, admin_level, is_influencer, is_active, must_change_password, influencer_uid FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -319,7 +321,9 @@ router.get('/verify', async (req, res) => {
         photo_url: user.photo_url,
         is_admin: user.is_admin,
         admin_level: user.admin_level,
-        is_influencer: user.is_influencer
+        is_influencer: user.is_influencer,
+        must_change_password: user.must_change_password || false,
+        influencer_uid: user.influencer_uid || null
       }
     });
 

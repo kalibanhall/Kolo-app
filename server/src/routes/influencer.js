@@ -1,4 +1,6 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const router = express.Router();
@@ -256,6 +258,233 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     });
   } catch (error) {
     console.error('Influencer dashboard error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// CHANGE PASSWORD (first login or voluntary)
+// ============================================================
+router.post('/change-password', verifyToken, verifyInfluencer, [
+  body('current_password').notEmpty(),
+  body('new_password').isLength({ min: 6 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { current_password, new_password } = req.body;
+    const userId = req.user.id;
+
+    // Get current password hash
+    const userResult = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const isValid = await bcrypt.compare(current_password, userResult.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Mot de passe actuel incorrect' });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const newHash = await bcrypt.hash(new_password, salt);
+
+    await query(
+      'UPDATE users SET password_hash = $1, must_change_password = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newHash, userId]
+    );
+
+    res.json({ success: true, message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// GET INFLUENCER PROFILE (includes influencer_uid, must_change_password)
+// ============================================================
+router.get('/profile', verifyToken, verifyInfluencer, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, email, phone, influencer_uid, must_change_password, created_at
+       FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    // Get commission balance (total earned minus total paid out)
+    const commissionResult = await query(
+      `SELECT 
+         COALESCE(SUM(p.total_amount * pc.commission_rate / 100), 0) as total_earned
+       FROM purchases p
+       JOIN promo_codes pc ON p.promo_code_id = pc.id
+       WHERE pc.influencer_id = $1 AND p.payment_status = 'completed'`,
+      [req.user.id]
+    );
+
+    const paidOutResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid
+       FROM influencer_payouts
+       WHERE influencer_id = $1 AND status IN ('approved', 'paid') AND currency = 'USD'`,
+      [req.user.id]
+    );
+
+    const totalEarned = parseFloat(commissionResult.rows[0].total_earned) || 0;
+    const totalPaid = parseFloat(paidOutResult.rows[0].total_paid) || 0;
+    const balance = totalEarned - totalPaid;
+
+    res.json({
+      success: true,
+      profile: {
+        ...result.rows[0],
+        commission_balance: balance,
+        total_earned: totalEarned,
+        total_paid_out: totalPaid
+      }
+    });
+  } catch (error) {
+    console.error('Influencer profile error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// REQUEST PAYOUT
+// ============================================================
+router.post('/payout-request', verifyToken, verifyInfluencer, [
+  body('influencer_uid').notEmpty().trim(),
+  body('phone_number').notEmpty().trim(),
+  body('percentage').isInt().isIn([25, 50, 75, 100]),
+  body('currency').optional().isIn(['USD', 'CDF']).default('USD')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { influencer_uid, phone_number, percentage, currency } = req.body;
+    const userId = req.user.id;
+
+    // Verify influencer_uid matches the logged-in user
+    const userResult = await query(
+      'SELECT influencer_uid FROM users WHERE id = $1 AND is_influencer = TRUE',
+      [userId]
+    );
+    if (userResult.rows.length === 0 || userResult.rows[0].influencer_uid !== influencer_uid) {
+      return res.status(400).json({ success: false, message: 'ID Influenceur invalide' });
+    }
+
+    // Check if today is the 5th of the month
+    const today = new Date();
+    if (today.getDate() !== 5) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Les demandes de versement ne sont autorisées que le 5 de chaque mois' 
+      });
+    }
+
+    // Check for existing pending payout this month
+    const existingPayout = await query(
+      `SELECT id FROM influencer_payouts 
+       WHERE influencer_id = $1 AND status = 'pending'
+         AND EXTRACT(MONTH FROM requested_at) = EXTRACT(MONTH FROM CURRENT_TIMESTAMP)
+         AND EXTRACT(YEAR FROM requested_at) = EXTRACT(YEAR FROM CURRENT_TIMESTAMP)`,
+      [userId]
+    );
+    if (existingPayout.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vous avez déjà une demande de versement en attente ce mois-ci' 
+      });
+    }
+
+    // Calculate available balance
+    const commResult = await query(
+      `SELECT COALESCE(SUM(p.total_amount * pc.commission_rate / 100), 0) as total_earned
+       FROM purchases p
+       JOIN promo_codes pc ON p.promo_code_id = pc.id
+       WHERE pc.influencer_id = $1 AND p.payment_status = 'completed'`,
+      [userId]
+    );
+
+    const paidResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid
+       FROM influencer_payouts
+       WHERE influencer_id = $1 AND status IN ('approved', 'paid') AND currency = 'USD'`,
+      [userId]
+    );
+
+    const totalEarned = parseFloat(commResult.rows[0].total_earned) || 0;
+    const totalPaid = parseFloat(paidResult.rows[0].total_paid) || 0;
+    const balance = totalEarned - totalPaid;
+
+    if (balance <= 0) {
+      return res.status(400).json({ success: false, message: 'Solde insuffisant pour effectuer un versement' });
+    }
+
+    // Calculate amount based on percentage
+    let amount = balance * (percentage / 100);
+    amount = Math.round(amount * 100) / 100; // Round to 2 decimals
+
+    // If currency is CDF, get exchange rate and convert
+    let finalAmount = amount;
+    let finalCurrency = currency || 'USD';
+    if (finalCurrency === 'CDF') {
+      let exchangeRate = 2850;
+      try {
+        const rateResult = await query(
+          "SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
+        );
+        if (rateResult.rows.length > 0) {
+          exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
+        }
+      } catch (e) { /* fallback */ }
+      finalAmount = Math.round(amount * exchangeRate);
+    }
+
+    // Create payout request
+    const payoutResult = await query(
+      `INSERT INTO influencer_payouts (influencer_id, influencer_uid, amount, currency, percentage_requested, phone_number)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [userId, influencer_uid, finalAmount, finalCurrency, percentage, phone_number]
+    );
+
+    res.json({
+      success: true,
+      message: 'Demande de versement soumise avec succès',
+      payout: payoutResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Payout request error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// GET PAYOUT HISTORY
+// ============================================================
+router.get('/payouts', verifyToken, verifyInfluencer, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT ip.*, u.name as validated_by_name
+       FROM influencer_payouts ip
+       LEFT JOIN users u ON ip.validated_by = u.id
+       WHERE ip.influencer_id = $1
+       ORDER BY ip.requested_at DESC`,
+      [req.user.id]
+    );
+
+    res.json({ success: true, payouts: result.rows });
+  } catch (error) {
+    console.error('Payout history error:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

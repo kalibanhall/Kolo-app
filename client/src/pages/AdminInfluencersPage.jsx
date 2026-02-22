@@ -193,6 +193,11 @@ const AdminInfluencersPage = () => {
                     <div>
                       <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         {influencer.name}
+                        {influencer.influencer_uid && (
+                          <span className="ml-2 text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-mono">
+                            {influencer.influencer_uid}
+                          </span>
+                        )}
                         {influencer.is_active === false && (
                           <span className="ml-2 text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">Désactivé</span>
                         )}

@@ -34,7 +34,7 @@ const verifyToken = async (req, res, next) => {
     } else {
       // Get user from database
       const result = await query(
-        'SELECT id, email, name, phone, is_admin, admin_level, is_influencer, is_active FROM users WHERE id = $1',
+        'SELECT id, email, name, phone, is_admin, admin_level, is_influencer, is_active, must_change_password, influencer_uid FROM users WHERE id = $1',
         [userId]
       );
 
