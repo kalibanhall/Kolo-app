@@ -55,53 +55,31 @@ const TicketPreviewModal = ({
           </svg>
         </button>
 
-        {/* Conteneur du ticket - horizontal et droit */}
-        <div 
-          className="relative"
-          style={{
-            perspective: '1000px',
-          }}
-        >
+        {/* Ticket - droit et horizontal */}
+        <div className="relative">
+          <img 
+            src={getTicketImage()} 
+            alt="Ticket Kolo"
+            className="w-full h-auto rounded-lg"
+            style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
+          />
+          
+          {/* Numéro du ticket superposé sur la zone blanche */}
           <div 
-            className="relative transform transition-transform duration-300 hover:scale-105"
-            style={{
-              transformStyle: 'preserve-3d',
-              transform: 'rotate(0deg)', /* Toujours droit, pas penché */
-            }}
+            className="absolute flex items-center justify-center"
+            style={{ top: '42%', left: '7%', width: '86%', height: '20%' }}
           >
-            {/* Image du ticket */}
-            <img 
-              src={getTicketImage()} 
-              alt="Ticket Kolo"
-              className="w-full h-auto rounded-lg"
+            <span 
+              className="text-gray-800 font-black tracking-wider uppercase"
               style={{
-                filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.5))',
-                transform: 'rotate(0deg)', /* Forcer horizontal */
-              }}
-            />
-            
-            {/* Numéro du ticket superposé sur la zone blanche - même police que TICKET NUMBER */}
-            <div 
-              className="absolute flex items-center justify-center"
-              style={{
-                top: '42%',
-                left: '7%',
-                width: '86%',
-                height: '20%',
+                fontSize: 'clamp(1.4rem, 7vw, 2.5rem)',
+                fontFamily: "'Impact', 'Arial Black', 'Helvetica Neue', sans-serif",
+                letterSpacing: '0.2em',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)',
               }}
             >
-              <span 
-                className="text-gray-800 font-black tracking-wider uppercase"
-                style={{
-                  fontSize: 'clamp(1.4rem, 7vw, 2.5rem)',
-                  fontFamily: "'Impact', 'Arial Black', 'Helvetica Neue', sans-serif",
-                  letterSpacing: '0.2em',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                }}
-              >
-                {ticketNumber}
-              </span>
-            </div>
+              {ticketNumber}
+            </span>
           </div>
         </div>
 
@@ -145,14 +123,8 @@ const TicketPreviewModal = ({
       {/* Animation CSS */}
       <style>{`
         @keyframes scale-in {
-          0% {
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+          0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
         }
         .animate-scale-in {
           animation: scale-in 0.3s ease-out forwards;
