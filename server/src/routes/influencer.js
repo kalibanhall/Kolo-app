@@ -36,7 +36,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     let exchangeRate = 2850;
     try {
       const rateResult = await query(
-        `SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1`
+        `SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1`
       );
       if (rateResult.rows.length > 0) {
         exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
@@ -343,7 +343,7 @@ router.get('/profile', verifyToken, verifyInfluencer, async (req, res) => {
     let exchangeRate = 2850;
     try {
       const rateResult = await query(
-        `SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1`
+        `SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1`
       );
       if (rateResult.rows.length > 0) {
         exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
@@ -446,7 +446,7 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
     let payoutExchangeRate = 2850;
     try {
       const rateRes = await query(
-        "SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
+        "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
       );
       if (rateRes.rows.length > 0) {
         payoutExchangeRate = parseFloat(rateRes.rows[0].value) || 2850;
@@ -492,7 +492,7 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
       let exchangeRate = 2850;
       try {
         const rateResult = await query(
-          "SELECT value FROM settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
+          "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
         );
         if (rateResult.rows.length > 0) {
           exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
