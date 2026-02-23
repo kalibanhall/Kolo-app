@@ -52,7 +52,10 @@ const UserTransactionsPage = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount, currency) => {
+    if (currency === 'USD') {
+      return '$' + new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    }
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
   };
 
@@ -354,11 +357,13 @@ const UserTransactionsPage = () => {
                         : isDarkMode ? 'text-red-400' : 'text-red-600'
                     }`}>
                       {['deposit', 'refund', 'bonus'].includes(transaction.type) ? '+' : '-'}
-                      {formatCurrency(transaction.amount)}
+                      {formatCurrency(transaction.amount, transaction.currency)}
                     </p>
+                    {transaction.balance_after != null && (
                     <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                       Solde: {formatCurrency(transaction.balance_after)}
                     </p>
+                    )}
                   </div>
                 </div>
               ))}

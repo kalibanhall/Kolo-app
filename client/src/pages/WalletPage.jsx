@@ -24,6 +24,7 @@ const WalletPage = () => {
   const [detectedOperator, setDetectedOperator] = useState(null);
   const [message, setMessage] = useState(null);
   const [pendingDeposit, setPendingDeposit] = useState(null);
+  const [depositError, setDepositError] = useState(null);
 
   // Check URL params for status messages
   useEffect(() => {
@@ -100,23 +101,24 @@ const WalletPage = () => {
     const amount = parseFloat(depositAmount);
     const minAmount = getMinAmount();
     if (!amount || amount < minAmount) {
-      setMessage({ type: 'error', text: `Montant minimum: ${minAmount.toLocaleString()} ${getCurrencyLabel()}` });
+      setDepositError(`Montant minimum: ${minAmount.toLocaleString()} ${getCurrencyLabel()}`);
       return;
     }
 
     if (!phoneNumber || phoneNumber.length !== 9) {
-      setMessage({ type: 'error', text: 'Veuillez entrer un numéro de téléphone valide (9 chiffres)' });
+      setDepositError('Veuillez entrer un numéro de téléphone valide (9 chiffres)');
       return;
     }
 
     const phoneValidation = validatePhoneNumber('+243' + phoneNumber);
     if (!phoneValidation.valid) {
-      setMessage({ type: 'error', text: phoneValidation.message });
+      setDepositError(phoneValidation.message);
       return;
     }
 
     try {
       setProcessing(true);
+      setDepositError(null);
       const response = await walletAPI.initiateDeposit({
         amount,
         phone_number: '+243' + phoneNumber,
@@ -130,12 +132,15 @@ const WalletPage = () => {
           text: `Rechargement initié ! Validez le paiement sur votre téléphone (${response.data.provider}).` 
         });
         setShowDepositModal(false);
+        setDepositError(null);
         
         // Start polling for status
         pollDepositStatus(response.data.reference);
+      } else {
+        setDepositError(response.message || 'Erreur lors du rechargement');
       }
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Erreur lors du rechargement' });
+      setDepositError(error.message || 'Erreur lors du rechargement');
     } finally {
       setProcessing(false);
     }
@@ -203,7 +208,10 @@ const WalletPage = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount, currency) => {
+    if (currency === 'USD') {
+      return '$' + new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    }
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FC';
   };
 
@@ -357,7 +365,7 @@ const WalletPage = () => {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => setShowDepositModal(true)}
+                onClick={() => { setDepositError(null); setShowDepositModal(true); }}
                 className="flex items-center justify-center gap-2 px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,11 +496,13 @@ const WalletPage = () => {
                         : 'text-green-500'
                     }`}>
                       {tx.type === 'purchase' || tx.type === 'withdrawal' ? '-' : '+'}
-                      {formatCurrency(tx.amount)}
+                      {formatCurrency(tx.amount, tx.currency)}
                     </p>
+                    {tx.balance_after != null && (
                     <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                       Solde: {formatCurrency(tx.balance_after)}
                     </p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -524,6 +534,16 @@ const WalletPage = () => {
             </div>
 
             <div className="p-6">
+              {/* Deposit Error Message */}
+              {depositError && (
+                <div className={`mb-4 p-3 rounded-xl text-sm ${
+                  isDarkMode ? 'bg-red-900/30 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  {depositError}
+                  <button onClick={() => setDepositError(null)} className="float-right font-bold">×</button>
+                </div>
+              )}
+
               {/* Currency Toggle */}
               <div className="mb-6">
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>

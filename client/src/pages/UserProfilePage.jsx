@@ -116,6 +116,7 @@ const UserProfilePage = () => {
       return {
         totalTickets: ticketStats.total_tickets || 0,
         totalSpentUSD: ticketStats.total_spent_usd || 0,
+        totalSpentCDF: ticketStats.total_spent_cdf || 0,
         campaignsEntered: ticketStats.campaigns_count || 0,
         activeTickets: ticketStats.active_tickets || 0,
         winningTickets: ticketStats.winning_tickets || 0
@@ -138,7 +139,7 @@ const UserProfilePage = () => {
       (t.status !== 'winner' && t.status !== 'expired' && t.status !== 'cancelled')
     ).length;
 
-    return { totalTickets, totalSpentUSD, campaignsEntered, activeTickets, winningTickets: 0 };
+    return { totalTickets, totalSpentUSD, totalSpentCDF: 0, campaignsEntered, activeTickets, winningTickets: 0 };
   };
 
   const stats = calculateStats();
@@ -306,7 +307,7 @@ const UserProfilePage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total Tickets', value: stats.totalTickets, icon: TicketIcon, color: 'blue' },
-            { label: 'Total Dépensé', value: formatCurrencyUSD(stats.totalSpentUSD), icon: MoneyIcon, color: 'green' },
+            { label: 'Total Dépensé', value: stats.totalSpentCDF > 0 ? `${new Intl.NumberFormat('fr-FR').format(stats.totalSpentCDF)} FC` : formatCurrencyUSD(stats.totalSpentUSD), icon: MoneyIcon, color: 'green' },
             { label: 'Campagnes', value: stats.campaignsEntered, icon: ChartIcon, color: 'purple' },
             { label: 'Tickets Actifs', value: stats.activeTickets, icon: TrophyIcon, color: 'amber' },
           ].map((stat, index) => (

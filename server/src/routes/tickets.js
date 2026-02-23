@@ -195,6 +195,23 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       [userId]
     );
 
+    // Get actual spending from purchases (currency-aware)
+    const spendingResult = await query(
+      `SELECT 
+        COALESCE(currency, 'USD') as currency,
+        COALESCE(SUM(total_amount), 0) as total_spent,
+        COUNT(*) as purchase_count
+       FROM purchases 
+       WHERE user_id = $1 AND payment_status = 'completed'
+       GROUP BY COALESCE(currency, 'USD')`,
+      [userId]
+    );
+
+    const spendingByurrency = {};
+    spendingResult.rows.forEach(row => {
+      spendingByurrency[row.currency] = parseFloat(row.total_spent) || 0;
+    });
+
     const stats = statsResult.rows[0] || {};
 
     console.log(`[DEBUG] GET /tickets/user/${userId} - Found ${result.rows.length} tickets`);
@@ -207,7 +224,9 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
         campaigns_count: parseInt(stats.campaigns_count) || 0,
         active_tickets: parseInt(stats.active_tickets) || 0,
         winning_tickets: parseInt(stats.winning_tickets) || 0,
-        total_spent_usd: parseFloat(stats.total_spent_usd) || 0
+        total_spent_usd: spendingByurrency['USD'] || parseFloat(stats.total_spent_usd) || 0,
+        total_spent_cdf: spendingByurrency['CDF'] || 0,
+        spending_by_currency: spendingByurrency
       },
       pagination: {
         limit,

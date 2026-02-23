@@ -24,10 +24,8 @@ const BuyTicketsPage = () => {
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [showComposer, setShowComposer] = useState(false);
-  const [composerItems, setComposerItems] = useState([]);
-  const [verifyingComposer, setVerifyingComposer] = useState(false);
-  const [unavailableTickets, setUnavailableTickets] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [allCampaigns, setAllCampaigns] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('wallet'); // 'wallet' or 'mobile_money'
   const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal de confirmation
   const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE); // Taux de conversion USD/CDF

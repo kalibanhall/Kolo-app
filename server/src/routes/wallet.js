@@ -39,13 +39,29 @@ router.get('/me', verifyToken, async (req, res) => {
 
     const wallet = walletResult.rows[0];
 
-    // Get recent transactions
+    // Get recent transactions (combined wallet + mobile money purchases)
     const transactionsResult = await query(
-      `SELECT * FROM wallet_transactions 
-       WHERE wallet_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT 10`,
-      [wallet.id]
+      `WITH combined AS (
+        SELECT wt.id, wt.type, wt.amount, wt.balance_before, wt.balance_after,
+               wt.reference, wt.status, wt.description, wt.created_at,
+               'wallet' as source, NULL as campaign_title, NULL as ticket_count,
+               '${wallet.currency || 'CDF'}' as currency
+        FROM wallet_transactions wt
+        WHERE wt.wallet_id = $1
+        UNION ALL
+        SELECT p.id, 'purchase' as type, p.total_amount as amount,
+               NULL as balance_before, NULL as balance_after,
+               p.transaction_id as reference, p.payment_status as status,
+               CONCAT('Achat de ', p.ticket_count, ' ticket(s) via ', COALESCE(p.payment_provider, 'Mobile Money')) as description,
+               COALESCE(p.completed_at, p.created_at) as created_at,
+               'mobile_money' as source, c.title as campaign_title, p.ticket_count,
+               COALESCE(p.currency, 'USD') as currency
+        FROM purchases p
+        LEFT JOIN campaigns c ON p.campaign_id = c.id
+        WHERE p.user_id = $2 AND p.payment_provider != 'wallet' AND p.payment_status = 'completed'
+      )
+      SELECT * FROM combined ORDER BY created_at DESC LIMIT 10`,
+      [wallet.id, userId]
     );
 
     // Get spending statistics by currency
@@ -129,7 +145,8 @@ router.get('/transactions', verifyToken, async (req, res) => {
           wt.created_at,
           'wallet' as source,
           NULL as campaign_title,
-          NULL as ticket_count
+          NULL as ticket_count,
+          'CDF' as currency
         FROM wallet_transactions wt
         WHERE wt.wallet_id = $1
         
@@ -148,7 +165,8 @@ router.get('/transactions', verifyToken, async (req, res) => {
           COALESCE(p.completed_at, p.created_at) as created_at,
           'mobile_money' as source,
           c.title as campaign_title,
-          p.ticket_count
+          p.ticket_count,
+          COALESCE(p.currency, 'USD') as currency
         FROM purchases p
         LEFT JOIN campaigns c ON p.campaign_id = c.id
         WHERE p.user_id = $2 AND p.payment_provider != 'wallet' AND p.payment_status = 'completed'
@@ -284,8 +302,9 @@ router.post('/deposit', verifyToken, paymentLimiter, [
 // Deposit via PayDRC (MOKO Afrika) Mobile Money
 // ============================================
 router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
-  body('amount').isFloat({ min: 100, max: 10000000 }).withMessage('Montant invalide (min: 100 FC)'),
-  body('phone_number').notEmpty().withMessage('Numéro de téléphone requis')
+  body('amount').isFloat({ min: 0.01, max: 10000000 }).withMessage('Montant invalide'),
+  body('phone_number').notEmpty().withMessage('Numéro de téléphone requis'),
+  body('currency').optional().isIn(['USD', 'CDF']).withMessage('Devise invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -299,6 +318,15 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
     const userId = req.user.id;
     const { amount, phone_number, currency: requestedCurrency } = req.body;
     const currency = requestedCurrency || 'CDF';
+
+    // Validate minimum amount based on currency
+    const minAmount = currency === 'USD' ? 1 : 1000;
+    if (amount < minAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Montant minimum: ${currency === 'USD' ? '$' + minAmount : minAmount.toLocaleString() + ' FC'}`
+      });
+    }
 
     // Get or create wallet
     let walletResult = await query(

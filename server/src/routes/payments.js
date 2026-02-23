@@ -813,7 +813,7 @@ router.get('/invoices', verifyToken, async (req, res) => {
 
     const result = await query(
       `SELECT i.id, i.invoice_number, i.amount, i.pdf_url, i.sent_at, i.created_at,
-              p.ticket_count, c.title as campaign_title
+              p.ticket_count, p.currency as purchase_currency, c.title as campaign_title
        FROM invoices i
        JOIN purchases p ON i.purchase_id = p.id
        JOIN campaigns c ON p.campaign_id = c.id

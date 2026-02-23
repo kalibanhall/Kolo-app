@@ -30,7 +30,7 @@ const AdminInfluencersPage = () => {
     try {
       setLoading(true);
       const response = await adminAPI.getInfluencers();
-      setInfluencers(response.data?.influencers || []);
+      setInfluencers(response.influencers || response.data?.influencers || []);
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
