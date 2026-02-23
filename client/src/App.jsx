@@ -107,7 +107,7 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <UserProfilePage />
               </ProtectedRoute>
             }
@@ -115,7 +115,7 @@ function App() {
           <Route
             path="/profile/invoices"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <UserInvoicesPage />
               </ProtectedRoute>
             }
@@ -123,7 +123,7 @@ function App() {
           <Route
             path="/buy/:campaignId?"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <BuyTicketsPage />
               </ProtectedRoute>
             }
@@ -131,7 +131,7 @@ function App() {
           <Route
             path="/wallet"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <WalletPage />
               </ProtectedRoute>
             }
@@ -139,7 +139,7 @@ function App() {
           <Route
             path="/transactions"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <UserTransactionsPage />
               </ProtectedRoute>
             }
@@ -147,7 +147,7 @@ function App() {
           <Route
             path="/payment/pending"
             element={
-              <ProtectedRoute userOnly={true} allowInfluencer={true}>
+              <ProtectedRoute userOnly={true}>
                 <PaymentPendingPage />
               </ProtectedRoute>
             }

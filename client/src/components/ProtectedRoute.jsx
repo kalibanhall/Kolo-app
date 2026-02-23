@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false, influencerOnly = false, allowInfluencer = false, requiredLevel = 0 }) => {
+export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, allowAdmin = false, influencerOnly = false, requiredLevel = 0 }) => {
   const { user, loading, isAdmin, getAdminLevel, isInfluencer } = useAuth();
   const location = useLocation();
 
@@ -47,8 +47,7 @@ export const ProtectedRoute = ({ children, adminOnly = false, userOnly = false, 
   }
 
   // Si influenceur essaie d'accéder à une page utilisateur, rediriger vers son dashboard
-  // Sauf si allowInfluencer est true (ex: page d'achat de tickets)
-  if (userOnly && isInfluencer() && !isAdmin() && !allowInfluencer) {
+  if (userOnly && isInfluencer() && !isAdmin()) {
     return <Navigate to="/influencer" replace />;
   }
 
