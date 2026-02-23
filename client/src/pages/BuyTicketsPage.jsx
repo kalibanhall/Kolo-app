@@ -7,9 +7,6 @@ import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, 
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
-// Storage key for cart - now campaign-specific
-const getCartKey = (campaignId) => `kolo_cart_${campaignId}`;
-
 // Default exchange rate (fallback)
 const DEFAULT_EXCHANGE_RATE = 2850;
 
@@ -47,11 +44,6 @@ const BuyTicketsPage = () => {
   const [numbersPage, setNumbersPage] = useState(1);
   const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [hasMoreNumbers, setHasMoreNumbers] = useState(true);
-  
-  // Composer / cart state
-  const [composerItems, setComposerItems] = useState([]);
-  const [unavailableTickets, setUnavailableTickets] = useState([]);
-  const [showComposer, setShowComposer] = useState(false);
   
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
@@ -124,76 +116,6 @@ const BuyTicketsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticketCount, selectedNumbers.length, selectionMode, campaign]);
   
-  // Charger le panier sauvegardé quand la campagne est chargée
-  useEffect(() => {
-    if (!campaign?.id) return;
-    try {
-      const savedCart = localStorage.getItem(getCartKey(campaign.id));
-      if (savedCart) {
-        setComposerItems(JSON.parse(savedCart));
-      }
-    } catch (e) {
-      console.error('Error loading cart:', e);
-    }
-  }, [campaign?.id]);
-
-  // Sauvegarder le panier dans localStorage quand il change
-  useEffect(() => {
-    if (!campaign?.id || composerItems.length === 0) return;
-    try {
-      localStorage.setItem(getCartKey(campaign.id), JSON.stringify(composerItems));
-    } catch (e) {
-      console.error('Error saving cart:', e);
-    }
-  }, [composerItems, campaign?.id]);
-
-  // Ajouter au compositeur
-  const addToComposer = useCallback((ticketNumber) => {
-    setComposerItems(prev => {
-      if (prev.some(item => item.number === ticketNumber.number)) return prev;
-      return [...prev, { ...ticketNumber, addedAt: Date.now() }];
-    });
-  }, []);
-
-  // Retirer du compositeur
-  const removeFromComposer = useCallback((ticketNumber) => {
-    setComposerItems(prev => prev.filter(item => item.number !== ticketNumber));
-    setUnavailableTickets(prev => prev.filter(n => n !== ticketNumber));
-  }, []);
-
-  // Vider le panier
-  const clearComposer = useCallback(() => {
-    setComposerItems([]);
-    setUnavailableTickets([]);
-    if (campaign?.id) {
-      localStorage.removeItem(getCartKey(campaign.id));
-    }
-  }, [campaign?.id]);
-
-  // Vérifier la disponibilité des tickets du compositeur
-  const verifyComposerTickets = useCallback(async () => {
-    if (composerItems.length === 0 || !campaign) return;
-    
-    setVerifyingComposer(true);
-    setUnavailableTickets([]);
-    
-    try {
-      const numbers = composerItems.map(item => item.number);
-      const response = await ticketsAPI.checkAvailability({
-        campaign_id: campaign.id,
-        ticket_numbers: numbers
-      });
-      
-      if (response.unavailable && response.unavailable.length > 0) {
-        setUnavailableTickets(response.unavailable);
-      }
-    } catch (err) {
-      console.error('Error verifying tickets:', err);
-    } finally {
-      setVerifyingComposer(false);
-    }
-  }, [composerItems, campaign]);
-
   // Charger la campagne
   const loadCampaign = async () => {
     try {
@@ -215,15 +137,6 @@ const BuyTicketsPage = () => {
       if (campaignData && campaignData.id) {
         setCampaign(campaignData);
         
-        // Charger le panier sauvegardé pour cette campagne
-        try {
-          const savedCart = localStorage.getItem(getCartKey(campaignData.id));
-          if (savedCart) {
-            setComposerItems(JSON.parse(savedCart));
-          }
-        } catch (e) {
-          console.error('Error loading saved cart:', e);
-        }
       } else {
         setError('Aucune campagne trouvée');
       }
@@ -339,34 +252,6 @@ const BuyTicketsPage = () => {
       return [...prev, number];
     });
   };
-
-  // Fonction pour obtenir des numéros aléatoires parmi les disponibles
-  const getRandomAvailableNumbers = useCallback((count) => {
-    // Filtrer les numéros déjà dans le panier
-    const numbersInCart = composerItems.map(item => item.number);
-    const availableForSelection = availableNumbers.filter(num => !numbersInCart.includes(num));
-    
-    if (availableForSelection.length === 0) return [];
-    
-    // Mélanger et prendre les premiers
-    const shuffled = [...availableForSelection].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(count, shuffled.length));
-  }, [availableNumbers, composerItems]);
-
-  // Ajouter au panier en mode automatique
-  const addAutoToComposer = useCallback(() => {
-    const randomNumbers = getRandomAvailableNumbers(ticketCount);
-    if (randomNumbers.length === 0) {
-      setError('Aucun numéro disponible. Le panier est peut-être plein ou tous les numéros sont pris.');
-      return;
-    }
-    if (randomNumbers.length < ticketCount) {
-      setError(`Seulement ${randomNumbers.length} numéro(s) disponible(s) sur ${ticketCount} demandé(s).`);
-    }
-    randomNumbers.forEach(num => {
-      addToComposer({ number: num, display: `#${String(num).padStart(4, '0')}` });
-    });
-  }, [ticketCount, getRandomAvailableNumbers, addToComposer]);
 
   const filteredNumbers = useMemo(() => {
     // Afficher tous les numéros disponibles (pas de limite arbitraire)
