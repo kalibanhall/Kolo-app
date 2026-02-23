@@ -63,6 +63,29 @@ export const HomePage = () => {
 
   const currentCampaign = campaigns[currentIndex];
 
+  // Compute all images for the current campaign
+  const allCampaignImages = React.useMemo(() => {
+    if (!currentCampaign) return [];
+    const images = [];
+    const prizeImgs = typeof currentCampaign.prize_images === 'string'
+      ? ((() => { try { return JSON.parse(currentCampaign.prize_images); } catch { return []; } })())
+      : (currentCampaign.prize_images || []);
+    images.push(...prizeImgs);
+    if (currentCampaign.image_url && !images.includes(currentCampaign.image_url)) {
+      images.push(currentCampaign.image_url);
+    }
+    return images;
+  }, [currentCampaign]);
+
+  // Auto-slide prize images every 4 seconds
+  useEffect(() => {
+    if (allCampaignImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => (prev + 1) % allCampaignImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [allCampaignImages.length]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       {/* Navbar */}
@@ -115,14 +138,7 @@ export const HomePage = () => {
               <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-all duration-500">
                 {/* Hero Image Section - Prize Images Carousel */}
                 {(() => {
-                  const allImages = [];
-                  const prizeImgs = typeof currentCampaign.prize_images === 'string'
-                    ? ((() => { try { return JSON.parse(currentCampaign.prize_images); } catch { return []; } })())
-                    : (currentCampaign.prize_images || []);
-                  allImages.push(...prizeImgs);
-                  if (currentCampaign.image_url && !allImages.includes(currentCampaign.image_url)) {
-                    allImages.push(currentCampaign.image_url);
-                  }
+                  const allImages = allCampaignImages;
 
                   return (
                     <div className="relative h-44 sm:h-60 md:h-72 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">

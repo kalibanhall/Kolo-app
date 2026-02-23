@@ -37,6 +37,29 @@ export const CampaignDetailPage = () => {
     return () => clearInterval(interval);
   }, [loadCampaign]);
 
+  // Compute all prize images
+  const allCampaignImages = React.useMemo(() => {
+    if (!campaign) return [];
+    const images = [];
+    const prizeImgs = typeof campaign.prize_images === 'string'
+      ? ((() => { try { return JSON.parse(campaign.prize_images); } catch { return []; } })())
+      : (campaign.prize_images || []);
+    images.push(...prizeImgs);
+    if (campaign.image_url && !images.includes(campaign.image_url)) {
+      images.push(campaign.image_url);
+    }
+    return images;
+  }, [campaign]);
+
+  // Auto-slide prize images every 4 seconds
+  useEffect(() => {
+    if (allCampaignImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => (prev + 1) % allCampaignImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [allCampaignImages.length]);
+
   const handleBuyTickets = () => {
     if (!isAuthenticated()) {
       navigate('/login', { state: { from: `/campaigns/${id}` } });
@@ -219,15 +242,7 @@ export const CampaignDetailPage = () => {
 
         {/* Image Section - Prize Images Carousel */}
         {(() => {
-          const allImages = [];
-          // Parse prize_images (can be JSON string or array)
-          const prizeImgs = typeof campaign.prize_images === 'string' 
-            ? ((() => { try { return JSON.parse(campaign.prize_images); } catch { return []; } })())
-            : (campaign.prize_images || []);
-          allImages.push(...prizeImgs);
-          if (campaign.image_url && !allImages.includes(campaign.image_url)) {
-            allImages.push(campaign.image_url);
-          }
+          const allImages = allCampaignImages;
           
           if (allImages.length === 0) return null;
           

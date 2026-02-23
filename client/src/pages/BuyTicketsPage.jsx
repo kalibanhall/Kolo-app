@@ -172,6 +172,25 @@ const BuyTicketsPage = () => {
     }
   }, [user, campaignId]);
 
+  // Compute all prize images for carousel
+  const allPrizeImages = React.useMemo(() => {
+    if (!campaign) return [];
+    return [
+      campaign.image_url,
+      ...(Array.isArray(campaign.prize_images) ? campaign.prize_images :
+          (typeof campaign.prize_images === 'string' ? (() => { try { return JSON.parse(campaign.prize_images || '[]'); } catch { return []; } })() : []))
+    ].filter(Boolean);
+  }, [campaign]);
+
+  // Auto-slide prize images every 4 seconds
+  useEffect(() => {
+    if (allPrizeImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => (prev + 1) % allPrizeImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [allPrizeImages.length]);
+
   // Load all active campaigns for navigation
   const loadAllCampaigns = async () => {
     try {
@@ -578,11 +597,7 @@ const BuyTicketsPage = () => {
           <div className="relative h-48 sm:h-64 overflow-hidden">
             {/* Image carousel de la campagne */}
           {(() => {
-            const allImages = [
-              campaign.image_url,
-              ...(Array.isArray(campaign.prize_images) ? campaign.prize_images : 
-                  (typeof campaign.prize_images === 'string' ? JSON.parse(campaign.prize_images || '[]') : []))
-            ].filter(Boolean);
+            const allImages = allPrizeImages;
             
             if (allImages.length === 0) {
               return (
