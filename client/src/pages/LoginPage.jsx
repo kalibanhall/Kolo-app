@@ -5,7 +5,7 @@ import { LogoKoloFull } from '../components/LogoKolo';
 import { EyeIcon, EyeOffIcon, GoogleIcon } from '../components/Icons';
 
 export const LoginPage = () => {
-  const { login, loginWithGoogle, loading, error, isAdmin, isInfluencer } = useAuth();
+  const { login, loginWithGoogle, loading, error } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -29,15 +29,14 @@ export const LoginPage = () => {
 
     try {
       const response = await login(formData.email, formData.password);
+      const loggedInUser = response.user;
 
-      // Use context helper to determine admin status (more reliable)
-      console.debug('Login response:', response);
-      if (isAdmin()) {
+      // Use response.user directly (React state not yet updated at this point)
+      if (loggedInUser?.is_admin) {
         navigate('/admin');
-      } else if (isInfluencer()) {
+      } else if (loggedInUser?.is_influencer) {
         navigate('/influencer');
       } else {
-        // Rediriger les clients vers l'accueil après connexion
         navigate('/');
       }
     } catch (err) {
@@ -50,11 +49,12 @@ export const LoginPage = () => {
     setGoogleLoading(true);
     
     try {
-      await loginWithGoogle();
-      
-      if (isAdmin()) {
+      const response = await loginWithGoogle();
+      const loggedInUser = response.user;
+
+      if (loggedInUser?.is_admin) {
         navigate('/admin');
-      } else if (isInfluencer()) {
+      } else if (loggedInUser?.is_influencer) {
         navigate('/influencer');
       } else {
         navigate('/');
