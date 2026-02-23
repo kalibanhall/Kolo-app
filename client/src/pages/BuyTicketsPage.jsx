@@ -252,11 +252,24 @@ const BuyTicketsPage = () => {
     loadCampaign();
     loadWallet();
     loadExchangeRate();
+    loadAllCampaigns();
     if (user?.phone) {
       const cleanPhone = user.phone.replace('+243', '').replace(/\D/g, '');
       setPhoneNumber(cleanPhone);
     }
   }, [user, campaignId]);
+
+  // Load all active campaigns for navigation
+  const loadAllCampaigns = async () => {
+    try {
+      const response = await campaignsAPI.getActive();
+      if (response.success && response.data) {
+        setAllCampaigns(response.data);
+      }
+    } catch (err) {
+      console.error('Error loading campaigns:', err);
+    }
+  };
 
   // Load available numbers when campaign is loaded
   const fetchAvailableNumbers = async () => {
@@ -654,7 +667,7 @@ const BuyTicketsPage = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            <span className="font-medium hidden sm:inline">Accueil</span>
+            <span className="font-medium hidden sm:inline">Retour</span>
           </Link>
           
           <div className="flex items-center gap-2">
@@ -664,142 +677,7 @@ const BuyTicketsPage = () => {
             </h1>
           </div>
           
-          {/* Compositeur Button */}
-          <div className="relative">
-            <button 
-              onClick={() => {
-                setShowComposer(!showComposer);
-                if (!showComposer && composerItems.length > 0) {
-                  verifyComposerTickets();
-                }
-              }}
-              className={`relative p-2 rounded-xl transition-all ${
-                isDarkMode 
-                  ? 'bg-gray-800 hover:bg-gray-700 text-purple-400' 
-                  : 'bg-purple-50 hover:bg-purple-100 text-purple-600'
-              }`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              {composerItems.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {composerItems.length}
-                </span>
-              )}
-            </button>
-            
-            {/* Composer Dropdown */}
-            {showComposer && (
-              <div className={`absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl overflow-hidden z-50 ${
-                isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-              }`}>
-                <div className={`p-3 border-b flex items-center justify-between ${
-                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      Mon Panier
-                    </h4>
-                    {verifyingComposer && (
-                      <span className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                    )}
-                  </div>
-                  {composerItems.length > 0 && (
-                    <button
-                      onClick={clearComposer}
-                      className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                      Vider
-                    </button>
-                  )}
-                </div>
-                
-                {/* Message tickets non disponibles */}
-                {unavailableTickets.length > 0 && (
-                  <div className={`p-3 ${isDarkMode ? 'bg-red-900/30' : 'bg-red-50'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
-                      ⚠️ {unavailableTickets.length} ticket(s) non disponible(s) - suppression automatique...
-                    </p>
-                  </div>
-                )}
-                
-                {composerItems.length === 0 ? (
-                  <div className="p-6 text-center">
-                    <svg className={`w-12 h-12 mx-auto mb-2 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Votre compositeur est vide
-                    </p>
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                      Sélectionnez des numéros pour les garder ici
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="max-h-48 overflow-y-auto p-3">
-                      <div className="flex flex-wrap gap-2">
-                        {composerItems.map(item => (
-                          <span 
-                            key={item.number} 
-                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm ${
-                              unavailableTickets.includes(item.number) 
-                                ? 'bg-red-100 text-red-700 line-through' 
-                                : isDarkMode 
-                                  ? 'bg-purple-900/30 text-purple-400' 
-                                  : 'bg-purple-100 text-purple-700'
-                            }`}
-                          >
-                            {item.display || `#${String(item.number).padStart(4, '0')}`}
-                            <button 
-                              onClick={() => removeFromComposer(item.number)} 
-                              className={`hover:text-red-500 ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 ${isDarkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
-                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-xs">Panier valide 24h - Finalisez avant qu'il n'expire</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          Total ({composerItems.length} tickets)
-                        </span>
-                        <span className={`font-bold ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-                          {formatCurrency(composerItems.length * (campaign?.ticket_price || 0))}
-                        </span>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setTicketCount(Math.min(10, composerItems.length));
-                          setSelectionMode('manual');
-                          setSelectedNumbers(composerItems.slice(0, 5));
-                          setShowComposer(false);
-                        }} 
-                        disabled={composerItems.length === 0 || unavailableTickets.length > 0} 
-                        className={`w-full py-2 rounded-lg font-medium text-sm transition-all ${
-                          isDarkMode 
-                            ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-700 disabled:text-gray-500' 
-                            : 'bg-purple-500 hover:bg-purple-600 text-white disabled:bg-gray-200 disabled:text-gray-400'
-                        }`}
-                      >
-                        Passer à l'achat
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <div className="w-10" /> {/* Spacer for alignment */}
         </div>
       </header>
 
@@ -813,21 +691,67 @@ const BuyTicketsPage = () => {
         }`}>
           {/* Image de la campagne */}
           <div className="relative h-48 sm:h-64 overflow-hidden">
-            {campaign.image_url ? (
-              <img 
-                src={campaign.image_url} 
-                alt={campaign.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className={`w-full h-full flex items-center justify-center ${
-                isDarkMode 
-                  ? 'bg-gradient-to-br from-indigo-900 to-purple-900' 
-                  : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-              }`}>
-                <TicketIcon className="w-20 h-20 text-white/30" />
-              </div>
-            )}
+            {/* Image carousel de la campagne */}
+          {(() => {
+            const allImages = [
+              campaign.image_url,
+              ...(Array.isArray(campaign.prize_images) ? campaign.prize_images : 
+                  (typeof campaign.prize_images === 'string' ? JSON.parse(campaign.prize_images || '[]') : []))
+            ].filter(Boolean);
+            
+            if (allImages.length === 0) {
+              return (
+                <div className={`w-full h-full flex items-center justify-center ${
+                  isDarkMode 
+                    ? 'bg-gradient-to-br from-indigo-900 to-purple-900' 
+                    : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                }`}>
+                  <TicketIcon className="w-20 h-20 text-white/30" />
+                </div>
+              );
+            }
+            
+            return (
+              <>
+                <img 
+                  src={allImages[currentImageIndex] || allImages[0]} 
+                  alt={campaign.title}
+                  className="w-full h-full object-cover transition-opacity duration-300"
+                />
+                {allImages.length > 1 && (
+                  <>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === 0 ? allImages.length - 1 : i - 1); }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 z-10 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === allImages.length - 1 ? 0 : i + 1); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 z-10 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                      {allImages.map((_, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={(e) => { e.preventDefault(); setCurrentImageIndex(idx); }}
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            idx === currentImageIndex ? 'bg-white w-4' : 'bg-white/50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             
@@ -1514,54 +1438,6 @@ const BuyTicketsPage = () => {
               </div>
               </div>
 
-              {/* Bouton Ajouter au panier - Mode Manuel */}
-              {selectionMode === 'manual' && selectedNumbers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    selectedNumbers.forEach(num => addToComposer({ number: num, display: `#${String(num).padStart(4, '0')}` }));
-                    setSelectedNumbers([]);
-                  }}
-                  className={`w-full py-3 px-4 rounded-xl font-medium transition-all border-2 border-dashed ${
-                    isDarkMode
-                      ? 'border-purple-600 text-purple-400 hover:bg-purple-900/30'
-                      : 'border-purple-400 text-purple-600 hover:bg-purple-50'
-                  }`}
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Ajouter au panier ({selectedNumbers.length} ticket{selectedNumbers.length > 1 ? 's' : ''})
-                  </span>
-                </button>
-              )}
-
-              {/* Bouton Ajouter au panier - Mode Automatique */}
-              {selectionMode === 'automatic' && ticketCount > 0 && (
-                <button
-                  type="button"
-                  onClick={addAutoToComposer}
-                  disabled={availableNumbers.length === 0 || loadingNumbers}
-                  className={`w-full py-3 px-4 rounded-xl font-medium transition-all border-2 border-dashed ${
-                    isDarkMode
-                      ? 'border-purple-600 text-purple-400 hover:bg-purple-900/30 disabled:border-gray-700 disabled:text-gray-600'
-                      : 'border-purple-400 text-purple-600 hover:bg-purple-50 disabled:border-gray-300 disabled:text-gray-400'
-                  }`}
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    {loadingNumbers ? (
-                      <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    )}
-                    Ajouter {ticketCount} ticket{ticketCount > 1 ? 's' : ''} au panier (auto)
-                  </span>
-                </button>
-              )}
-
               {/* Action Button */}
               <button
                 type="submit"
@@ -1625,6 +1501,68 @@ const BuyTicketsPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Autres Campagnes Disponibles */}
+        {allCampaigns.filter(c => c.id !== campaign?.id).length > 0 && (
+          <div className={`rounded-2xl overflow-hidden mt-6 ${
+            isDarkMode 
+              ? 'bg-gray-800/50 border border-gray-700' 
+              : 'bg-white shadow-xl'
+          }`}>
+            <div className="p-4">
+              <h3 className={`text-lg font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Autres Campagnes Disponibles
+              </h3>
+              <div className="grid gap-3">
+                {allCampaigns.filter(c => c.id !== campaign?.id).map(c => {
+                  const cAvailable = Math.max(0, (parseInt(c.total_tickets) || 0) - (parseInt(c.sold_tickets) || 0));
+                  return (
+                    <Link
+                      key={c.id}
+                      to={`/buy/${c.id}`}
+                      className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:scale-[1.02] ${
+                        isDarkMode
+                          ? 'bg-gray-900/50 hover:bg-gray-700/50 border border-gray-700'
+                          : 'bg-gray-50 hover:bg-blue-50 border border-gray-200'
+                      }`}
+                    >
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                        {c.image_url ? (
+                          <img src={c.image_url} alt={c.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-indigo-900' : 'bg-indigo-100'
+                          }`}>
+                            <TicketIcon className={`w-8 h-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-semibold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {c.title}
+                        </h4>
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {c.main_prize}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={`text-xs ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+                            ${parseFloat(c.ticket_price || 0).toFixed(2)}/ticket
+                          </span>
+                          <span className={`text-xs ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                            {cAvailable.toLocaleString('fr-FR')} disponibles
+                          </span>
+                        </div>
+                      </div>
+                      <svg className={`w-5 h-5 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Modal de Confirmation */}

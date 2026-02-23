@@ -44,19 +44,8 @@ router.post('/validate', verifyToken, [
       });
     }
 
-    // Check if user already used this code
-    const usageResult = await query(
-      `SELECT COUNT(*) as count FROM promo_code_usage 
-       WHERE promo_code_id = $1 AND user_id = $2`,
-      [promo.id, userId]
-    );
-
-    if (parseInt(usageResult.rows[0].count) > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vous avez déjà utilisé ce code promo' 
-      });
-    }
+    // NOTE: Users can reuse promo codes across different campaigns
+    // No per-user usage restriction
 
     res.json({
       success: true,
@@ -364,6 +353,11 @@ router.delete('/admin/:id', verifyToken, verifyAdmin, requireAdminLevel(2), asyn
   try {
     const { id } = req.params;
 
+    // Clean up: nullify promo_code_id on related purchases before deleting
+    await query('UPDATE purchases SET promo_code_id = NULL WHERE promo_code_id = $1', [id]);
+    // Remove usage records
+    await query('DELETE FROM promo_code_usage WHERE promo_code_id = $1', [id]);
+    // Now delete the promo code
     const result = await query('DELETE FROM promo_codes WHERE id = $1 RETURNING id', [id]);
 
     if (result.rows.length === 0) {

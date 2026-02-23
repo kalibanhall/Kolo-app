@@ -794,7 +794,16 @@ router.delete('/:id', verifyToken, verifyAdmin, requireAdminLevel(2), async (req
 
     const campaign = checkResult.rows[0];
 
-    // Delete campaign (CASCADE will handle related records)
+    // Clean up related records that may block CASCADE deletion
+    // 1. Remove promo_code_usage referencing purchases of this campaign
+    await query(
+      `DELETE FROM promo_code_usage WHERE purchase_id IN (
+         SELECT id FROM purchases WHERE campaign_id = $1
+       )`, [campaignId]
+    );
+    // 2. Remove ticket_reservations for this campaign
+    await query('DELETE FROM ticket_reservations WHERE campaign_id = $1', [campaignId]);
+    // 3. Now delete campaign (CASCADE handles purchases, tickets, draw_results)
     await query('DELETE FROM campaigns WHERE id = $1', [campaignId]);
 
     // Log admin action

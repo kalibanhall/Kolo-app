@@ -1038,11 +1038,7 @@ router.post(
           if (promoResult.rows.length > 0) {
             const promo = promoResult.rows[0];
             if (promo.max_uses === null || promo.current_uses < promo.max_uses) {
-              const usageCheck = await query(
-                'SELECT COUNT(*) as count FROM promo_code_usage WHERE promo_code_id = $1 AND user_id = $2',
-                [promo.id, user_id]
-              );
-              if (parseInt(usageCheck.rows[0].count) === 0) {
+                // Users can reuse promo codes across different campaigns
                 validatedPromo = promo;
                 const baseAmountUSD = parseFloat(campaign.ticket_price) * ticket_count;
                 if (promo.discount_type === 'percentage') {
@@ -1054,7 +1050,6 @@ router.post(
                   promoDiscountUSD = parseFloat(promo.discount_value);
                 }
                 promoDiscountUSD = Math.min(promoDiscountUSD, baseAmountUSD);
-              }
             }
           }
         } catch (promoErr) {
