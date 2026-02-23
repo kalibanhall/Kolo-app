@@ -167,6 +167,7 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
               c.status as campaign_status,
               COALESCE(c.ticket_price, 0) as ticket_price,
               c.image_url as campaign_image,
+              c.prize_images,
               COALESCE(p.total_amount, 0) as purchase_total, 
               COALESCE(p.ticket_count, 1) as ticket_count, 
               p.payment_status, p.created_at as purchase_date

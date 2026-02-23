@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { ticketsAPI, usersAPI } from '../services/api';
+import { ticketsAPI, usersAPI, campaignsAPI } from '../services/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { TicketIcon, MoneyIcon, TrophyIcon, ChartIcon } from '../components/Icons';
 import { LogoKolo } from '../components/LogoKolo';
@@ -22,6 +22,8 @@ const UserProfilePage = () => {
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [activeTab, setActiveTab] = useState('tickets');
   const [selectedTicket, setSelectedTicket] = useState(null); // Ticket sélectionné pour la prévisualisation
+  const [allCampaigns, setAllCampaigns] = useState([]); // All active campaigns
+  const [expandedTicket, setExpandedTicket] = useState(null); // Track which ticket gallery is expanded
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -47,8 +49,19 @@ const UserProfilePage = () => {
         city: user.city || '',
       });
       fetchUserTickets();
+      fetchActiveCampaigns();
     }
   }, [user]);
+
+  const fetchActiveCampaigns = async () => {
+    try {
+      const response = await campaignsAPI.getActive();
+      const campaigns = response.data || response.campaigns || response || [];
+      setAllCampaigns(Array.isArray(campaigns) ? campaigns : []);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+    }
+  };
 
   const fetchUserTickets = async () => {
     try {
@@ -548,29 +561,213 @@ const UserProfilePage = () => {
               </Link>
             </div>
           ) : (
-            <div className="p-6">
-              {/* Affichage des tickets sous forme de cartes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tickets.map((ticket) => (
-                  <TicketCardMini
+            <div className="p-4 space-y-4">
+              {/* Group tickets by campaign for better display */}
+              {tickets.map((ticket) => {
+                const isTicketWinner = ticket.is_winner || ticket.status === 'winner' || ticket.prize_category === 'main';
+                const isTicketBonus = ticket.prize_category === 'bonus';
+                const isDrawingDone = ticket.campaign_status === 'completed' || ticket.campaign_status === 'drawn';
+                const isLost = (isDrawingDone || ticket.status === 'lost') && !isTicketWinner && !isTicketBonus;
+                
+                // Parse prize_images
+                let prizeImages = [];
+                try {
+                  if (ticket.prize_images) {
+                    prizeImages = typeof ticket.prize_images === 'string' 
+                      ? JSON.parse(ticket.prize_images) 
+                      : ticket.prize_images;
+                  }
+                } catch (e) {}
+                // Combine with campaign_image
+                const allImages = [];
+                if (ticket.campaign_image) allImages.push(ticket.campaign_image);
+                if (Array.isArray(prizeImages)) {
+                  prizeImages.forEach(img => {
+                    if (img && !allImages.includes(img)) allImages.push(img);
+                  });
+                }
+                
+                const isExpanded = expandedTicket === ticket.id;
+                
+                const getStatusBadge = () => {
+                  if (isTicketWinner) return { label: 'Gagnant', bgColor: isDarkMode ? 'bg-yellow-900/30 border-yellow-500/50' : 'bg-yellow-50 border-yellow-300', textColor: 'text-yellow-500' };
+                  if (isTicketBonus) return { label: 'Bonus', bgColor: isDarkMode ? 'bg-purple-900/30 border-purple-500/50' : 'bg-purple-50 border-purple-300', textColor: 'text-purple-500' };
+                  if (isLost) return { label: 'Perdu', bgColor: isDarkMode ? 'bg-gray-900/30 border-gray-500/50' : 'bg-gray-50 border-gray-300', textColor: 'text-gray-500' };
+                  if (ticket.campaign_status === 'closed') return { label: 'En attente', bgColor: isDarkMode ? 'bg-orange-900/30 border-orange-500/50' : 'bg-orange-50 border-orange-300', textColor: 'text-orange-500' };
+                  return { label: 'Actif', bgColor: isDarkMode ? 'bg-green-900/30 border-green-500/50' : 'bg-green-50 border-green-300', textColor: 'text-green-500' };
+                };
+                
+                const badge = getStatusBadge();
+                
+                return (
+                  <div 
                     key={ticket.id}
-                    ticketNumber={ticket.ticket_number}
-                    campaignTitle={ticket.campaign_title}
-                    campaignImage={ticket.campaign_image}
-                    campaignStatus={ticket.campaign_status}
-                    ticketStatus={ticket.status}
-                    type={ticket.prize_category === 'main' ? 'winner' : 
-                          ticket.prize_category === 'bonus' ? 'bonus' : 'standard'}
-                    prizeCategory={ticket.prize_category}
-                    isWinner={ticket.is_winner || ticket.status === 'winner'}
-                    isDarkMode={isDarkMode}
-                    onClick={() => setSelectedTicket(ticket)}
-                  />
-                ))}
-              </div>
+                    className={`rounded-xl border overflow-hidden transition-all duration-300 ${
+                      isTicketWinner 
+                        ? isDarkMode ? 'border-yellow-500/50 bg-yellow-900/10' : 'border-yellow-300 bg-yellow-50/50'
+                        : isTicketBonus
+                          ? isDarkMode ? 'border-purple-500/50 bg-purple-900/10' : 'border-purple-300 bg-purple-50/50'
+                          : isDarkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    {/* Main ticket row */}
+                    <div 
+                      className="flex items-center gap-3 p-3 cursor-pointer"
+                      onClick={() => setExpandedTicket(isExpanded ? null : ticket.id)}
+                    >
+                      {/* Campaign thumbnail */}
+                      <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                        {allImages.length > 0 ? (
+                          <img src={allImages[0]} alt={ticket.campaign_title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-indigo-900' : 'bg-indigo-100'
+                          }`}>
+                            <TicketIcon className={`w-8 h-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Ticket info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {isTicketWinner && <span className="text-yellow-500">🏆</span>}
+                          {isTicketBonus && <span className="text-purple-500">⭐</span>}
+                          {!isTicketWinner && !isTicketBonus && (
+                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>🎟️</span>
+                          )}
+                          <span className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {ticket.ticket_number}
+                          </span>
+                        </div>
+                        <p className={`text-sm truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {ticket.campaign_title}
+                        </p>
+                      </div>
+                      
+                      {/* Status badge */}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badge.textColor} ${badge.bgColor}`}>
+                        {badge.label}
+                      </span>
+                      
+                      {/* Expand arrow */}
+                      {allImages.length > 0 && (
+                        <svg 
+                          className={`w-5 h-5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} 
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </div>
+                    
+                    {/* Expanded prize images gallery */}
+                    {isExpanded && allImages.length > 0 && (
+                      <div className={`border-t px-3 pb-3 pt-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <p className={`text-xs font-medium mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          📸 Photos du prix ({allImages.length})
+                        </p>
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                          {allImages.map((img, idx) => (
+                            <img 
+                              key={idx}
+                              src={img}
+                              alt={`Prix ${idx + 1}`}
+                              className="w-28 h-28 rounded-lg object-cover flex-shrink-0 shadow-md hover:scale-105 transition-transform cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTicket(ticket);
+                              }}
+                            />
+                          ))}
+                        </div>
+                        {/* View ticket button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTicket(ticket);
+                          }}
+                          className={`mt-2 w-full py-2 rounded-lg text-sm font-medium transition-all ${
+                            isDarkMode 
+                              ? 'bg-cyan-900/30 text-cyan-400 hover:bg-cyan-900/50' 
+                              : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                          }`}
+                        >
+                          Voir mon ticket
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Autres Campagnes Disponibles */}
+        {allCampaigns.length > 0 && (
+          <div className={`rounded-2xl overflow-hidden mt-8 ${
+            isDarkMode 
+              ? 'bg-gray-800/50 border border-gray-700 backdrop-blur-sm' 
+              : 'bg-white shadow-xl'
+          }`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                🎯 Autres Campagnes Disponibles
+              </h3>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Participez à d'autres tombolas et tentez votre chance !
+              </p>
+            </div>
+            <div className="p-4 grid gap-3">
+              {allCampaigns.map(c => {
+                const cAvailable = Math.max(0, (parseInt(c.total_tickets) || 0) - (parseInt(c.sold_tickets) || 0));
+                return (
+                  <Link
+                    key={c.id}
+                    to={`/buy/${c.id}`}
+                    className={`flex items-center gap-4 p-3 rounded-xl transition-all hover:scale-[1.02] ${
+                      isDarkMode
+                        ? 'bg-gray-900/50 hover:bg-gray-700/50 border border-gray-700'
+                        : 'bg-gray-50 hover:bg-blue-50 border border-gray-200'
+                    }`}
+                  >
+                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                      {c.image_url ? (
+                        <img src={c.image_url} alt={c.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center ${
+                          isDarkMode ? 'bg-indigo-900' : 'bg-indigo-100'
+                        }`}>
+                          <TicketIcon className={`w-8 h-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`font-semibold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {c.title}
+                      </h4>
+                      <p className={`text-sm truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {c.main_prize}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className={`text-xs font-medium ${isDarkMode ? 'text-cyan-400' : 'text-blue-600'}`}>
+                          ${parseFloat(c.ticket_price || 0).toFixed(2)}/ticket
+                        </span>
+                        <span className={`text-xs ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
+                          {cAvailable.toLocaleString('fr-FR')} disponibles
+                        </span>
+                      </div>
+                    </div>
+                    <svg className={`w-5 h-5 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Upload Photo */}
