@@ -25,15 +25,18 @@ const TicketPreviewModal = ({
 }) => {
   if (!isOpen) return null;
 
+  // Cache-busting version - increment when ticket images are updated
+  const TICKET_IMG_VERSION = 'v2';
+
   // Déterminer quelle image utiliser
   const getTicketImage = () => {
     if (isWinner || prizeCategory === 'main') {
-      return '/ticket-gagnant.png';
+      return `/ticket-gagnant.png?${TICKET_IMG_VERSION}`;
     }
     if (prizeCategory === 'bonus') {
-      return '/ticket-bonus.png';
+      return `/ticket-bonus.png?${TICKET_IMG_VERSION}`;
     }
-    return '/ticket-number.png';
+    return `/ticket-number.png?${TICKET_IMG_VERSION}`;
   };
 
   return (

@@ -5,6 +5,9 @@ import { TrophyIcon, TicketIcon } from './Icons';
  * TicketCard - Composant de carte de ticket stylisé avec image KOMA
  * Utilise les images PNG du design dans /public/
  */
+// Cache-busting version - increment when ticket images are updated
+const TICKET_IMG_VERSION = 'v2';
+
 const TicketCard = ({
   ticketNumber,
   ownerName = 'Propriétaire',
@@ -21,9 +24,9 @@ const TicketCard = ({
 
   const getTicketImage = () => {
     switch (ticketType) {
-      case 'winner': return '/ticket-gagnant.png';
-      case 'bonus': return '/ticket-bonus.png';
-      default: return '/ticket-number.png';
+      case 'winner': return `/ticket-gagnant.png?${TICKET_IMG_VERSION}`;
+      case 'bonus': return `/ticket-bonus.png?${TICKET_IMG_VERSION}`;
+      default: return `/ticket-number.png?${TICKET_IMG_VERSION}`;
     }
   };
 
@@ -91,9 +94,9 @@ export const TicketCardMini = ({
   const isLost = (isDrawingDone || ticketHasResult) && !isTicketWinner && !isTicketBonus;
 
   const getTicketImage = () => {
-    if (isTicketWinner) return '/ticket-gagnant.png';
-    if (isTicketBonus) return '/ticket-bonus.png';
-    return '/ticket-number.png';
+    if (isTicketWinner) return `/ticket-gagnant.png?${TICKET_IMG_VERSION}`;
+    if (isTicketBonus) return `/ticket-bonus.png?${TICKET_IMG_VERSION}`;
+    return `/ticket-number.png?${TICKET_IMG_VERSION}`;
   };
 
   const getStatusBadge = () => {
