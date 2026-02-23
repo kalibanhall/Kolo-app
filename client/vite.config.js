@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import viteCompression from 'vite-plugin-compression'
 import { visualizer } from 'rollup-plugin-visualizer'
 import swVersionPlugin from './src/plugins/sw-version.js'
+import firebaseSwPlugin from './src/plugins/firebase-sw-plugin.js'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -25,7 +26,8 @@ export default defineConfig({
       brotliSize: true,
       filename: './dist/stats.html'
     }),
-    swVersionPlugin()
+    swVersionPlugin(),
+    firebaseSwPlugin()
   ],
   server: {
     host: '0.0.0.0',

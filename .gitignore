@@ -10,6 +10,30 @@ package-lock.json
 .env
 .env.local
 .env.production
+.env.development
+server/.env*
+!server/.env.example
+client/.env*
+!client/.env.example
+
+# Credential/secret files (NEVER COMMIT!)
+RENDER_VARIABLES.txt
+VERCEL_VARIABLES.txt
+VARIABLES_COMPLETES.md
+
+# Deployment docs with embedded secrets
+DEPLOIEMENT_RAPIDE.md
+DEPLOIEMENT.md
+PRODUCTION_SETUP.md
+PRODUCTION_CHECKLIST.md
+PRODUCTION_READY.md
+TEST_PRODUCTION.md
+FIREBASE_PRODUCTION_CONFIG.md
+PAYDRC_RENDER_CONFIG.md
+PAYDRC_CONFIG_UPDATE.md
+STATUS_PASSWORD_RESET.md
+SENDGRID_SUPABASE_CONFIG.md
+configure-paydrc.sh
 
 # Firebase credentials (NEVER COMMIT!)
 firebase-admin-key.json

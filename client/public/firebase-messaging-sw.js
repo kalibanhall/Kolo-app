@@ -1,24 +1,25 @@
 // Firebase Cloud Messaging Service Worker
+// This file is auto-generated at build time by firebase-sw-plugin.js
+// The actual config is injected from environment variables during the build.
+// DO NOT hardcode API keys here.
+
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Firebase configuration
-// IMPORTANT: Remplacer avec vos vraies credentials Firebase
+// Firebase configuration will be injected by the Vite build plugin
+// If you see placeholder values, the build plugin did not run correctly
 firebase.initializeApp({
-  apiKey: "AIzaSyCfvYQVtT_JZV35XTTT8R-mXOHlVFiFOWw",
-  authDomain: "kolo-26.firebaseapp.com",
-  projectId: "kolo-26",
-  storageBucket: "kolo-26.firebasestorage.app",
-  messagingSenderId: "244369331313",
-  appId: "1:244369331313:web:52ab5f0239c69cfddb37d0"
+  apiKey: "__FIREBASE_API_KEY__",
+  authDomain: "__FIREBASE_AUTH_DOMAIN__",
+  projectId: "__FIREBASE_PROJECT_ID__",
+  storageBucket: "__FIREBASE_STORAGE_BUCKET__",
+  messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+  appId: "__FIREBASE_APP_ID__"
 });
 
 const messaging = firebase.messaging();
 
-// Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Background message received:', payload);
-  
   const notificationTitle = payload.notification?.title || 'KOLO Notification';
   const notificationOptions = {
     body: payload.notification?.body || 'You have a new notification',
@@ -27,41 +28,29 @@ messaging.onBackgroundMessage((payload) => {
     tag: payload.data?.type || 'default',
     data: payload.data,
     actions: [
-      {
-        action: 'view',
-        title: 'Voir'
-      },
-      {
-        action: 'dismiss',
-        title: 'Ignorer'
-      }
+      { action: 'view', title: 'Voir' },
+      { action: 'dismiss', title: 'Ignorer' }
     ]
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification clicked:', event);
-  
   event.notification.close();
-  
+
   if (event.action === 'view') {
-    // Open app or specific page
     const urlToOpen = event.notification.data?.url || '/';
-    
+
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true })
         .then((windowClients) => {
-          // Check if there is already a window open
           for (let i = 0; i < windowClients.length; i++) {
             const client = windowClients[i];
             if (client.url === urlToOpen && 'focus' in client) {
               return client.focus();
             }
           }
-          // If not, open new window
           if (clients.openWindow) {
             return clients.openWindow(urlToOpen);
           }

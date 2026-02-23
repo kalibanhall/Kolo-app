@@ -96,7 +96,7 @@ Add these variables to your `.env` file:
 ```bash
 # PayDRC (MOKO Afrika) - Production
 PAYDRC_BASE_URL=https://paydrc.gofreshbakery.net/api/v5/
-PAYDRC_MERCHANT_ID=j*zL/#%lkq(EbSNhb
+PAYDRC_MERCHANT_ID=[MERCHANT_ID_FROM_PAYDRC]
 PAYDRC_MERCHANT_SECRET=your-merchant-secret-from-dashboard
 
 # Callback encryption key (obtain from PayDRC support)
