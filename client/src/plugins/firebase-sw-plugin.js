@@ -5,6 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { loadEnv } from 'vite';
 
 export default function firebaseSwPlugin() {
   const FIREBASE_SW_TEMPLATE = `// Firebase Cloud Messaging Service Worker
@@ -77,14 +78,23 @@ self.addEventListener('notificationclick', (event) => {
       .replace('__FIREBASE_APP_ID__', env.VITE_FIREBASE_APP_ID || '');
   }
 
+  let resolvedEnv = {};
+
   return {
     name: 'firebase-sw-generator',
+
+    // Capture resolved config to access env vars loaded by Vite
+    configResolved(config) {
+      // Load env vars the same way Vite does (from .env files)
+      const env = loadEnv(config.mode, config.root || process.cwd(), 'VITE_');
+      resolvedEnv = { ...process.env, ...env };
+    },
 
     // During dev, serve the SW with injected env vars
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.url === '/firebase-messaging-sw.js') {
-          const content = injectConfig(FIREBASE_SW_TEMPLATE, process.env);
+          const content = injectConfig(FIREBASE_SW_TEMPLATE, resolvedEnv);
           res.setHeader('Content-Type', 'application/javascript');
           res.setHeader('Service-Worker-Allowed', '/');
           res.end(content);
@@ -99,7 +109,7 @@ self.addEventListener('notificationclick', (event) => {
       const distDir = path.resolve(process.cwd(), 'dist');
       const swPath = path.join(distDir, 'firebase-messaging-sw.js');
 
-      const content = injectConfig(FIREBASE_SW_TEMPLATE, process.env);
+      const content = injectConfig(FIREBASE_SW_TEMPLATE, resolvedEnv);
 
       if (!fs.existsSync(distDir)) {
         fs.mkdirSync(distDir, { recursive: true });
