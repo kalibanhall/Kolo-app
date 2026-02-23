@@ -48,6 +48,11 @@ const BuyTicketsPage = () => {
   const [loadingNumbers, setLoadingNumbers] = useState(false);
   const [hasMoreNumbers, setHasMoreNumbers] = useState(true);
   
+  // Composer / cart state
+  const [composerItems, setComposerItems] = useState([]);
+  const [unavailableTickets, setUnavailableTickets] = useState([]);
+  const [showComposer, setShowComposer] = useState(false);
+  
   // Persistance des données du formulaire d'achat
   const [purchaseData, setPurchaseData, clearPurchaseData] = useFormPersistence('buy_tickets', {
     ticketCount: 1,
