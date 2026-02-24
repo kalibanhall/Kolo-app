@@ -858,7 +858,10 @@ router.post('/purchase', verifyToken, [
     }
 
     const userId = req.user.id;
-    const { campaign_id, ticket_count, selection_mode, selected_numbers, promo_code_id, discount_amount, wallet_currency } = req.body;\n\n    // Devise choisie par l'utilisateur pour payer (par défaut CDF)\n    const paymentCurrency = wallet_currency || 'CDF';
+    const { campaign_id, ticket_count, selection_mode, selected_numbers, promo_code_id, discount_amount, wallet_currency } = req.body;
+
+    // Devise choisie par l'utilisateur pour payer (par défaut CDF)
+    const paymentCurrency = wallet_currency || 'CDF';
 
     // Get wallet
     const walletResult = await query(
