@@ -37,7 +37,8 @@ const BuyTicketsPage = () => {
   // Variables d'achat de tickets
   const [ticketCount, setTicketCount] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState('USD'); // 'USD' or 'CDF'
+  const [selectedCurrency, setSelectedCurrency] = useState('USD'); // 'USD' or 'CDF' for Mobile Money
+  const [walletCurrency, setWalletCurrency] = useState('CDF'); // 'USD' or 'CDF' for wallet payment
   const [selectionMode, setSelectionMode] = useState('automatic'); // 'automatic' or 'manual'
   const [selectedNumbers, setSelectedNumbers] = useState([]);
   const [availableNumbers, setAvailableNumbers] = useState([]);
@@ -405,18 +406,32 @@ const BuyTicketsPage = () => {
         currency: 'USD'
       };
 
-      // Payment with wallet balance (always in CDF)
+      // Payment with wallet balance (USD or CDF based on user choice)
       if (paymentMethod === 'wallet') {
-        const requiredAmountCDF = Math.ceil(finalPrice * exchangeRate);
-        if (!wallet || wallet.balance < requiredAmountCDF) {
-          setError(`Solde insuffisant. Vous avez ${formatCurrencyCDF(wallet?.balance || 0)} mais il faut ${formatCurrencyCDF(requiredAmountCDF)}. Veuillez recharger votre portefeuille.`);
+        const walletBalance = walletCurrency === 'USD' 
+          ? (wallet?.balance_usd || 0) 
+          : (wallet?.balance || 0);
+        const requiredAmount = walletCurrency === 'USD' 
+          ? finalPrice 
+          : Math.ceil(finalPrice * exchangeRate);
+        const currencyLabel = walletCurrency === 'USD' ? '$' : ' FC';
+        
+        if (!wallet || walletBalance < requiredAmount) {
+          const balanceStr = walletCurrency === 'USD' 
+            ? `$${(walletBalance).toFixed(2)}` 
+            : formatCurrencyCDF(walletBalance);
+          const requiredStr = walletCurrency === 'USD' 
+            ? `$${requiredAmount.toFixed(2)}` 
+            : formatCurrencyCDF(requiredAmount);
+          setError(`Solde insuffisant. Vous avez ${balanceStr} mais il faut ${requiredStr}. Veuillez recharger votre portefeuille.`);
           setPurchasing(false);
           return;
         }
 
         const response = await walletAPI.purchase({
           ...purchasePayload,
-          amount: requiredAmountCDF, // Send CDF amount for wallet
+          amount: requiredAmount,
+          wallet_currency: walletCurrency,
           promo_code_id: promoDiscount?.id || null,
           discount_amount: promoDiscount?.discount_amount || 0
         });
@@ -424,7 +439,12 @@ const BuyTicketsPage = () => {
         if (response.success) {
           setSuccess(true);
           clearPurchaseData();
-          setWallet(prev => ({ ...prev, balance: response.data.new_balance }));
+          // Update both balances from response
+          setWallet(prev => ({ 
+            ...prev, 
+            balance: response.data.new_balance_cdf ?? prev.balance,
+            balance_usd: response.data.new_balance_usd ?? prev.balance_usd
+          }));
           
           // Recharger la campagne pour mettre à jour les tickets disponibles
           await loadCampaign();
@@ -1171,27 +1191,78 @@ const BuyTicketsPage = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`font-bold ${
-                        wallet && wallet.balance >= finalPrice * exchangeRate
-                          ? 'text-green-500'
-                          : 'text-red-500'
-                      }`}>
-                        {wallet ? formatCurrencyCDF(wallet.balance) : '0 FC'}
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {formatCurrencyCDF(wallet?.balance || 0)} &bull; ${((wallet?.balance_usd || 0)).toFixed(2)}
                       </p>
-                      {wallet && wallet.balance < finalPrice * exchangeRate && (
-                        <Link 
-                          to="/wallet"
-                          className="text-xs text-blue-500 hover:underline"
-                        >
-                          Recharger
-                        </Link>
-                      )}
                     </div>
                   </div>
-                  {wallet && wallet.balance < finalPrice * exchangeRate && (
-                    <p className="mt-2 text-sm text-red-500">
-                      Solde insuffisant (manque {formatCurrencyCDF(finalPrice * exchangeRate - wallet.balance)})
-                    </p>
+                  
+                  {/* Currency selection for wallet payment */}
+                  {paymentMethod === 'wallet' && (
+                    <div className="mt-4 pt-4 border-t border-gray-600/30" onClick={(e) => e.stopPropagation()}>
+                      <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Payer avec
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setWalletCurrency('CDF')}
+                          className={`py-3 px-4 rounded-xl font-semibold transition-all flex flex-col items-center gap-1 ${
+                            walletCurrency === 'CDF'
+                              ? isDarkMode
+                                ? 'bg-green-600 text-white border-2 border-green-500'
+                                : 'bg-green-500 text-white border-2 border-green-600'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:border-gray-500'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <span className="text-lg font-bold">FC</span>
+                          <span className={`text-xs ${walletCurrency === 'CDF' ? 'text-white/80' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Solde: {formatCurrencyCDF(wallet?.balance || 0)}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWalletCurrency('USD')}
+                          className={`py-3 px-4 rounded-xl font-semibold transition-all flex flex-col items-center gap-1 ${
+                            walletCurrency === 'USD'
+                              ? isDarkMode
+                                ? 'bg-blue-600 text-white border-2 border-blue-500'
+                                : 'bg-blue-500 text-white border-2 border-blue-600'
+                              : isDarkMode
+                                ? 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:border-gray-500'
+                                : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          <span className="text-lg font-bold">$</span>
+                          <span className={`text-xs ${walletCurrency === 'USD' ? 'text-white/80' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Solde: ${((wallet?.balance_usd || 0)).toFixed(2)}
+                          </span>
+                        </button>
+                      </div>
+                      <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        À payer: {walletCurrency === 'USD' 
+                          ? `$${finalPrice.toFixed(2)}`
+                          : `${Math.ceil(finalPrice * exchangeRate).toLocaleString('fr-FR')} FC`
+                        }
+                      </p>
+                      {(() => {
+                        const bal = walletCurrency === 'USD' ? (wallet?.balance_usd || 0) : (wallet?.balance || 0);
+                        const req = walletCurrency === 'USD' ? finalPrice : Math.ceil(finalPrice * exchangeRate);
+                        if (bal < req) {
+                          return (
+                            <div className="mt-2 flex items-center justify-between">
+                              <p className="text-sm text-red-500">
+                                Solde insuffisant
+                              </p>
+                              <Link to="/wallet" className="text-xs text-blue-500 hover:underline">Recharger</Link>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   )}
                 </div>
 
@@ -1311,7 +1382,7 @@ const BuyTicketsPage = () => {
                   availableTickets === 0 ||
                   ticketCount < 1 ||
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate)) ||
+                  (paymentMethod === 'wallet' && (!wallet || (walletCurrency === 'USD' ? (wallet.balance_usd || 0) < finalPrice : wallet.balance < Math.ceil(finalPrice * exchangeRate)))) ||
                   (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9))
                 }
                 className={`w-full font-bold py-4 px-6 rounded-xl transition-all text-lg ${
@@ -1319,7 +1390,7 @@ const BuyTicketsPage = () => {
                   availableTickets === 0 ||
                   ticketCount < 1 ||
                   (selectionMode === 'manual' && selectedNumbers.length !== ticketCount) ||
-                  (paymentMethod === 'wallet' && (!wallet || wallet.balance < finalPrice * exchangeRate)) ||
+                  (paymentMethod === 'wallet' && (!wallet || (walletCurrency === 'USD' ? (wallet.balance_usd || 0) < finalPrice : wallet.balance < Math.ceil(finalPrice * exchangeRate)))) ||
                   (paymentMethod === 'mobile_money' && (!phoneNumber || phoneNumber.length < 9))
                     ? 'bg-gray-500 cursor-not-allowed opacity-60' 
                     : paymentMethod === 'wallet'
@@ -1333,7 +1404,9 @@ const BuyTicketsPage = () => {
                     {paymentMethod === 'wallet' ? 'Achat en cours...' : 'Redirection...'}
                   </span>
                 ) : paymentMethod === 'wallet' ? (
-                  `Payer avec mon portefeuille`
+                  walletCurrency === 'USD'
+                    ? `Payer $${finalPrice.toLocaleString('en-US')} avec mon portefeuille`
+                    : `Payer ${Math.ceil(finalPrice * exchangeRate).toLocaleString('fr-FR')} FC avec mon portefeuille`
                 ) : (
                   selectedCurrency === 'CDF'
                     ? `Payer ${(finalPrice * exchangeRate).toLocaleString('fr-FR')} FC via Mobile Money`

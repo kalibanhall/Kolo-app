@@ -30,8 +30,8 @@ router.get('/me', verifyToken, async (req, res) => {
     if (walletResult.rows.length === 0) {
       // Create wallet for user
       walletResult = await query(
-        `INSERT INTO wallets (user_id, balance, currency) 
-         VALUES ($1, 0, 'CDF') 
+        `INSERT INTO wallets (user_id, balance, balance_usd, currency) 
+         VALUES ($1, 0, 0, 'CDF') 
          RETURNING *`,
         [userId]
       );
@@ -45,7 +45,7 @@ router.get('/me', verifyToken, async (req, res) => {
         SELECT wt.id, wt.type, wt.amount, wt.balance_before, wt.balance_after,
                wt.reference, wt.status, wt.description, wt.created_at,
                'wallet' as source, NULL as campaign_title, NULL as ticket_count,
-               '${wallet.currency || 'CDF'}' as currency
+               COALESCE(wt.currency, 'CDF') as currency
         FROM wallet_transactions wt
         WHERE wt.wallet_id = $1
         UNION ALL
@@ -95,6 +95,7 @@ router.get('/me', verifyToken, async (req, res) => {
         wallet: {
           id: wallet.id,
           balance: parseFloat(wallet.balance),
+          balance_usd: parseFloat(wallet.balance_usd || 0),
           currency: wallet.currency,
           is_active: wallet.is_active
         },
@@ -336,8 +337,8 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
 
     if (walletResult.rows.length === 0) {
       walletResult = await query(
-        `INSERT INTO wallets (user_id, balance, currency) 
-         VALUES ($1, 0, 'CDF') 
+        `INSERT INTO wallets (user_id, balance, balance_usd, currency) 
+         VALUES ($1, 0, 0, 'CDF') 
          RETURNING *`,
         [userId]
       );
@@ -346,12 +347,15 @@ router.post('/deposit/paydrc', verifyToken, paymentLimiter, [
     const wallet = walletResult.rows[0];
     const reference = `WDEP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-    // Create pending transaction
+    // Store balance_before for the correct currency
+    const balanceBefore = currency === 'USD' ? parseFloat(wallet.balance_usd || 0) : parseFloat(wallet.balance);
+
+    // Create pending transaction with currency
     await query(
       `INSERT INTO wallet_transactions 
-       (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
-       VALUES ($1, 'deposit', $2, $3, $3, $4, 'pending', 'Rechargement PayDRC en attente')`,
-      [wallet.id, amount, wallet.balance, reference]
+       (wallet_id, type, amount, balance_before, balance_after, reference, status, description, currency)
+       VALUES ($1, 'deposit', $2, $3, $3, $4, 'pending', 'Rechargement PayDRC en attente', $5)`,
+      [wallet.id, amount, balanceBefore, reference, currency]
     );
 
     // Normalize phone and detect provider
@@ -480,8 +484,22 @@ router.get('/deposit/status/:reference', verifyToken, async (req, res) => {
       // If status changed, update in DB and credit wallet if completed
       if (newStatus !== tx.status) {
         if (newStatus === 'completed') {
-          // Credit the wallet
-          const newBalance = parseFloat(tx.balance_before) + parseFloat(tx.amount);
+          // Credit the correct wallet balance based on transaction currency
+          const txCurrency = tx.currency || 'CDF';
+          const balanceColumn = txCurrency === 'USD' ? 'balance_usd' : 'balance';
+          const currencyLabel = txCurrency === 'USD' ? '$' : ' FC';
+          
+          await query(
+            `UPDATE wallets SET ${balanceColumn} = ${balanceColumn} + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [parseFloat(tx.amount), tx.wallet_id]
+          );
+          
+          // Get updated balance
+          const updatedWallet = await query('SELECT balance, balance_usd FROM wallets WHERE id = $1', [tx.wallet_id]);
+          const newBalance = txCurrency === 'USD' 
+            ? parseFloat(updatedWallet.rows[0].balance_usd) 
+            : parseFloat(updatedWallet.rows[0].balance);
+          
           await query(
             `UPDATE wallet_transactions 
              SET status = 'completed', balance_after = $1, 
@@ -490,27 +508,26 @@ router.get('/deposit/status/:reference', verifyToken, async (req, res) => {
              WHERE id = $2`,
             [newBalance, tx.id]
           );
-          await query(
-            'UPDATE wallets SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-            [parseFloat(tx.amount), tx.wallet_id]
-          );
           
           // Create notification
           try {
+            const amountStr = txCurrency === 'USD' 
+              ? `$${parseFloat(tx.amount).toFixed(2)}` 
+              : `${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`;
             await query(
               `INSERT INTO notifications (user_id, type, title, message, data)
                VALUES ($1, 'wallet_deposit', '💰 Rechargement réussi', $2, $3)`,
               [
                 userId,
-                `Votre portefeuille a été rechargé de ${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`,
-                JSON.stringify({ amount: parseFloat(tx.amount), reference })
+                `Votre portefeuille a été rechargé de ${amountStr}`,
+                JSON.stringify({ amount: parseFloat(tx.amount), currency: txCurrency, reference })
               ]
             );
           } catch (notifErr) {
             console.error('Notification error:', notifErr);
           }
           
-          console.log(`✅ Wallet credited via status check: ${parseFloat(tx.amount)} FC for ${reference}`);
+          console.log(`✅ Wallet credited via status check: ${parseFloat(tx.amount)} ${txCurrency} for ${reference}`);
           
           return res.json({
             success: true,
@@ -677,16 +694,21 @@ router.post('/paydrc/callback', async (req, res) => {
     const isFailed = normalizedStatus === 'failed' || transStatus === 'Failed';
 
     if (isSuccess) {
-      // Credit wallet
+      // Credit the correct wallet balance based on transaction currency
+      const txCurrency = tx.currency || 'CDF';
+      const balanceColumn = txCurrency === 'USD' ? 'balance_usd' : 'balance';
+      
       const walletResult = await query(
         `UPDATE wallets 
-         SET balance = balance + $1, updated_at = NOW()
+         SET ${balanceColumn} = ${balanceColumn} + $1, updated_at = NOW()
          WHERE id = $2
-         RETURNING balance`,
+         RETURNING balance, balance_usd`,
         [tx.amount, tx.wallet_id]
       );
 
-      const newBalance = walletResult.rows[0].balance;
+      const newBalance = txCurrency === 'USD' 
+        ? parseFloat(walletResult.rows[0].balance_usd) 
+        : parseFloat(walletResult.rows[0].balance);
 
       // Update transaction
       await query(
@@ -699,17 +721,20 @@ router.post('/paydrc/callback', async (req, res) => {
       );
 
       // Create notification
+      const amountStr = txCurrency === 'USD' 
+        ? `$${parseFloat(tx.amount).toFixed(2)}` 
+        : `${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`;
       await query(
         `INSERT INTO notifications (user_id, type, title, message, data)
          VALUES ($1, 'wallet_deposit', 'Rechargement réussi !', $2, $3)`,
         [
           tx.user_id,
-          `Votre portefeuille a été crédité de ${parseFloat(tx.amount).toLocaleString('fr-FR')} FC`,
-          JSON.stringify({ reference, amount: tx.amount, new_balance: newBalance })
+          `Votre portefeuille a été crédité de ${amountStr}`,
+          JSON.stringify({ reference, amount: tx.amount, currency: txCurrency, new_balance: newBalance })
         ]
       );
 
-      console.log(`✅ Wallet deposit completed: ${reference}, amount: ${tx.amount}`);
+      console.log(`✅ Wallet deposit completed: ${reference}, amount: ${tx.amount} ${txCurrency}`);
     } else if (isFailed) {
       await query(
         `UPDATE wallet_transactions 
@@ -761,16 +786,21 @@ router.post('/callback', async (req, res) => {
     const tx = txResult.rows[0];
 
     if (status === 'success' || status === 'completed') {
-      // Credit wallet
+      // Credit the correct wallet balance based on transaction currency
+      const txCurrency = tx.currency || 'CDF';
+      const balanceColumn = txCurrency === 'USD' ? 'balance_usd' : 'balance';
+      
       const walletResult = await query(
         `UPDATE wallets 
-         SET balance = balance + $1, updated_at = NOW()
+         SET ${balanceColumn} = ${balanceColumn} + $1, updated_at = NOW()
          WHERE id = $2
-         RETURNING balance`,
+         RETURNING balance, balance_usd`,
         [tx.amount, tx.wallet_id]
       );
 
-      const newBalance = walletResult.rows[0].balance;
+      const newBalance = txCurrency === 'USD' 
+        ? parseFloat(walletResult.rows[0].balance_usd) 
+        : parseFloat(walletResult.rows[0].balance);
 
       // Update transaction
       await query(
@@ -813,7 +843,8 @@ router.post('/purchase', verifyToken, [
   body('selection_mode').optional().isString(),
   body('amount').optional().isNumeric(),
   body('promo_code_id').optional(),
-  body('discount_amount').optional().isNumeric()
+  body('discount_amount').optional().isNumeric(),
+  body('wallet_currency').optional().isIn(['USD', 'CDF']).withMessage('Devise invalide')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -827,7 +858,7 @@ router.post('/purchase', verifyToken, [
     }
 
     const userId = req.user.id;
-    const { campaign_id, ticket_count, selection_mode, selected_numbers, promo_code_id, discount_amount } = req.body;
+    const { campaign_id, ticket_count, selection_mode, selected_numbers, promo_code_id, discount_amount, wallet_currency } = req.body;\n\n    // Devise choisie par l'utilisateur pour payer (par défaut CDF)\n    const paymentCurrency = wallet_currency || 'CDF';
 
     // Get wallet
     const walletResult = await query(
@@ -933,15 +964,31 @@ router.post('/purchase', verifyToken, [
     const totalAmountUSD = ticketPriceUSD * ticket_count - promoDiscountUSD;
     const totalAmountCDF = Math.ceil(totalAmountUSD * exchangeRate);
 
-    // Check wallet balance (in CDF)
-    if (parseFloat(wallet.balance) < totalAmountCDF) {
+    // Determine debit amount and check balance based on chosen currency
+    let debitAmount, currentBalance, balanceColumn;
+    if (paymentCurrency === 'USD') {
+      debitAmount = totalAmountUSD;
+      currentBalance = parseFloat(wallet.balance_usd || 0);
+      balanceColumn = 'balance_usd';
+    } else {
+      debitAmount = totalAmountCDF;
+      currentBalance = parseFloat(wallet.balance);
+      balanceColumn = 'balance';
+    }
+
+    // Check wallet balance
+    if (currentBalance < debitAmount) {
+      const currencyLabel = paymentCurrency === 'USD' ? '$' : ' FC';
       return res.status(400).json({
         success: false,
         message: 'Solde insuffisant',
         data: {
-          balance: parseFloat(wallet.balance),
-          required: totalAmountCDF,
-          missing: totalAmountCDF - parseFloat(wallet.balance)
+          balance: currentBalance,
+          balance_usd: parseFloat(wallet.balance_usd || 0),
+          balance_cdf: parseFloat(wallet.balance),
+          required: debitAmount,
+          missing: debitAmount - currentBalance,
+          currency: paymentCurrency
         }
       });
     }
@@ -956,30 +1003,31 @@ router.post('/purchase', verifyToken, [
     try {
       await client.query('BEGIN');
 
-      // Debit wallet (in CDF)
-      const newBalance = parseFloat(wallet.balance) - totalAmountCDF;
+      // Debit wallet (in chosen currency)
+      const newBalance = currentBalance - debitAmount;
       await client.query(
-        `UPDATE wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+        `UPDATE wallets SET ${balanceColumn} = $1, updated_at = NOW() WHERE id = $2`,
         [newBalance, wallet.id]
       );
 
-      // Record wallet transaction (in CDF)
+      // Record wallet transaction
       await client.query(
         `INSERT INTO wallet_transactions 
-         (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
-         VALUES ($1, 'purchase', $2, $3, $4, $5, 'completed', $6)`,
-        [wallet.id, totalAmountCDF, wallet.balance, newBalance, reference, 
-         `Achat de ${ticket_count} ticket(s) - ${totalAmountUSD.toFixed(2)}$${validatedPromo ? ` (promo ${validatedPromo.code})` : ''}`]
+         (wallet_id, type, amount, balance_before, balance_after, reference, status, description, currency)
+         VALUES ($1, 'purchase', $2, $3, $4, $5, 'completed', $6, $7)`,
+        [wallet.id, debitAmount, currentBalance, newBalance, reference, 
+         `Achat de ${ticket_count} ticket(s) - ${totalAmountUSD.toFixed(2)}$${validatedPromo ? ` (promo ${validatedPromo.code})` : ''}`,
+         paymentCurrency]
       );
 
       // Create purchase record (store USD amount for reporting)
         const purchaseResult = await client.query(
           `INSERT INTO purchases 
-           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider, promo_code_id, discount_amount)
-           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet', $6, $7)
+           (user_id, campaign_id, ticket_count, total_amount, payment_status, transaction_id, payment_provider, promo_code_id, discount_amount, currency)
+           VALUES ($1, $2, $3, $4, 'completed', $5, 'wallet', $6, $7, $8)
            RETURNING *`,
           [userId, campaign_id, ticket_count, totalAmountUSD, purchaseTransactionId, 
-           validatedPromo ? validatedPromo.id : null, promoDiscountUSD]
+           validatedPromo ? validatedPromo.id : null, promoDiscountUSD, paymentCurrency]
         );
 
       const purchase = purchaseResult.rows[0];
@@ -1137,8 +1185,11 @@ router.post('/purchase', verifyToken, [
           })),
           amount_paid_cdf: totalAmountCDF,
           amount_paid_usd: totalAmountUSD,
+          payment_currency: paymentCurrency,
           discount_applied: promoDiscountUSD,
-          new_balance: newBalance
+          new_balance: newBalance,
+          new_balance_cdf: paymentCurrency === 'CDF' ? newBalance : parseFloat(wallet.balance),
+          new_balance_usd: paymentCurrency === 'USD' ? newBalance : parseFloat(wallet.balance_usd || 0)
         }
       });
 
@@ -1163,7 +1214,8 @@ router.post('/admin/credit', verifyToken, verifyAdmin, [
   body('user_id').isInt({ min: 1 }),
   body('amount').isFloat({ min: 1 }),
   body('type').isIn(['bonus', 'refund']),
-  body('description').optional().isString()
+  body('description').optional().isString(),
+  body('currency').optional().isIn(['USD', 'CDF'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1175,7 +1227,8 @@ router.post('/admin/credit', verifyToken, verifyAdmin, [
       });
     }
 
-    const { user_id, amount, type, description } = req.body;
+    const { user_id, amount, type, description, currency: creditCurrency } = req.body;
+    const cur = creditCurrency || 'CDF';
 
     // Get wallet
     let walletResult = await query(
@@ -1185,29 +1238,31 @@ router.post('/admin/credit', verifyToken, verifyAdmin, [
 
     if (walletResult.rows.length === 0) {
       walletResult = await query(
-        `INSERT INTO wallets (user_id, balance, currency) 
-         VALUES ($1, 0, 'CDF') 
+        `INSERT INTO wallets (user_id, balance, balance_usd, currency) 
+         VALUES ($1, 0, 0, 'CDF') 
          RETURNING *`,
         [user_id]
       );
     }
 
     const wallet = walletResult.rows[0];
-    const newBalance = parseFloat(wallet.balance) + amount;
+    const balanceColumn = cur === 'USD' ? 'balance_usd' : 'balance';
+    const currentBalance = cur === 'USD' ? parseFloat(wallet.balance_usd || 0) : parseFloat(wallet.balance);
+    const newBalance = currentBalance + amount;
     const reference = generateWalletReference();
 
     // Credit wallet
     await query(
-      `UPDATE wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+      `UPDATE wallets SET ${balanceColumn} = $1, updated_at = NOW() WHERE id = $2`,
       [newBalance, wallet.id]
     );
 
     // Record transaction
     await query(
       `INSERT INTO wallet_transactions 
-       (wallet_id, type, amount, balance_before, balance_after, reference, status, description)
-       VALUES ($1, $2, $3, $4, $5, $6, 'completed', $7)`,
-      [wallet.id, type, amount, wallet.balance, newBalance, reference, description || `${type} par admin`]
+       (wallet_id, type, amount, balance_before, balance_after, reference, status, description, currency)
+       VALUES ($1, $2, $3, $4, $5, $6, 'completed', $7, $8)`,
+      [wallet.id, type, amount, currentBalance, newBalance, reference, description || `${type} par admin`, cur]
     );
 
     res.json({
@@ -1216,7 +1271,10 @@ router.post('/admin/credit', verifyToken, verifyAdmin, [
       data: {
         user_id,
         amount_credited: amount,
-        new_balance: newBalance
+        currency: cur,
+        new_balance: newBalance,
+        new_balance_cdf: cur === 'CDF' ? newBalance : parseFloat(wallet.balance),
+        new_balance_usd: cur === 'USD' ? newBalance : parseFloat(wallet.balance_usd || 0)
       }
     });
 
@@ -1245,7 +1303,7 @@ router.post('/simulate-deposit', verifyToken, [
 
     // Find pending transaction
     const txResult = await query(
-      `SELECT wt.*, w.balance as current_balance
+      `SELECT wt.*, w.balance as current_balance, w.balance_usd as current_balance_usd
        FROM wallet_transactions wt
        JOIN wallets w ON wt.wallet_id = w.id
        WHERE wt.reference = $1 AND wt.status = 'pending'`,
@@ -1260,11 +1318,14 @@ router.post('/simulate-deposit', verifyToken, [
     }
 
     const tx = txResult.rows[0];
-    const newBalance = parseFloat(tx.current_balance) + parseFloat(tx.amount);
+    const txCurrency = tx.currency || 'CDF';
+    const balanceColumn = txCurrency === 'USD' ? 'balance_usd' : 'balance';
+    const currentBal = txCurrency === 'USD' ? parseFloat(tx.current_balance_usd || 0) : parseFloat(tx.current_balance);
+    const newBalance = currentBal + parseFloat(tx.amount);
 
     // Credit wallet
     await query(
-      `UPDATE wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+      `UPDATE wallets SET ${balanceColumn} = $1, updated_at = NOW() WHERE id = $2`,
       [newBalance, tx.wallet_id]
     );
 

@@ -359,9 +359,24 @@ const WalletPage = () => {
               <MoneyIcon className="w-8 h-8 text-white/80" />
               <p className="text-white/80 text-lg">Solde disponible</p>
             </div>
-            <p className="text-5xl sm:text-6xl font-bold text-white mb-6">
-              {formatCurrency(wallet?.balance || 0)}
-            </p>
+            
+            {/* Dual currency balances */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mb-6">
+              <div className="text-center">
+                <p className="text-white/60 text-sm mb-1">Francs Congolais</p>
+                <p className="text-4xl sm:text-5xl font-bold text-white">
+                  {formatCurrency(wallet?.balance || 0)}
+                </p>
+              </div>
+              <div className={`hidden sm:block w-px h-16 bg-white/30`}></div>
+              <div className={`sm:hidden w-32 h-px bg-white/30`}></div>
+              <div className="text-center">
+                <p className="text-white/60 text-sm mb-1">Dollars US</p>
+                <p className="text-4xl sm:text-5xl font-bold text-white">
+                  ${((wallet?.balance_usd || 0)).toFixed(2)}
+                </p>
+              </div>
+            </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
