@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { ticketsAPI, campaignsAPI, walletAPI, paymentsAPI, promosAPI } from '../services/api';
 import { TicketIcon, TrophyIcon, SearchIcon, WarningIcon, CheckIcon, TrashIcon, MoneyIcon } from '../components/Icons';
+import ImageSlider from '../components/ImageSlider';
 import { useFormPersistence } from '../hooks/useFormPersistence';
 import { LogoKolo } from '../components/LogoKolo';
 
@@ -593,65 +594,29 @@ const BuyTicketsPage = () => {
             ? 'bg-gray-800/50 border border-gray-700' 
             : 'bg-white shadow-xl'
         }`}>
-          {/* Image de la campagne */}
+          {/* Image de la campagne (swipeable) */}
           <div className="relative h-48 sm:h-64 overflow-hidden">
-            {/* Image carousel de la campagne */}
-          {(() => {
-            const allImages = allPrizeImages;
-            
-            if (allImages.length === 0) {
-              return (
-                <div className={`w-full h-full flex items-center justify-center ${
-                  isDarkMode 
-                    ? 'bg-gradient-to-br from-indigo-900 to-purple-900' 
-                    : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-                }`}>
-                  <TicketIcon className="w-20 h-20 text-white/30" />
-                </div>
-              );
-            }
-            
-            return (
-              <>
-                <img 
-                  src={allImages[currentImageIndex] || allImages[0]} 
-                  alt={campaign.title}
-                  className="w-full h-full object-cover transition-opacity duration-300"
-                />
-                {allImages.length > 1 && (
-                  <>
-                    <button 
-                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === 0 ? allImages.length - 1 : i - 1); }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 z-10 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button 
-                      onClick={(e) => { e.preventDefault(); setCurrentImageIndex(i => i === allImages.length - 1 ? 0 : i + 1); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 z-10 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                      {allImages.map((_, idx) => (
-                        <button 
-                          key={idx}
-                          onClick={(e) => { e.preventDefault(); setCurrentImageIndex(idx); }}
-                          className={`w-2 h-2 rounded-full transition-all ${
-                            idx === currentImageIndex ? 'bg-white w-4' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </>
-            );
-          })()}
+          {allPrizeImages.length === 0 ? (
+            <div className={`w-full h-full flex items-center justify-center ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-indigo-900 to-purple-900' 
+                : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+            }`}>
+              <TicketIcon className="w-20 h-20 text-white/30" />
+            </div>
+          ) : (
+            <ImageSlider
+              images={allPrizeImages}
+              currentIndex={currentImageIndex}
+              onIndexChange={setCurrentImageIndex}
+              alt={campaign.title}
+              className="h-48 sm:h-64"
+              showArrows={true}
+              showDots={true}
+              dotsPosition="bottom"
+              isDarkMode={isDarkMode}
+            />
+          )}
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             

@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { LogoKolo } from '../components/LogoKolo';
 import { TicketIcon, TrophyIcon } from '../components/Icons';
+import ImageSlider from '../components/ImageSlider';
 
 export const CampaignDetailPage = () => {
   const { id } = useParams();
@@ -240,73 +241,22 @@ export const CampaignDetailPage = () => {
           </div>
         </div>
 
-        {/* Image Section - Prize Images Carousel */}
-        {(() => {
-          const allImages = allCampaignImages;
-          
-          if (allImages.length === 0) return null;
-          
-          return (
-            <div className={`relative rounded-2xl overflow-hidden mb-8 ${
-              isDarkMode ? 'border border-gray-700' : 'shadow-xl'
-            }`}>
-              {/* Current Image */}
-              <div className="relative">
-                <img
-                  src={allImages[currentImageIndex] || allImages[0]}
-                  alt={`${campaign.title} - Photo ${currentImageIndex + 1}`}
-                  className="w-full h-64 sm:h-80 md:h-96 object-cover object-center transition-opacity duration-300"
-                />
-                
-                {/* Navigation Arrows */}
-                {allImages.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setCurrentImageIndex(prev => (prev - 1 + allImages.length) % allImages.length)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setCurrentImageIndex(prev => (prev + 1) % allImages.length)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-
-                {/* Image Counter */}
-                {allImages.length > 1 && (
-                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {currentImageIndex + 1} / {allImages.length}
-                  </div>
-                )}
-              </div>
-
-              {/* Dots Indicator */}
-              {allImages.length > 1 && (
-                <div className={`flex justify-center gap-2 py-3 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                  {allImages.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`h-2 rounded-full transition-all ${
-                        index === currentImageIndex
-                          ? `w-6 ${isDarkMode ? 'bg-cyan-400' : 'bg-blue-600'}`
-                          : `w-2 ${isDarkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-300 hover:bg-gray-400'}`
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {/* Image Section - Prize Images Carousel (swipeable) */}
+        {allCampaignImages.length > 0 && (
+          <ImageSlider
+            images={allCampaignImages}
+            currentIndex={currentImageIndex}
+            onIndexChange={setCurrentImageIndex}
+            alt={campaign.title}
+            className="h-64 sm:h-80 md:h-96"
+            containerClassName={`rounded-2xl overflow-hidden mb-8 ${isDarkMode ? 'border border-gray-700' : 'shadow-xl'}`}
+            showArrows={true}
+            showDots={true}
+            showCounter={true}
+            dotsPosition="below"
+            isDarkMode={isDarkMode}
+          />
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4 mb-8">

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { campaignsAPI } from '../services/api';
 import { Navbar } from '../components/Navbar';
 import { TrophyIcon, TicketIcon, UsersIcon, TargetIcon } from '../components/Icons';
+import ImageSlider from '../components/ImageSlider';
 import Footer from '../components/Footer';
 
 export const HomePage = () => {
@@ -136,64 +137,31 @@ export const HomePage = () => {
 
               {/* Campaign Card */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700 transition-all duration-500">
-                {/* Hero Image Section - Prize Images Carousel */}
+                {/* Hero Image Section - Prize Images Carousel (swipeable) */}
                 {(() => {
                   const allImages = allCampaignImages;
 
                   return (
                     <div className="relative h-44 sm:h-60 md:h-72 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">
                       {allImages.length > 0 ? (
-                        <>
-                          <Link to={`/campaigns/${currentCampaign.id}`} className="block w-full h-full group cursor-pointer">
-                            <img
-                              src={allImages[currentImageIndex % allImages.length] || allImages[0]}
-                              alt={`${currentCampaign.title} - Photo ${(currentImageIndex % allImages.length) + 1}`}
-                              className="w-full h-full object-cover object-center opacity-90 group-hover:scale-105 transition-transform duration-500"
-                            />
-                            {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
-                                Voir les détails →
-                              </span>
-                            </div>
-                          </Link>
-
-                          {/* Navigation arrows for prize images */}
-                          {allImages.length > 1 && (
-                            <>
-                              <button
-                                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(prev => (prev - 1 + allImages.length) % allImages.length); }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={(e) => { e.preventDefault(); setCurrentImageIndex(prev => (prev + 1) % allImages.length); }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                              {/* Dots */}
-                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                                {allImages.map((_, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={(e) => { e.preventDefault(); setCurrentImageIndex(idx); }}
-                                    className={`h-1.5 rounded-full transition-all ${
-                                      idx === (currentImageIndex % allImages.length)
-                                        ? 'w-5 bg-white'
-                                        : 'w-1.5 bg-white/50 hover:bg-white/70'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </>
+                        <ImageSlider
+                          images={allImages}
+                          currentIndex={currentImageIndex % allImages.length}
+                          onIndexChange={setCurrentImageIndex}
+                          alt={currentCampaign.title}
+                          className="h-44 sm:h-60 md:h-72 opacity-90"
+                          showArrows={true}
+                          showDots={true}
+                          dotsPosition="bottom"
+                          linkWrapper={<Link to={`/campaigns/${currentCampaign.id}`} className="group cursor-pointer" />}
+                        >
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
+                              Voir les détails →
+                            </span>
+                          </div>
+                        </ImageSlider>
                       ) : (
                         <Link to={`/campaigns/${currentCampaign.id}`} className="absolute inset-0 flex items-center justify-center group cursor-pointer">
                           <div className="text-center text-white">
