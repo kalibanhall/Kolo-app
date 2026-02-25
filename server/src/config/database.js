@@ -2,11 +2,10 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 // PostgreSQL connection pool
+const isLocalDB = (process.env.DATABASE_URL || '').includes('localhost') || (process.env.DATABASE_URL || '').includes('127.0.0.1');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  },
+  ssl: isLocalDB ? false : { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
 });
 
