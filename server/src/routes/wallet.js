@@ -1085,25 +1085,39 @@ router.post('/purchase', verifyToken, [
           }
         }
       } else {
-        // Mode automatique: Generate unique ticket numbers in range 1 to total_tickets
-        for (let num = 1; num <= totalTickets && tickets.length < ticket_count; num++) {
+        // Mode automatique: Collect available numbers then shuffle randomly (Fisher-Yates)
+        const availableNumbers = [];
+        for (let num = 1; num <= totalTickets; num++) {
           const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
-          
           if (!existingNumbers.has(ticketNumber)) {
-            const ticketResult = await client.query(
-              `INSERT INTO tickets 
-               (user_id, campaign_id, purchase_id, ticket_number, status)
-               VALUES ($1, $2, $3, $4, 'active')
-               ON CONFLICT (ticket_number, campaign_id) DO NOTHING
-               RETURNING *`,
-              [userId, campaign_id, purchase.id, ticketNumber]
-            );
-            
-            if (ticketResult.rows.length > 0) {
-              tickets.push(ticketResult.rows[0]);
-              existingNumbers.add(ticketNumber);
-              console.log(`✅ Created ticket ${ticketNumber}`);
-            }
+            availableNumbers.push({ num, ticketNumber });
+          }
+        }
+        
+        // Fisher-Yates shuffle for true random selection
+        for (let i = availableNumbers.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [availableNumbers[i], availableNumbers[j]] = [availableNumbers[j], availableNumbers[i]];
+        }
+        
+        const numbersToAssign = availableNumbers.slice(0, ticket_count);
+        console.log(`🎲 Random wallet selection: ${numbersToAssign.map(n => n.ticketNumber).join(', ')}`);
+        
+        for (const { ticketNumber } of numbersToAssign) {
+          if (tickets.length >= ticket_count) break;
+          const ticketResult = await client.query(
+            `INSERT INTO tickets 
+             (user_id, campaign_id, purchase_id, ticket_number, status)
+             VALUES ($1, $2, $3, $4, 'active')
+             ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+             RETURNING *`,
+            [userId, campaign_id, purchase.id, ticketNumber]
+          );
+          
+          if (ticketResult.rows.length > 0) {
+            tickets.push(ticketResult.rows[0]);
+            existingNumbers.add(ticketNumber);
+            console.log(`✅ Created ticket ${ticketNumber}`);
           }
         }
       }

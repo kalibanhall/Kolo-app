@@ -196,26 +196,34 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       [userId]
     );
 
-    // Get actual spending from purchases (currency-aware)
+    // Get actual total spending from purchases (total_amount is always in USD)
     const spendingResult = await query(
       `SELECT 
-        COALESCE(currency, 'USD') as currency,
-        COALESCE(SUM(total_amount), 0) as total_spent,
+        COALESCE(SUM(total_amount), 0) as total_spent_usd,
         COUNT(*) as purchase_count
        FROM purchases 
-       WHERE user_id = $1 AND payment_status = 'completed'
-       GROUP BY COALESCE(currency, 'USD')`,
+       WHERE user_id = $1 AND payment_status = 'completed'`,
       [userId]
     );
 
-    const spendingByurrency = {};
-    spendingResult.rows.forEach(row => {
-      spendingByurrency[row.currency] = parseFloat(row.total_spent) || 0;
-    });
+    const totalSpentUSD = parseFloat(spendingResult.rows[0]?.total_spent_usd) || 0;
+
+    // Get exchange rate for CDF display
+    let exchangeRate = 2850;
+    try {
+      const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
+      if (rateResult.rows.length > 0) {
+        exchangeRate = parseFloat(rateResult.rows[0].value);
+      }
+    } catch (rateError) {
+      console.log('Using default exchange rate:', exchangeRate);
+    }
+
+    const totalSpentCDF = Math.ceil(totalSpentUSD * exchangeRate);
 
     const stats = statsResult.rows[0] || {};
 
-    console.log(`[DEBUG] GET /tickets/user/${userId} - Found ${result.rows.length} tickets`);
+    console.log(`[DEBUG] GET /tickets/user/${userId} - Found ${result.rows.length} tickets, total spent: $${totalSpentUSD} / ${totalSpentCDF} FC`);
     
     res.json({
       success: true,
@@ -225,9 +233,9 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
         campaigns_count: parseInt(stats.campaigns_count) || 0,
         active_tickets: parseInt(stats.active_tickets) || 0,
         winning_tickets: parseInt(stats.winning_tickets) || 0,
-        total_spent_usd: spendingByurrency['USD'] || parseFloat(stats.total_spent_usd) || 0,
-        total_spent_cdf: spendingByurrency['CDF'] || 0,
-        spending_by_currency: spendingByurrency
+        total_spent_usd: totalSpentUSD,
+        total_spent_cdf: totalSpentCDF,
+        exchange_rate: exchangeRate
       },
       pagination: {
         limit,

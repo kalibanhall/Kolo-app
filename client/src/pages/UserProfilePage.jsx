@@ -320,7 +320,7 @@ const UserProfilePage = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total Tickets', value: stats.totalTickets, icon: TicketIcon, color: 'blue' },
-            { label: 'Total Dépensé', value: stats.totalSpentCDF > 0 ? `${new Intl.NumberFormat('fr-FR').format(stats.totalSpentCDF)} FC` : formatCurrencyUSD(stats.totalSpentUSD), icon: MoneyIcon, color: 'green' },
+            { label: 'Total Dépensé', value: `${formatCurrencyUSD(stats.totalSpentUSD)} / ${new Intl.NumberFormat('fr-FR').format(stats.totalSpentCDF)} FC`, icon: MoneyIcon, color: 'green' },
             { label: 'Campagnes', value: stats.campaignsEntered, icon: ChartIcon, color: 'purple' },
             { label: 'Tickets Actifs', value: stats.activeTickets, icon: TrophyIcon, color: 'amber' },
           ].map((stat, index) => (
@@ -338,7 +338,7 @@ const UserProfilePage = () => {
                 stat.color === 'purple' ? (isDarkMode ? 'text-purple-400' : 'text-purple-500') :
                 (isDarkMode ? 'text-amber-400' : 'text-amber-500')
               }`} />
-              <p className={`text-2xl font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <p className={`${stat.label === 'Total Dépensé' ? 'text-base' : 'text-2xl'} font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {stat.value}
               </p>
               <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
