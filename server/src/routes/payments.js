@@ -64,28 +64,59 @@ async function generateTicketsForPurchase(purchaseId) {
     );
     const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
     
-    console.log(`🎫 Campaign ${purchase.campaign_id} (prefix: K${ticketPrefix}) - Generating ${purchase.ticket_count} ticket(s)`);
+    console.log(`🎫 Campaign ${purchase.campaign_id} (prefix: K${ticketPrefix}) - Generating ${purchase.ticket_count} ticket(s), mode: ${purchase.selection_mode || 'automatic'}`);
     
-    // Generate unique ticket numbers in range 1 to total_tickets
-    const tickets = [];
-    for (let num = 1; num <= totalTickets && tickets.length < purchase.ticket_count; num++) {
+    // Build list of available ticket numbers
+    const availableNumbers = [];
+    for (let num = 1; num <= totalTickets; num++) {
       const ticketNumber = `K${ticketPrefix}-${String(num).padStart(padLength, '0')}`;
-      
       if (!existingNumbers.has(ticketNumber)) {
-        const ticketResult = await client.query(
-          `INSERT INTO tickets (
-            ticket_number, campaign_id, user_id, purchase_id, status
-          ) VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (ticket_number, campaign_id) DO NOTHING
-          RETURNING *`,
-          [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
-        );
-        
-        if (ticketResult.rows.length > 0) {
-          tickets.push(ticketResult.rows[0]);
-          existingNumbers.add(ticketNumber);
-          console.log(`✅ Created ticket ${ticketNumber}`);
-        }
+        availableNumbers.push({ num, ticketNumber });
+      }
+    }
+    
+    // Determine which numbers to use based on selection mode
+    let numbersToAssign;
+    const selectionMode = purchase.selection_mode || 'automatic';
+    let selectedNumbers = [];
+    try {
+      selectedNumbers = typeof purchase.selected_numbers === 'string' 
+        ? JSON.parse(purchase.selected_numbers) 
+        : (purchase.selected_numbers || []);
+    } catch (e) { selectedNumbers = []; }
+    
+    if (selectionMode === 'manual' && selectedNumbers.length > 0) {
+      // Manual mode: use the numbers the user selected
+      numbersToAssign = availableNumbers.filter(a => selectedNumbers.includes(a.num));
+      console.log(`🖐️ Manual selection: ${selectedNumbers.join(', ')}`);
+    } else {
+      // Automatic mode: shuffle available numbers randomly (Fisher-Yates)
+      const shuffled = [...availableNumbers];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      numbersToAssign = shuffled.slice(0, purchase.ticket_count);
+      console.log(`🎲 Random selection: ${numbersToAssign.map(n => n.ticketNumber).join(', ')}`);
+    }
+    
+    // Insert tickets
+    const tickets = [];
+    for (const { ticketNumber } of numbersToAssign) {
+      if (tickets.length >= purchase.ticket_count) break;
+      const ticketResult = await client.query(
+        `INSERT INTO tickets (
+          ticket_number, campaign_id, user_id, purchase_id, status
+        ) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+        RETURNING *`,
+        [ticketNumber, purchase.campaign_id, purchase.user_id, purchase.id, 'active']
+      );
+      
+      if (ticketResult.rows.length > 0) {
+        tickets.push(ticketResult.rows[0]);
+        existingNumbers.add(ticketNumber);
+        console.log(`✅ Created ticket ${ticketNumber}`);
       }
     }
     

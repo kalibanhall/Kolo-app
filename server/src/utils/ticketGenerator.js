@@ -62,40 +62,48 @@ async function generateTickets(client, campaignId, userId, purchaseId, ticketCou
   );
   reservedResult.rows.forEach(r => existingNumbers.add(r.ticket_number));
 
-  const tickets = [];
-  let attempts = 0;
-  const maxAttempts = campaign.total_tickets; // Limité au nombre total de tickets
-
-  // Générer les numéros de tickets uniquement dans la plage valide (1 à total_tickets)
-  for (let currentNumber = 1; currentNumber <= campaign.total_tickets && tickets.length < ticketCount; currentNumber++) {
+  // Collect all available ticket numbers
+  const availableNumbers = [];
+  for (let currentNumber = 1; currentNumber <= campaign.total_tickets; currentNumber++) {
     const ticketNumber = `K${ticketPrefix}-${String(currentNumber).padStart(padLength, '0')}`;
-    
     if (!existingNumbers.has(ticketNumber)) {
-      try {
-        const ticketResult = await client.query(
-          `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
-           VALUES ($1, $2, $3, $4, 'active')
-           ON CONFLICT (ticket_number, campaign_id) DO NOTHING
-           RETURNING *`,
-          [ticketNumber, campaignId, userId, purchaseId]
-        );
+      availableNumbers.push({ num: currentNumber, ticketNumber });
+    }
+  }
 
-        if (ticketResult.rows.length > 0) {
-          tickets.push(ticketResult.rows[0]);
-          existingNumbers.add(ticketNumber);
-          console.log(`✅ Created ticket ${ticketNumber} for user ${userId}`);
-        }
-      } catch (err) {
-        // If duplicate key error, just continue to next number
-        if (err.code === '23505') {
-          console.log(`⚠️ Ticket ${ticketNumber} already exists, trying next`);
-        } else {
-          throw err;
-        }
+  // Shuffle available numbers randomly (Fisher-Yates) for fair random selection
+  for (let i = availableNumbers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availableNumbers[i], availableNumbers[j]] = [availableNumbers[j], availableNumbers[i]];
+  }
+
+  // Take the first ticketCount numbers from the shuffled list
+  const numbersToAssign = availableNumbers.slice(0, ticketCount);
+  console.log(`🎲 Random selection: ${numbersToAssign.map(n => n.ticketNumber).join(', ')}`);
+
+  const tickets = [];
+  for (const { ticketNumber } of numbersToAssign) {
+    try {
+      const ticketResult = await client.query(
+        `INSERT INTO tickets (ticket_number, campaign_id, user_id, purchase_id, status)
+         VALUES ($1, $2, $3, $4, 'active')
+         ON CONFLICT (ticket_number, campaign_id) DO NOTHING
+         RETURNING *`,
+        [ticketNumber, campaignId, userId, purchaseId]
+      );
+
+      if (ticketResult.rows.length > 0) {
+        tickets.push(ticketResult.rows[0]);
+        existingNumbers.add(ticketNumber);
+        console.log(`✅ Created ticket ${ticketNumber} for user ${userId}`);
+      }
+    } catch (err) {
+      if (err.code === '23505') {
+        console.log(`⚠️ Ticket ${ticketNumber} already exists, trying next`);
+      } else {
+        throw err;
       }
     }
-    
-    attempts++;
   }
 
   if (tickets.length < ticketCount) {
