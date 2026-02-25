@@ -1054,10 +1054,10 @@ router.post('/purchase', verifyToken, [
       );
       const existingNumbers = new Set(existingResult.rows.map(r => r.ticket_number));
       
-      console.log(`🎫 Wallet purchase - Campaign ${campaign_id} (prefix: K${ticketPrefix}) - Generating ${ticket_count} ticket(s)`);
+      console.log(`🎫 Wallet purchase - Campaign ${campaign_id} (prefix: K${ticketPrefix}) - Generating ${ticket_count} ticket(s), mode: ${selection_mode || 'automatic'}`);
       
-      // Si mode manuel avec des numéros sélectionnés
-      if (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0) {
+      // Si des numéros ont été sélectionnés (mode manuel OU mode automatique avec pré-sélection)
+      if (selected_numbers && selected_numbers.length > 0) {
         // Vérifier que les numéros sélectionnés sont disponibles
         for (const numObj of selected_numbers) {
           const num = typeof numObj === 'object' ? numObj.number : numObj;

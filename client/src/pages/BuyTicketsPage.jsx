@@ -41,6 +41,7 @@ const BuyTicketsPage = () => {
   const [walletCurrency, setWalletCurrency] = useState('CDF'); // 'USD' or 'CDF' for wallet payment
   const [selectionMode, setSelectionMode] = useState('automatic'); // 'automatic' or 'manual'
   const [selectedNumbers, setSelectedNumbers] = useState([]);
+  const [autoSelectedNumbers, setAutoSelectedNumbers] = useState([]);
   const [availableNumbers, setAvailableNumbers] = useState([]);
   const [numberSearchTerm, setNumberSearchTerm] = useState('');
   const [numbersPage, setNumbersPage] = useState(1);
@@ -68,10 +69,25 @@ const BuyTicketsPage = () => {
   // Ajuster selectedNumbers quand ticketCount change (si en mode manuel)
   useEffect(() => {
     if (selectionMode === 'manual' && selectedNumbers.length > ticketCount) {
-      // Réduire les numéros sélectionnés pour correspondre au nouveau ticketCount
       setSelectedNumbers(prev => prev.slice(0, ticketCount));
     }
   }, [ticketCount, selectionMode]);
+
+  // Réinitialiser la sélection automatique quand ticketCount ou mode change
+  useEffect(() => {
+    setAutoSelectedNumbers([]);
+  }, [ticketCount, selectionMode]);
+
+  // Générer une sélection aléatoire depuis les numéros disponibles
+  const generateRandomSelection = useCallback(() => {
+    if (!availableNumbers || availableNumbers.length === 0 || ticketCount < 1) return;
+    const shuffled = [...availableNumbers];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    setAutoSelectedNumbers(shuffled.slice(0, ticketCount));
+  }, [availableNumbers, ticketCount]);
   
   // Recalculer / invalider le code promo quand le nombre de tickets change
   useEffect(() => {
@@ -369,6 +385,11 @@ const BuyTicketsPage = () => {
       return;
     }
 
+    if (selectionMode === 'automatic' && autoSelectedNumbers.length !== ticketCount) {
+      setError('Veuillez d\'abord générer vos numéros aléatoires en cliquant sur le bouton');
+      return;
+    }
+
     // Validation du numéro de téléphone uniquement pour Mobile Money
     if (paymentMethod === 'mobile_money') {
       if (!phoneNumber || phoneNumber.length < 9) {
@@ -396,11 +417,16 @@ const BuyTicketsPage = () => {
     try {
       setPurchasing(true);
       
+      // En mode automatique, envoyer les numéros pré-générés
+      const numbersToSend = selectionMode === 'manual' 
+        ? selectedNumbers 
+        : autoSelectedNumbers;
+
       const purchasePayload = {
         campaign_id: campaign.id,
         ticket_count: ticketCount,
         selection_mode: selectionMode,
-        selected_numbers: selectionMode === 'manual' ? selectedNumbers : [],
+        selected_numbers: numbersToSend,
         amount: finalPrice,
         amount_cdf: Math.ceil(finalPrice * exchangeRate),
         currency: 'USD'
@@ -452,6 +478,7 @@ const BuyTicketsPage = () => {
           // Réinitialiser le formulaire
           setTicketCount(1);
           setSelectedNumbers([]);
+          setAutoSelectedNumbers([]);
           setNumbersPage(1);
           
           // Show success message with ticket numbers
@@ -481,7 +508,7 @@ const BuyTicketsPage = () => {
           promo_code_id: promoDiscount?.id || null,
           discount_amount: promoDiscount?.discount_amount || 0,
           selection_mode: selectionMode,
-          selected_numbers: selectionMode === 'manual' ? selectedNumbers : []
+          selected_numbers: selectionMode === 'manual' ? selectedNumbers : autoSelectedNumbers
         });
         
         console.log('PayDRC response:', response);
@@ -1013,24 +1040,61 @@ const BuyTicketsPage = () => {
                 </div>
               )}
 
-              {/* Info pour mode automatique */}
+              {/* Sélection automatique des numéros */}
               {selectionMode === 'automatic' && (
                 <div className={`rounded-xl p-4 ${
                   isDarkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'
                 }`}>
-                  <div className="flex items-start gap-3">
-                    <svg className={`w-6 h-6 flex-shrink-0 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <div className="flex justify-between items-center mb-3">
+                    <label className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Vos numéros aléatoires
+                    </label>
+                    <span className={`text-sm font-bold ${
+                      autoSelectedNumbers.length === ticketCount 
+                        ? 'text-green-500' 
+                        : isDarkMode ? 'text-orange-400' : 'text-orange-600'
+                    }`}>
+                      {autoSelectedNumbers.length} / {ticketCount}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={generateRandomSelection}
+                    disabled={loadingNumbers || availableNumbers.length === 0}
+                    className={`w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                      isDarkMode
+                        ? 'bg-cyan-600 hover:bg-cyan-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-200 disabled:text-gray-400'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    <div>
-                      <h4 className={`font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                        Mode automatique sélectionné
-                      </h4>
-                      <p className={`text-sm mt-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
-                        Vos {ticketCount} numéro(s) seront attribués automatiquement après validation du paiement.
+                    {autoSelectedNumbers.length > 0 ? 'Regénérer d\'autres numéros' : `Générer ${ticketCount} numéro(s) aléatoire(s)`}
+                  </button>
+
+                  {autoSelectedNumbers.length > 0 && (
+                    <div className="mt-3">
+                      <div className="flex flex-wrap gap-2">
+                        {autoSelectedNumbers.map((num, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-3 py-1.5 rounded-full text-sm font-bold ${
+                              isDarkMode
+                                ? 'bg-cyan-900/50 text-cyan-300 border border-cyan-700'
+                                : 'bg-blue-100 text-blue-800 border border-blue-300'
+                            }`}
+                          >
+                            {typeof num === 'object' ? num.display : `#${num}`}
+                          </span>
+                        ))}
+                      </div>
+                      <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Pas satisfait ? Cliquez à nouveau pour générer d'autres numéros.
                       </p>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 

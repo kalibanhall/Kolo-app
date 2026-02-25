@@ -85,10 +85,10 @@ async function generateTicketsForPurchase(purchaseId) {
         : (purchase.selected_numbers || []);
     } catch (e) { selectedNumbers = []; }
     
-    if (selectionMode === 'manual' && selectedNumbers.length > 0) {
-      // Manual mode: use the numbers the user selected
+    if (selectedNumbers.length > 0) {
+      // Use pre-selected numbers (manual or automatic pre-selection)
       numbersToAssign = availableNumbers.filter(a => selectedNumbers.includes(a.num));
-      console.log(`🖐️ Manual selection: ${selectedNumbers.join(', ')}`);
+      console.log(`🎫 Pre-selected numbers: ${selectedNumbers.join(', ')}`);
     } else {
       // Automatic mode: shuffle available numbers randomly (Fisher-Yates)
       const shuffled = [...availableNumbers];
@@ -993,8 +993,8 @@ router.post(
         });
       }
 
-      // IMPORTANT: Check if selected numbers are still available (for manual selection mode)
-      if (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0) {
+      // IMPORTANT: Check if selected numbers are still available
+      if (selected_numbers && selected_numbers.length > 0) {
         // Get campaign prefix for ticket number format
         const prefixResult = await query(
           'SELECT ticket_prefix FROM campaigns WHERE id = $1',
@@ -1126,7 +1126,7 @@ router.post(
       let purchaseResult;
       
       // Prepare selected_numbers for storage (convert to JSON array of strings)
-      const selectedNumbersJson = (selection_mode === 'manual' && selected_numbers && selected_numbers.length > 0)
+      const selectedNumbersJson = (selected_numbers && selected_numbers.length > 0)
         ? JSON.stringify(selected_numbers.map(n => typeof n === 'object' ? n.number : n))
         : null;
       
