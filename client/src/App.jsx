@@ -1,14 +1,12 @@
-﻿import React, { useState, useEffect, lazy, Suspense } from 'react';
+﻿import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationsProvider } from './context/NotificationsContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
-import { SplashScreen } from './components/SplashScreen';
 import { ScrollToTop } from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
-import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Critical pages loaded immediately
 import { LoginPage } from './pages/LoginPage';
@@ -47,36 +45,6 @@ const AdminValidationsPage = lazy(() => import('./pages/AdminValidationsPage'));
 const InfluencerDashboard = lazy(() => import('./pages/InfluencerDashboard'));
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [appReady, setAppReady] = useState(false);
-
-  useEffect(() => {
-    // Vérifier si c'est la première visite
-    const hasVisited = sessionStorage.getItem('hasVisited');
-    
-    if (hasVisited) {
-      // Si déjà visité dans cette session, pas de splash
-      setShowSplash(false);
-      setAppReady(true);
-    } else {
-      // Première visite, montrer le splash
-      sessionStorage.setItem('hasVisited', 'true');
-    }
-  }, []);
-
-  const handleSplashFinish = () => {
-    setShowSplash(false);
-    setAppReady(true);
-  };
-
-  if (showSplash) {
-    return <SplashScreen onFinish={handleSplashFinish} />;
-  }
-
-  if (!appReady) {
-    return null;
-  }
-
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -85,8 +53,8 @@ function App() {
         <AuthProvider>
           <NotificationsProvider>
             <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-                <LoadingSpinner />
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
               </div>
             }>
             <Routes>
