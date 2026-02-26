@@ -216,7 +216,14 @@ const AdminInfluencersPage = () => {
     if (!promoForm.code || !selectedInfluencer) return;
     try {
       setActionLoading(true);
-      await adminAPI.assignPromoToInfluencer(selectedInfluencer.id, promoForm);
+      const assignData = {
+        code: promoForm.code,
+        discount_percent: promoForm.discount_value,
+        commission_rate: promoForm.commission_rate,
+        max_uses: promoForm.max_uses,
+        expires_at: promoForm.expires_at || null
+      };
+      await adminAPI.assignPromoToInfluencer(selectedInfluencer.id, assignData);
       setMessage({ type: 'success', text: `Code promo "${promoForm.code}" assigné à ${selectedInfluencer.name}` });
       setShowPromoModal(false);
       setSelectedInfluencer(null);

@@ -3351,14 +3351,19 @@ router.get('/influencers', requireAdminLevel(1), async (req, res) => {
               (SELECT json_agg(json_build_object(
                 'id', pc.id, 'code', pc.code, 'discount_value', pc.discount_value,
                 'discount_type', pc.discount_type, 'commission_rate', COALESCE(pc.commission_rate, 0),
-                'is_active', pc.is_active, 'current_uses', COALESCE(pc.current_uses, 0)
+                'is_active', pc.is_active, 'current_uses', COALESCE(pc.current_uses, 0),
+                'max_uses', pc.max_uses,
+                'total_discount', COALESCE((SELECT SUM(pcu2.discount_applied) FROM promo_code_usage pcu2 WHERE pcu2.promo_code_id = pc.id), 0)
               )) FROM promo_codes pc WHERE pc.influencer_id = u.id) as promo_codes,
               (SELECT COUNT(*) FROM promo_code_usage pcu
                JOIN promo_codes pc2 ON pcu.promo_code_id = pc2.id
                WHERE pc2.influencer_id = u.id) as total_code_uses,
               (SELECT COALESCE(SUM(pcu.discount_applied), 0) FROM promo_code_usage pcu
                JOIN promo_codes pc3 ON pcu.promo_code_id = pc3.id
-               WHERE pc3.influencer_id = u.id) as total_discount_given
+               WHERE pc3.influencer_id = u.id) as total_discount_given,
+              (SELECT COUNT(DISTINCT pcu.user_id) FROM promo_code_usage pcu
+               JOIN promo_codes pc4 ON pcu.promo_code_id = pc4.id
+               WHERE pc4.influencer_id = u.id) as total_unique_users
        FROM users u
        WHERE u.is_influencer = TRUE
        ORDER BY u.created_at DESC`
@@ -3369,8 +3374,17 @@ router.get('/influencers', requireAdminLevel(1), async (req, res) => {
       influencers: result.rows.map(i => ({
         ...i,
         total_code_uses: parseInt(i.total_code_uses) || 0,
+        total_usage: parseInt(i.total_code_uses) || 0,
         total_discount_given: parseFloat(i.total_discount_given) || 0,
-        promo_codes: i.promo_codes || []
+        total_unique_users: parseInt(i.total_unique_users) || 0,
+        promo_codes: (i.promo_codes || []).map(pc => ({
+          ...pc,
+          current_uses: parseInt(pc.current_uses) || 0,
+          max_uses: pc.max_uses ? parseInt(pc.max_uses) : null,
+          discount_value: parseFloat(pc.discount_value) || 0,
+          commission_rate: parseFloat(pc.commission_rate) || 0,
+          total_discount: parseFloat(pc.total_discount) || 0
+        }))
       }))
     });
   } catch (error) {
