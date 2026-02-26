@@ -141,9 +141,14 @@ export const AdminManagementPage = () => {
       setMessage({ type: 'error', text: 'Tous les champs sont obligatoires' });
       return;
     }
+    if (createForm.phone.length !== 9) {
+      setMessage({ type: 'error', text: 'Le numéro de téléphone doit contenir exactement 9 chiffres' });
+      return;
+    }
     try {
       setActionLoading(true);
-      const response = await adminAPI.createAdmin(createForm);
+      const dataToSend = { ...createForm, phone: `+243${createForm.phone}` };
+      const response = await adminAPI.createAdmin(dataToSend);
       setMessage({ type: 'success', text: response.message });
       setShowCreateModal(false);
       setCreateForm({ name: '', email: '', password: '', phone: '', admin_level: 1 });
@@ -478,13 +483,21 @@ export const AdminManagementPage = () => {
                 <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Téléphone
                 </label>
-                <input
-                  type="tel"
-                  value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  placeholder="+243 ..."
-                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
-                />
+                <div className="flex">
+                  <span className={`inline-flex items-center px-3 rounded-l-lg border border-r-0 text-sm ${isDarkMode ? 'bg-gray-600 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>+243</span>
+                  <input
+                    type="tel"
+                    value={createForm.phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      setCreateForm({ ...createForm, phone: val });
+                    }}
+                    maxLength="9"
+                    placeholder="812345678"
+                    className={`w-full px-3 py-2 rounded-r-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                  />
+                </div>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>9 chiffres après +243</p>
               </div>
 
               <div>

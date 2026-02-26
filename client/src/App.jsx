@@ -214,7 +214,7 @@ function App() {
             path="/admin/promos"
             element={
               <ProtectedRoute adminOnly={true}>
-                <AdminPromosPage />
+                <AdminInfluencersPage />
               </ProtectedRoute>
             }
           />
