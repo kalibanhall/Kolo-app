@@ -619,17 +619,17 @@ const AdminInfluencersPage = () => {
       {/* ══════ MODAL: Créer / Modifier ════════════════════════ */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className={`w-full max-w-md max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`px-5 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {editingPromo ? 'Modifier le Code Promo' : 'Nouveau Promo Influenceur'}
               </h3>
-              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {editingPromo ? 'Modifier les paramètres du code promo' : 'Créer un code promo, avec ou sans compte influenceur'}
               </p>
             </div>
 
-            <div className="px-6 py-4 space-y-4">
+            <div className="px-5 py-3 space-y-3">
               {/* Toggle: avec ou sans compte */}
               {!editingPromo && (
                 <div className="flex gap-2">
@@ -756,14 +756,14 @@ const AdminInfluencersPage = () => {
               </div>
             </div>
 
-            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <button onClick={closeCreateModal} className={`px-4 py-2 rounded-lg font-medium ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <div className={`px-5 py-3 border-t flex justify-end gap-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button onClick={closeCreateModal} className={`px-4 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                 Annuler
               </button>
               <button
                 onClick={editingPromo ? handleUpdatePromo : handleCreate}
                 disabled={actionLoading || !createForm.promo_code || (withAccount ? (!createForm.name || !createForm.email || !createForm.password) : (!editingPromo && !createForm.influencer_name))}
-                className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {actionLoading ? (
                   <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> {editingPromo ? 'Mise à jour...' : 'Création...'}</>

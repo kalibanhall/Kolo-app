@@ -165,8 +165,8 @@ const InfluencerDashboard = () => {
     }
   };
 
-  // Check if payout button should be active (5th of month)
-  const isPayoutDay = new Date().getDate() === 5;
+  // Payout day restriction disabled for testing
+  const isPayoutDay = true;
   const commissionBalance = profile?.commission_balance || 0;
 
   if (loading) {
@@ -337,19 +337,15 @@ const InfluencerDashboard = () => {
             </div>
             <button
               onClick={() => {
-                if (!isPayoutDay) {
-                  setGlobalMessage({ type: 'error', text: 'Les demandes de versement ne sont autorisees que le 5 de chaque mois.' });
-                  return;
-                }
                 if (commissionBalance <= 0) {
                   setGlobalMessage({ type: 'error', text: 'Solde insuffisant pour effectuer un versement.' });
                   return;
                 }
                 setShowPayoutModal(true);
               }}
-              disabled={!isPayoutDay || commissionBalance <= 0}
+              disabled={commissionBalance <= 0}
               className={`w-full mt-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                isPayoutDay && commissionBalance > 0
+                commissionBalance > 0
                   ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
@@ -357,7 +353,7 @@ const InfluencerDashboard = () => {
               Demande de versement
             </button>
             <p className={`text-[10px] mt-1.5 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-              {isPayoutDay ? "Disponible aujourd'hui" : 'Disponible le 5 du mois'}
+              {commissionBalance > 0 ? 'Cliquez pour demander' : 'Solde insuffisant'}
             </p>
           </div>
         </div>
