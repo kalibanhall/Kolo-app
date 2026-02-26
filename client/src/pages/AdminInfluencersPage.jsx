@@ -325,16 +325,14 @@ const AdminInfluencersPage = () => {
   };
 
   // ─── Stats ────────────────────────────────────────────────────
-  const totalActivePromos = promos.filter(p => p.is_active).length +
-    influencers.reduce((acc, inf) => acc + (inf.promo_codes?.filter(p => p.is_active)?.length || 0), 0);
-  const totalUsage = promos.reduce((acc, p) => acc + (p.used_count || 0), 0) +
-    influencers.reduce((acc, inf) => acc + (inf.total_usage || 0), 0);
+  // Standalone promos (not linked to an influencer account) — compute first to avoid double-counting
+  const linkedCodes = influencers.flatMap(inf => inf.promo_codes?.map(c => c.code) || []);
+  const standalonePromos = promos.filter(p => !linkedCodes.includes(p.code));
 
-  // Standalone promos (not linked to an influencer account)
-  const standalonePromos = promos.filter(p => {
-    const linkedCodes = influencers.flatMap(inf => inf.promo_codes?.map(c => c.code) || []);
-    return !linkedCodes.includes(p.code);
-  });
+  const totalActivePromos = standalonePromos.filter(p => p.is_active).length +
+    influencers.reduce((acc, inf) => acc + (inf.promo_codes?.filter(p => p.is_active)?.length || 0), 0);
+  const totalUsage = standalonePromos.reduce((acc, p) => acc + (p.used_count || 0), 0) +
+    influencers.reduce((acc, inf) => acc + (inf.total_usage || 0), 0);
 
   return (
     <AdminLayout>
@@ -358,8 +356,12 @@ const AdminInfluencersPage = () => {
             </p>
           </div>
           <button
-            onClick={() => { setShowCreateModal(true); setEditingPromo(null); }}
-            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
+            onClick={() => {
+              setShowCreateModal(true);
+              setEditingPromo(null);
+              setCreateForm({ ...initialForm, promo_code: generatePromoCode() });
+            }}
+            className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -376,7 +378,12 @@ const AdminInfluencersPage = () => {
           </div>
           <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow`}>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Codes Promo</p>
-            <p className="text-2xl font-bold mt-1 text-blue-500">{standalonePromos.length}</p>
+            <p className="text-2xl font-bold mt-1 text-blue-500">
+              {standalonePromos.length + influencers.reduce((acc, inf) => acc + (inf.promo_codes?.length || 0), 0)}
+            </p>
+            <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              {standalonePromos.length} indép. · {influencers.reduce((acc, inf) => acc + (inf.promo_codes?.length || 0), 0)} liés
+            </p>
           </div>
           <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow`}>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Promos Actifs</p>
@@ -625,23 +632,25 @@ const AdminInfluencersPage = () => {
             <div className="px-6 py-4 space-y-4">
               {/* Toggle: avec ou sans compte */}
               {!editingPromo && (
-                <div className={`p-3 rounded-lg border ${withAccount ? (isDarkMode ? 'border-purple-500 bg-purple-900/20' : 'border-purple-300 bg-purple-50') : (isDarkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50')}`}>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={withAccount}
-                      onChange={(e) => setWithAccount(e.target.checked)}
-                      className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                    />
-                    <div>
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Créer un compte influenceur
-                      </span>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        L'influenceur aura accès à un tableau de bord avec ses stats
-                      </p>
-                    </div>
-                  </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setWithAccount(false)}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${!withAccount
+                      ? (isDarkMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-500 text-white shadow-lg')
+                      : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-650' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')
+                    }`}
+                  >
+                    Code Promo seul
+                  </button>
+                  <button
+                    onClick={() => setWithAccount(true)}
+                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${withAccount
+                      ? (isDarkMode ? 'bg-purple-600 text-white shadow-lg' : 'bg-purple-500 text-white shadow-lg')
+                      : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-650' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')
+                    }`}
+                  >
+                    + Compte Influenceur
+                  </button>
                 </div>
               )}
 
@@ -664,6 +673,9 @@ const AdminInfluencersPage = () => {
               {/* Account fields */}
               {withAccount && !editingPromo && (
                 <>
+                  <div className={`p-3 rounded-lg text-xs ${isDarkMode ? 'bg-purple-900/20 text-purple-300 border border-purple-700' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
+                    L'influenceur recevra un compte avec accès à son tableau de bord (stats, commissions, versements)
+                  </div>
                   <div>
                     <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nom complet *</label>
                     <input type="text" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Nom de l'influenceur"

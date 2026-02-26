@@ -1163,9 +1163,9 @@ router.post('/validations/:id/approve', async (req, res) => {
       const salt = await bcrypt.genSalt(12);
       const passwordHash = await bcrypt.hash(p.password, salt);
 
-      // Generate influencer_uid
-      const countResult = await query('SELECT COUNT(*) as cnt FROM users WHERE is_influencer = TRUE');
-      const nextSeq = parseInt(countResult.rows[0].cnt) + 1;
+      // Generate influencer_uid using MAX to avoid collisions with deleted users
+      const maxResult = await query(`SELECT MAX(CAST(SUBSTRING(influencer_uid FROM 5) AS INTEGER)) as max_seq FROM users WHERE influencer_uid IS NOT NULL AND influencer_uid LIKE 'INF-%'`);
+      const nextSeq = (parseInt(maxResult.rows[0].max_seq) || 0) + 1;
       const influencerUid = 'INF-' + String(nextSeq).padStart(3, '0');
 
       const influencerResult = await query(
@@ -3292,9 +3292,9 @@ router.post('/influencers/create', requireAdminLevel(1), [
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Generate influencer_uid
-    const countResult = await query('SELECT COUNT(*) as cnt FROM users WHERE is_influencer = TRUE');
-    const nextSeq = parseInt(countResult.rows[0].cnt) + 1;
+    // Generate influencer_uid using MAX to avoid collisions with deleted users
+    const maxResult = await query(`SELECT MAX(CAST(SUBSTRING(influencer_uid FROM 5) AS INTEGER)) as max_seq FROM users WHERE influencer_uid IS NOT NULL AND influencer_uid LIKE 'INF-%'`);
+    const nextSeq = (parseInt(maxResult.rows[0].max_seq) || 0) + 1;
     const influencerUid = 'INF-' + String(nextSeq).padStart(3, '0');
 
     const result = await query(
@@ -3678,8 +3678,8 @@ router.get('/influencer-payouts', requireAdminLevel(1), async (req, res) => {
   }
 });
 
-// Approve or reject payout
-router.post('/influencer-payouts/:payoutId/validate', requireAdminLevel(2), async (req, res) => {
+// Approve or reject payout (L3 Full Admin required)
+router.post('/influencer-payouts/:payoutId/validate', requireAdminLevel(3), async (req, res) => {
   try {
     const { payoutId } = req.params;
     const { action, rejection_reason } = req.body; // action: 'approve' or 'reject'

@@ -482,14 +482,14 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
       return res.status(400).json({ success: false, message: 'ID Influenceur invalide' });
     }
 
-    // Check if today is the 5th of the month
-    const today = new Date();
-    if (today.getDate() !== 5) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Les demandes de versement ne sont autorisées que le 5 de chaque mois' 
-      });
-    }
+    // Date restriction disabled for testing
+    // const today = new Date();
+    // if (today.getDate() !== 5) {
+    //   return res.status(400).json({ 
+    //     success: false, 
+    //     message: 'Les demandes de versement ne sont autorisées que le 5 de chaque mois' 
+    //   });
+    // }
 
     // Check for existing pending payout this month
     const existingPayout = await query(
