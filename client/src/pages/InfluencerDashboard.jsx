@@ -428,7 +428,7 @@ const InfluencerDashboard = () => {
                         <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{promo.unique_users || 0}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission ({promo.commission_rate || 0}%)</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission (${promo.commission_rate || 0} / utilisation)</p>
                         <p className="text-lg font-bold text-purple-500">${parseFloat(promo.commission_earned || 0).toFixed(2)}</p>
                         <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatFC(promo.commission_earned || 0)}</p>
                       </div>

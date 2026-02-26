@@ -129,14 +129,15 @@ const AdminInfluencersPage = () => {
     }
   };
 
-  // Edit promo
+  // Edit promo (standalone or influencer-linked)
   const handleEditPromo = (promo) => {
     setEditingPromo(promo);
     setCreateForm({
       ...initialForm,
       influencer_name: promo.influencer_name || '',
       promo_code: promo.code,
-      discount_value: promo.discount_percent || 10,
+      discount_value: promo.discount_value || promo.discount_percent || 10,
+      commission_rate: promo.commission_rate || 0,
       max_uses: promo.max_uses || 100,
       expires_at: promo.expires_at ? promo.expires_at.split('T')[0] : ''
     });
@@ -144,18 +145,20 @@ const AdminInfluencersPage = () => {
   };
 
   const handleUpdatePromo = async () => {
-    if (!createForm.influencer_name.trim()) {
-      setMessage({ type: 'error', text: "Veuillez entrer le nom de l'influenceur" });
-      return;
-    }
     try {
       setActionLoading(true);
-      const response = await promosAPI.update(editingPromo.id, {
-        influencer_name: createForm.influencer_name,
-        discount_percent: createForm.discount_value,
+      const updateData = {
+        discount_value: createForm.discount_value,
+        discount_type: createForm.discount_type || 'percentage',
+        commission_rate: createForm.commission_rate,
         max_uses: createForm.max_uses,
         expires_at: createForm.expires_at || null
-      });
+      };
+      // Include influencer_name if it's a standalone promo
+      if (createForm.influencer_name) {
+        updateData.influencer_name = createForm.influencer_name;
+      }
+      const response = await promosAPI.update(editingPromo.id, updateData);
       if (response.pending_approval || response.data?.pending_approval) {
         setMessage({ type: 'success', text: response.message || 'Modification soumise pour validation' });
       } else {
@@ -461,15 +464,20 @@ const AdminInfluencersPage = () => {
                                 <div key={idx} className={`p-3 rounded-lg border ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
                                   <div className="flex justify-between items-start">
                                     <code className={`font-mono font-bold ${code.is_active ? 'text-green-500' : 'text-gray-400'}`}>{code.code}</code>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded ${code.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                      {code.is_active ? 'Actif' : 'Inactif'}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <button onClick={() => handleEditPromo(code)} className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-600 text-gray-400 hover:text-blue-400' : 'hover:bg-gray-200 text-gray-400 hover:text-blue-600'}`} title="Modifier">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                      </button>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${code.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {code.is_active ? 'Actif' : 'Inactif'}
+                                      </span>
+                                    </div>
                                   </div>
                                   <div className={`mt-2 text-xs space-y-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                     <p>Réduction: {code.discount_type === 'percentage' ? `${code.discount_value}%` : `${code.discount_value} USD`}</p>
-                                    <p>Commission: {code.commission_rate || 0}%</p>
+                                    <p>Commission: ${code.commission_rate || 0} / utilisation</p>
                                     <p>Utilisations: {code.current_uses || 0} / {code.max_uses || '∞'}</p>
-                                    {code.total_discount && <p>Total remises: ${parseFloat(code.total_discount).toFixed(2)}</p>}
+                                    <p className="font-semibold text-purple-500">Commission totale: ${((code.current_uses || 0) * (code.commission_rate || 0)).toFixed(2)}</p>
                                   </div>
                                 </div>
                               ))}
@@ -601,7 +609,7 @@ const AdminInfluencersPage = () => {
 
             <div className="px-5 py-3 space-y-3">
               {/* Nom influenceur (editing mode only) */}
-              {editingPromo && (
+              {editingPromo && !editingPromo.influencer_id && (
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Identité de l'influenceur *
@@ -682,9 +690,9 @@ const AdminInfluencersPage = () => {
                   <input type="number" min="1" max="100" value={createForm.discount_value} onChange={(e) => setCreateForm({ ...createForm, discount_value: parseInt(e.target.value) || 0 })}
                     className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`} />
                 </div>
-                {!editingPromo && (
+                {(
                   <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission (%)</label>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission ($ / utilisation)</label>
                     <input type="number" min="0" max="50" step="0.5" value={createForm.commission_rate} onChange={(e) => setCreateForm({ ...createForm, commission_rate: parseFloat(e.target.value) || 0 })}
                       className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`} />
                   </div>
@@ -708,7 +716,7 @@ const AdminInfluencersPage = () => {
               </button>
               <button
                 onClick={editingPromo ? handleUpdatePromo : handleCreate}
-                disabled={actionLoading || !createForm.promo_code || (!editingPromo && (!createForm.name || !createForm.email || !createForm.password)) || (editingPromo && !createForm.influencer_name)}
+                disabled={actionLoading || !createForm.promo_code || (!editingPromo && (!createForm.name || !createForm.email || !createForm.password))}
                 className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {actionLoading ? (

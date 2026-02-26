@@ -141,6 +141,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     );
 
     // Get monthly stats (last 6 months)
+    // Commission = COUNT(uses) × fixed commission_rate per code
     const monthlyResult = await query(
       `SELECT 
         TO_CHAR(pcu.used_at, 'YYYY-MM') as month,
@@ -151,11 +152,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
                ELSE p.total_amount END
         ), 0) as revenue,
-        COALESCE(SUM(
-          CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
-               ELSE p.total_amount END
-          * pc.commission_rate / 100
-        ), 0) as commission
+        COALESCE(SUM(pc.commission_rate), 0) as commission
        FROM promo_code_usage pcu
        LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
        JOIN promo_codes pc ON pcu.promo_code_id = pc.id
@@ -172,29 +169,20 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     let totalDiscountGiven = 0;
     let totalCommissionEarned = 0;
 
+    // Commission = number of uses × fixed commission rate per use
     promoCodes.forEach(pc => {
       const stats = usageMap[pc.id];
+      const uses = stats ? (parseInt(stats.total_uses) || 0) : (parseInt(pc.current_uses) || 0);
       if (stats) {
-        totalUses += parseInt(stats.total_uses) || 0;
+        totalUses += uses;
         totalUsers += parseInt(stats.unique_users) || 0;
         totalDiscountGiven += parseFloat(stats.total_discount) || 0;
-        // Commission = % of revenue generated through this code
-        const commRate = parseFloat(pc.commission_rate) || 0;
-        if (commRate > 0) {
-          // Commission based on discount applied (simple model)
-          totalCommissionEarned += (parseFloat(stats.total_discount) || 0) * (commRate / 100);
-        }
       }
+      const commRate = parseFloat(pc.commission_rate) || 0;
+      totalCommissionEarned += uses * commRate;
     });
 
-    // Calculate actual commission from revenue - PER promo code with its own rate
     const totalRevenueGenerated = parseFloat(revenue.total_revenue) || 0;
-    // Commission = sum of (revenue per code × that code's commission_rate)
-    totalCommissionEarned = promoCodes.reduce((sum, pc) => {
-      const pcRevenue = revenuePerCode[pc.id] || 0;
-      const commRate = parseFloat(pc.commission_rate) || 0;
-      return sum + (pcRevenue * commRate / 100);
-    }, 0);
 
     res.json({
       success: true,
@@ -212,20 +200,21 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         },
         exchange_rate: exchangeRate,
         promo_stats: promoCodes.map(pc => {
-          const pcRevenue = revenuePerCode[pc.id] || 0;
-          const commissionEarned = pcRevenue * (parseFloat(pc.commission_rate) || 0) / 100;
+          const uses = usageMap[pc.id] ? parseInt(usageMap[pc.id].total_uses) : parseInt(pc.current_uses) || 0;
+          const commRate = parseFloat(pc.commission_rate) || 0;
+          const commissionEarned = uses * commRate;
           return {
             code_id: pc.id,
             code: pc.code,
             discount_type: pc.discount_type,
             discount_value: parseFloat(pc.discount_value),
-            commission_rate: parseFloat(pc.commission_rate) || 0,
+            commission_rate: commRate,
             is_active: pc.is_active,
-            total_uses: usageMap[pc.id] ? parseInt(usageMap[pc.id].total_uses) : parseInt(pc.current_uses) || 0,
+            total_uses: uses,
             max_uses: pc.max_uses,
             unique_users: usageMap[pc.id] ? parseInt(usageMap[pc.id].unique_users) : 0,
             commission_earned: commissionEarned,
-            revenue: pcRevenue,
+            revenue: revenuePerCode[pc.id] || 0,
             created_at: pc.created_at,
             expires_at: pc.expires_at,
             usage_by_month: {}
@@ -261,9 +250,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
             amount: amountUsd,
             purchase_amount: amountUsd,
             currency: r.purchase_currency || 'USD',
-            commission_earned: amountUsd && r.commission_rate
-              ? amountUsd * (parseFloat(r.commission_rate) / 100)
-              : 0,
+            commission_earned: parseFloat(r.commission_rate) || 0,
             used_at: r.used_at
           };
         }),
@@ -415,18 +402,13 @@ router.get('/profile', verifyToken, verifyInfluencer, async (req, res) => {
     } catch (e) { /* fallback */ }
 
     // Get commission balance (total earned minus total paid out)
-    // Convert CDF amounts to USD before calculating commission
+    // Commission = number of uses × fixed commission_rate per promo code
     const commissionResult = await query(
-      `SELECT 
-         COALESCE(SUM(
-           CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
-                ELSE p.total_amount END
-           * pc.commission_rate / 100
-         ), 0) as total_earned
-       FROM purchases p
-       JOIN promo_codes pc ON p.promo_code_id = pc.id
-       WHERE pc.influencer_id = $1 AND p.payment_status = 'completed'`,
-      [req.user.id, exchangeRate]
+      `SELECT COALESCE(SUM(pc.commission_rate), 0) as total_earned
+       FROM promo_code_usage pcu
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       WHERE pc.influencer_id = $1`,
+      [req.user.id]
     );
 
     const paidOutResult = await query(
@@ -517,17 +499,13 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
       }
     } catch (e) { /* fallback */ }
 
-    // Calculate available balance (convert CDF to USD)
+    // Calculate available balance: commission = nb uses × fixed commission_rate
     const commResult = await query(
-      `SELECT COALESCE(SUM(
-         CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
-              ELSE p.total_amount END
-         * pc.commission_rate / 100
-       ), 0) as total_earned
-       FROM purchases p
-       JOIN promo_codes pc ON p.promo_code_id = pc.id
-       WHERE pc.influencer_id = $1 AND p.payment_status = 'completed'`,
-      [userId, payoutExchangeRate]
+      `SELECT COALESCE(SUM(pc.commission_rate), 0) as total_earned
+       FROM promo_code_usage pcu
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       WHERE pc.influencer_id = $1`,
+      [userId]
     );
 
     const paidResult = await query(

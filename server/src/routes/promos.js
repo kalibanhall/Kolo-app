@@ -296,7 +296,8 @@ router.put('/admin/:id', verifyToken, verifyAdmin, [
   body('max_discount').optional().isFloat({ min: 0 }),
   body('max_uses').optional().isInt({ min: 1 }),
   body('is_active').optional().isBoolean(),
-  body('expires_at').optional().isISO8601()
+  body('expires_at').optional().isISO8601(),
+  body('commission_rate').optional().isFloat({ min: 0, max: 10000 })
 ], async (req, res) => {
   try {
     const { id } = req.params;
@@ -312,7 +313,7 @@ router.put('/admin/:id', verifyToken, verifyAdmin, [
 
     const allowedFields = [
       'description', 'discount_type', 'discount_value', 'influencer_name',
-      'min_purchase', 'max_discount', 'max_uses', 'is_active', 'expires_at'
+      'min_purchase', 'max_discount', 'max_uses', 'is_active', 'expires_at', 'commission_rate'
     ];
 
     for (const field of allowedFields) {
