@@ -549,6 +549,11 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
     let amount = balance * (percentage / 100);
     amount = Math.round(amount * 100) / 100; // Round to 2 decimals
 
+    // Ensure amount is positive after rounding
+    if (amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Montant insuffisant pour effectuer un versement (solde trop faible)' });
+    }
+
     // If currency is CDF, get exchange rate and convert
     let finalAmount = amount;
     let finalCurrency = currency || 'USD';
@@ -563,6 +568,11 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
         }
       } catch (e) { /* fallback */ }
       finalAmount = Math.round(amount * exchangeRate);
+    }
+
+    // Final safety check
+    if (finalAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Montant insuffisant pour effectuer un versement' });
     }
 
     // Create payout request

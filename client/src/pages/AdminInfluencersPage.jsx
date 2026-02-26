@@ -31,7 +31,6 @@ const AdminInfluencersPage = () => {
 
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [withAccount, setWithAccount] = useState(false);
 
   // Assign promo modal
   const [showPromoModal, setShowPromoModal] = useState(false);
@@ -91,74 +90,42 @@ const AdminInfluencersPage = () => {
     loadData();
   }, [loadData]);
 
-  // ─── Create (unified) ────────────────────────────────────────
+  // ─── Create influencer with promo code ────────────────────────
   const handleCreate = async () => {
-    if (withAccount) {
-      if (!createForm.name || !createForm.email || !createForm.password) {
-        setMessage({ type: 'error', text: 'Nom, email et mot de passe sont requis' });
-        return;
+    if (!createForm.name || !createForm.email || !createForm.password) {
+      setMessage({ type: 'error', text: 'Nom, email et mot de passe sont requis' });
+      return;
+    }
+    if (!createForm.promo_code) {
+      setMessage({ type: 'error', text: 'Le code promo est requis' });
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const dataToSend = {
+        name: createForm.name,
+        email: createForm.email,
+        password: createForm.password,
+        phone: createForm.phone ? `+243${createForm.phone.replace(/^\+?243/, '')}` : '',
+        promo_code: createForm.promo_code,
+        discount_type: createForm.discount_type,
+        discount_value: createForm.discount_value,
+        commission_rate: createForm.commission_rate,
+        max_uses: createForm.max_uses,
+        expires_at: createForm.expires_at || null,
+      };
+      const response = await adminAPI.createInfluencer(dataToSend);
+      if (response.pending_approval || response.data?.pending_approval) {
+        setMessage({ type: 'success', text: response.message || response.data?.message || 'Demande soumise pour validation par le Superviseur (L2)' });
+      } else {
+        setMessage({ type: 'success', text: `Influenceur "${createForm.name}" créé avec le code ${createForm.promo_code}` });
       }
-      if (!createForm.promo_code) {
-        setMessage({ type: 'error', text: 'Le code promo est requis' });
-        return;
-      }
-      try {
-        setActionLoading(true);
-        const dataToSend = {
-          name: createForm.name,
-          email: createForm.email,
-          password: createForm.password,
-          phone: createForm.phone ? `+243${createForm.phone.replace(/^\+?243/, '')}` : '',
-          promo_code: createForm.promo_code,
-          discount_type: createForm.discount_type,
-          discount_value: createForm.discount_value,
-          commission_rate: createForm.commission_rate,
-          max_uses: createForm.max_uses,
-          expires_at: createForm.expires_at || null,
-        };
-        const response = await adminAPI.createInfluencer(dataToSend);
-        if (response.pending_approval || response.data?.pending_approval) {
-          setMessage({ type: 'success', text: response.message || response.data?.message || 'Demande soumise pour validation par le Superviseur (L2)' });
-        } else {
-          setMessage({ type: 'success', text: `Influenceur "${createForm.name}" créé avec le code ${createForm.promo_code}` });
-        }
-        closeCreateModal();
-        await loadData();
-      } catch (error) {
-        setMessage({ type: 'error', text: error.message });
-      } finally {
-        setActionLoading(false);
-      }
-    } else {
-      if (!createForm.influencer_name.trim()) {
-        setMessage({ type: 'error', text: "Veuillez entrer le nom de l'influenceur" });
-        return;
-      }
-      if (!createForm.promo_code) {
-        setMessage({ type: 'error', text: 'Veuillez générer ou saisir un code promo' });
-        return;
-      }
-      try {
-        setActionLoading(true);
-        const response = await promosAPI.create({
-          code: createForm.promo_code,
-          influencer_name: createForm.influencer_name,
-          discount_percent: createForm.discount_value,
-          max_uses: createForm.max_uses,
-          expires_at: createForm.expires_at || null
-        });
-        if (response.pending_approval || response.data?.pending_approval) {
-          setMessage({ type: 'success', text: response.message || 'Demande de création soumise pour validation' });
-        } else {
-          setMessage({ type: 'success', text: `Code promo "${createForm.promo_code}" créé pour ${createForm.influencer_name}` });
-        }
-        closeCreateModal();
-        await loadData();
-      } catch (error) {
-        setMessage({ type: 'error', text: error.message });
-      } finally {
-        setActionLoading(false);
-      }
+      closeCreateModal();
+      await loadData();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -173,7 +140,6 @@ const AdminInfluencersPage = () => {
       max_uses: promo.max_uses || 100,
       expires_at: promo.expires_at ? promo.expires_at.split('T')[0] : ''
     });
-    setWithAccount(false);
     setShowCreateModal(true);
   };
 
@@ -207,7 +173,6 @@ const AdminInfluencersPage = () => {
   const closeCreateModal = () => {
     setShowCreateModal(false);
     setCreateForm(initialForm);
-    setWithAccount(false);
     setEditingPromo(null);
   };
 
@@ -620,42 +585,23 @@ const AdminInfluencersPage = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-md max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className={`px-5 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {editingPromo ? 'Modifier le Code Promo' : 'Nouveau Promo Influenceur'}
-              </h3>
-              <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {editingPromo ? 'Modifier les paramètres du code promo' : 'Créer un code promo, avec ou sans compte influenceur'}
-              </p>
+            <div className={`px-5 py-3 border-b flex justify-between items-start ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div>
+                <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {editingPromo ? 'Modifier le Code Promo' : 'Nouveau Promo Influenceur'}
+                </h3>
+                <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {editingPromo ? 'Modifier les paramètres du code promo' : 'Créer un influenceur avec son code promo'}
+                </p>
+              </div>
+              <button onClick={closeCreateModal} className={`p-1 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="px-5 py-3 space-y-3">
-              {/* Toggle: avec ou sans compte */}
-              {!editingPromo && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setWithAccount(false)}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${!withAccount
-                      ? (isDarkMode ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-500 text-white shadow-lg')
-                      : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-650' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')
-                    }`}
-                  >
-                    Code Promo seul
-                  </button>
-                  <button
-                    onClick={() => setWithAccount(true)}
-                    className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${withAccount
-                      ? (isDarkMode ? 'bg-purple-600 text-white shadow-lg' : 'bg-purple-500 text-white shadow-lg')
-                      : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-650' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')
-                    }`}
-                  >
-                    + Compte Influenceur
-                  </button>
-                </div>
-              )}
-
-              {/* Nom influenceur (promo-only mode or editing) */}
-              {(!withAccount || editingPromo) && (
+              {/* Nom influenceur (editing mode only) */}
+              {editingPromo && (
                 <div>
                   <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Identité de l'influenceur *
@@ -670,8 +616,8 @@ const AdminInfluencersPage = () => {
                 </div>
               )}
 
-              {/* Account fields */}
-              {withAccount && !editingPromo && (
+              {/* Account fields (always shown when creating) */}
+              {!editingPromo && (
                 <>
                   <div className={`p-3 rounded-lg text-xs ${isDarkMode ? 'bg-purple-900/20 text-purple-300 border border-purple-700' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
                     L'influenceur recevra un compte avec accès à son tableau de bord (stats, commissions, versements)
@@ -736,7 +682,7 @@ const AdminInfluencersPage = () => {
                   <input type="number" min="1" max="100" value={createForm.discount_value} onChange={(e) => setCreateForm({ ...createForm, discount_value: parseInt(e.target.value) || 0 })}
                     className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-purple-500 focus:border-transparent`} />
                 </div>
-                {withAccount && !editingPromo && (
+                {!editingPromo && (
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission (%)</label>
                     <input type="number" min="0" max="50" step="0.5" value={createForm.commission_rate} onChange={(e) => setCreateForm({ ...createForm, commission_rate: parseFloat(e.target.value) || 0 })}
@@ -762,13 +708,13 @@ const AdminInfluencersPage = () => {
               </button>
               <button
                 onClick={editingPromo ? handleUpdatePromo : handleCreate}
-                disabled={actionLoading || !createForm.promo_code || (withAccount ? (!createForm.name || !createForm.email || !createForm.password) : (!editingPromo && !createForm.influencer_name))}
+                disabled={actionLoading || !createForm.promo_code || (!editingPromo && (!createForm.name || !createForm.email || !createForm.password)) || (editingPromo && !createForm.influencer_name)}
                 className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {actionLoading ? (
                   <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> {editingPromo ? 'Mise à jour...' : 'Création...'}</>
                 ) : (
-                  editingPromo ? 'Mettre à jour' : (withAccount ? "Créer l'influenceur" : 'Créer le code promo')
+                  editingPromo ? 'Mettre à jour' : "Créer l'influenceur"
                 )}
               </button>
             </div>

@@ -144,6 +144,7 @@ const InfluencerDashboard = () => {
     }
     try {
       setPayoutLoading(true);
+      setPayoutMessage(null);
       const res = await influencerAPI.requestPayout(payoutForm);
       setPayoutMessage({ type: 'success', text: res.data?.message || res.message || 'Demande soumise !' });
       // Refresh payouts and profile
@@ -154,12 +155,15 @@ const InfluencerDashboard = () => {
       setPayouts(payoutsRes.data?.payouts || payoutsRes.data || payoutsRes.payouts || []);
       const profileData = profileRes.data?.profile || profileRes.data || profileRes.profile || profileRes;
       setProfile(profileData);
+      // Reset form and close modal after delay
       setTimeout(() => {
         setShowPayoutModal(false);
         setPayoutMessage(null);
+        setPayoutForm(prev => ({ ...prev, phone_number: '', percentage: 100, currency: 'USD' }));
       }, 3000);
     } catch (err) {
-      setPayoutMessage({ type: 'error', text: err.message || 'Erreur' });
+      console.error('Payout request error:', err);
+      setPayoutMessage({ type: 'error', text: err.message || 'Erreur lors de la demande de versement' });
     } finally {
       setPayoutLoading(false);
     }
@@ -167,7 +171,7 @@ const InfluencerDashboard = () => {
 
   // Payout day restriction disabled for testing
   const isPayoutDay = true;
-  const commissionBalance = profile?.commission_balance || 0;
+  const commissionBalance = profile?.commission_balance || summary?.total_commission_earned || 0;
 
   if (loading) {
     return (
