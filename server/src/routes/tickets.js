@@ -196,30 +196,30 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
       [userId]
     );
 
-    // Get actual total spending from purchases (total_amount is always in USD)
-    const spendingResult = await query(
-      `SELECT 
-        COALESCE(SUM(total_amount), 0) as total_spent_usd,
-        COUNT(*) as purchase_count
-       FROM purchases 
-       WHERE user_id = $1 AND payment_status = 'completed'`,
-      [userId]
-    );
-
-    const totalSpentUSD = parseFloat(spendingResult.rows[0]?.total_spent_usd) || 0;
-
+    // Get actual total spending from purchases, separated by currency
     // Get exchange rate for CDF display
     let exchangeRate = 2850;
     try {
       const rateResult = await query("SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf'");
       if (rateResult.rows.length > 0) {
-        exchangeRate = parseFloat(rateResult.rows[0].value);
+        exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
       }
     } catch (rateError) {
       console.log('Using default exchange rate:', exchangeRate);
     }
 
-    const totalSpentCDF = Math.ceil(totalSpentUSD * exchangeRate);
+    const spendingResult = await query(
+      `SELECT 
+        COALESCE(SUM(CASE WHEN UPPER(currency) = 'CDF' THEN total_amount / $2 ELSE total_amount END), 0) as total_spent_usd,
+        COALESCE(SUM(CASE WHEN UPPER(currency) = 'CDF' THEN total_amount ELSE total_amount * $2 END), 0) as total_spent_cdf,
+        COUNT(*) as purchase_count
+       FROM purchases 
+       WHERE user_id = $1 AND payment_status = 'completed'`,
+      [userId, exchangeRate]
+    );
+
+    const totalSpentUSD = parseFloat(spendingResult.rows[0]?.total_spent_usd) || 0;
+    const totalSpentCDF = Math.ceil(parseFloat(spendingResult.rows[0]?.total_spent_cdf) || 0);
 
     const stats = statsResult.rows[0] || {};
 

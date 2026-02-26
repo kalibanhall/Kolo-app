@@ -31,6 +31,10 @@ const InfluencerDashboard = () => {
   // Payout history
   const [payouts, setPayouts] = useState([]);
 
+  // Users who used my promo codes
+  const [myUsers, setMyUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
   // Message global
   const [globalMessage, setGlobalMessage] = useState(null);
 
@@ -76,6 +80,26 @@ const InfluencerDashboard = () => {
     logout();
     navigate('/');
   };
+
+  // Load users who used my promo codes
+  const loadMyUsers = useCallback(async () => {
+    try {
+      setUsersLoading(true);
+      const response = await influencerAPI.getMyUsers();
+      setMyUsers(response.users || []);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  // Load users when switching to users tab
+  useEffect(() => {
+    if (activeTab === 'users' && myUsers.length === 0) {
+      loadMyUsers();
+    }
+  }, [activeTab, loadMyUsers, myUsers.length]);
 
   // Password change handler
   const handleChangePassword = async () => {
@@ -343,6 +367,7 @@ const InfluencerDashboard = () => {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { id: 'overview', label: 'Mes Codes Promo' },
+              { id: 'users', label: 'Mes Utilisateurs' },
               { id: 'recent', label: 'Utilisations Recentes' },
               { id: 'monthly', label: 'Stats Mensuelles' },
               { id: 'payouts', label: 'Mes Versements' }
@@ -411,6 +436,83 @@ const InfluencerDashboard = () => {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab Content: Mes Utilisateurs */}
+        {activeTab === 'users' && (
+          <div className={`rounded-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow overflow-hidden`}>
+            {usersLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              </div>
+            ) : myUsers.length === 0 ? (
+              <div className="p-8 text-center">
+                <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Aucun utilisateur</p>
+                <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Personne n'a encore utilise vos codes promo
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-100 bg-gray-50'}`}>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {myUsers.length} utilisateur{myUsers.length !== 1 ? 's' : ''} unique{myUsers.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className={`text-xs uppercase ${isDarkMode ? 'bg-gray-750 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                        <th className="px-4 py-3 text-left">Utilisateur</th>
+                        <th className="px-4 py-3 text-left">Codes utilises</th>
+                        <th className="px-4 py-3 text-right">Utilisations</th>
+                        <th className="px-4 py-3 text-right">Total achats</th>
+                        <th className="px-4 py-3 text-left">Derniere utilisation</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
+                      {myUsers.map((u) => (
+                        <tr key={u.id} className={`${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'} transition-colors`}>
+                          <td className={`px-4 py-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">
+                                {u.name?.charAt(0)?.toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium">{u.name || 'Anonyme'}</div>
+                                <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{u.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {u.codes_used.map((code, idx) => (
+                                <code key={idx} className="text-xs font-mono text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">
+                                  {code}
+                                </code>
+                              ))}
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 text-sm text-right font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {u.total_uses}
+                          </td>
+                          <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            ${parseFloat(u.total_purchases || 0).toFixed(2)}
+                          </td>
+                          <td className={`px-4 py-3 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {u.last_use ? new Date(u.last_use).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}

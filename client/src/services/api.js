@@ -546,6 +546,33 @@ export const adminAPI = {
     });
   },
 
+  // Réactiver un influenceur
+  reactivateInfluencer: async (influencerId) => {
+    return await request(`/admin/influencers/${influencerId}/reactivate`, {
+      method: 'POST',
+    });
+  },
+
+  // Supprimer un influenceur définitivement
+  deleteInfluencer: async (influencerId) => {
+    return await request(`/admin/influencers/${influencerId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Obtenir les utilisateurs qui ont utilisé les codes promo d'un influenceur
+  getInfluencerUsers: async (influencerId) => {
+    return await request(`/admin/influencers/${influencerId}/users`);
+  },
+
+  // Changer le mot de passe admin (première connexion ou volontaire)
+  changeAdminPassword: async (data) => {
+    return await request('/admin/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Payout management
   getInfluencerPayouts: async (status) => {
     const qs = status ? `?status=${status}` : '';
@@ -695,6 +722,7 @@ export const influencerAPI = {
   changePassword: async (data) => request('/influencer/change-password', { method: 'POST', body: JSON.stringify(data) }),
   requestPayout: async (data) => request('/influencer/payout-request', { method: 'POST', body: JSON.stringify(data) }),
   getPayouts: async () => request('/influencer/payouts'),
+  getMyUsers: async () => request('/influencer/my-users'),
 };
 
 // Export par défaut

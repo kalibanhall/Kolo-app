@@ -1,16 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChartIcon, CampaignIcon, UsersIcon, MoneyIcon, TargetIcon, SettingsIcon, LogoutIcon, TrophyIcon, TicketIcon, ShieldIcon, StarIcon } from './Icons';
 import { LogoKolo } from './LogoKolo';
+import { adminAPI } from '../services/api';
 
 export const AdminLayout = ({ children }) => {
-  const { user, logout, isAdmin, getAdminLevel } = useAuth();
+  const { user, logout, isAdmin, getAdminLevel, checkAuth } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Password change modal for first login
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState(null);
+
+  // Check if admin needs to change password on first login
+  useEffect(() => {
+    if (user?.must_change_password && user?.is_admin) {
+      setShowPasswordModal(true);
+    }
+  }, [user]);
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.current_password || !passwordForm.new_password) {
+      setPasswordMessage({ type: 'error', text: 'Veuillez remplir tous les champs' });
+      return;
+    }
+    if (passwordForm.new_password.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'Le nouveau mot de passe doit contenir au moins 6 caractères' });
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordMessage({ type: 'error', text: 'Les mots de passe ne correspondent pas' });
+      return;
+    }
+    try {
+      setPasswordLoading(true);
+      await adminAPI.changeAdminPassword({
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password
+      });
+      setPasswordMessage({ type: 'success', text: 'Mot de passe modifié avec succès !' });
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      // Refresh auth state to clear must_change_password
+      await checkAuth(true);
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordMessage(null);
+      }, 1500);
+    } catch (error) {
+      setPasswordMessage({ type: 'error', text: error.message || 'Erreur lors du changement de mot de passe' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const adminLevel = getAdminLevel();
 
@@ -162,6 +210,58 @@ export const AdminLayout = ({ children }) => {
           © {new Date().getFullYear()} KOLO Admin
         </footer>
       </div>
+
+      {/* ===== ADMIN PASSWORD CHANGE MODAL (first login) ===== */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'} p-6`}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {user?.must_change_password ? 'Changez votre mot de passe' : 'Modifier le mot de passe'}
+              </h2>
+              {!user?.must_change_password && (
+                <button onClick={() => { setShowPasswordModal(false); setPasswordMessage(null); }} className={`p-1 rounded ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+            {user?.must_change_password && (
+              <p className={`text-sm mb-4 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                ⚠️ Pour votre sécurité, veuillez changer le mot de passe fourni par l'administrateur avant de continuer.
+              </p>
+            )}
+            {passwordMessage && (
+              <div className={`text-sm p-3 rounded-lg mb-4 ${passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {passwordMessage.text}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Mot de passe actuel</label>
+                <input type="password" value={passwordForm.current_password} onChange={e => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  placeholder="Mot de passe actuel" />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nouveau mot de passe</label>
+                <input type="password" value={passwordForm.new_password} onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  placeholder="Minimum 6 caractères" />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Confirmer le mot de passe</label>
+                <input type="password" value={passwordForm.confirm_password} onChange={e => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  placeholder="Répétez le nouveau mot de passe" />
+              </div>
+              <button onClick={handleChangePassword} disabled={passwordLoading}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50">
+                {passwordLoading ? 'Modification...' : 'Changer le mot de passe'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

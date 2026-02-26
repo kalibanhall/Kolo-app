@@ -13,7 +13,9 @@ const AdminInfluencersPage = () => {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
   const [selectedInfluencer, setSelectedInfluencer] = useState(null);
+  const [influencerUsers, setInfluencerUsers] = useState([]);
 
   // Formulaires
   const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', phone: '', promo_code: '', discount_type: 'percentage', discount_value: 10, commission_rate: 5, max_uses: 100, expires_at: '' });
@@ -95,8 +97,50 @@ const AdminInfluencersPage = () => {
     try {
       setActionLoading(true);
       await adminAPI.deactivateInfluencer(influencer.id);
-      setMessage({ type: 'success', text: `${influencer.name} désactivé` });
+      setMessage({ type: 'success', text: `${influencer.name} désactivé avec ses codes promo` });
       await loadInfluencers();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReactivate = async (influencer) => {
+    if (!window.confirm(`Réactiver l'influenceur "${influencer.name}" et ses codes promo ?`)) return;
+    try {
+      setActionLoading(true);
+      await adminAPI.reactivateInfluencer(influencer.id);
+      setMessage({ type: 'success', text: `${influencer.name} réactivé avec ses codes promo` });
+      await loadInfluencers();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (influencer) => {
+    if (!window.confirm(`⚠️ SUPPRIMER DÉFINITIVEMENT l'influenceur "${influencer.name}" ?\n\nCette action est irréversible. Toutes les données liées (codes promo, historique d'utilisation, versements) seront supprimées.`)) return;
+    try {
+      setActionLoading(true);
+      await adminAPI.deleteInfluencer(influencer.id);
+      setMessage({ type: 'success', text: `${influencer.name} supprimé définitivement` });
+      await loadInfluencers();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleViewUsers = async (influencer) => {
+    try {
+      setSelectedInfluencer(influencer);
+      setActionLoading(true);
+      const response = await adminAPI.getInfluencerUsers(influencer.id);
+      setInfluencerUsers(response.users || []);
+      setShowUsersModal(true);
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -207,7 +251,13 @@ const AdminInfluencersPage = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => handleViewUsers(influencer)}
+                      className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      👥 Utilisateurs
+                    </button>
                     <button
                       onClick={() => openPromoModal(influencer)}
                       disabled={influencer.is_active === false}
@@ -215,14 +265,28 @@ const AdminInfluencersPage = () => {
                     >
                       + Code Promo
                     </button>
-                    {influencer.is_active !== false && (
+                    {influencer.is_active !== false ? (
                       <button
                         onClick={() => handleDeactivate(influencer)}
                         className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
                       >
                         Désactiver
                       </button>
+                    ) : (
+                      <button
+                        onClick={() => handleReactivate(influencer)}
+                        className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Réactiver
+                      </button>
                     )}
+                    <button
+                      onClick={() => handleDelete(influencer)}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      title="Supprimer définitivement"
+                    >
+                      🗑️
+                    </button>
                   </div>
                 </div>
 
@@ -542,6 +606,78 @@ const AdminInfluencersPage = () => {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? 'Attribution...' : 'Assigner le code'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Voir Utilisateurs d'un Influenceur */}
+      {showUsersModal && selectedInfluencer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Utilisateurs de {selectedInfluencer.name}
+              </h3>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {influencerUsers.length} utilisateur{influencerUsers.length !== 1 ? 's' : ''} ayant utilisé ses codes promo
+              </p>
+            </div>
+
+            <div className="px-6 py-4">
+              {influencerUsers.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Aucun utilisateur</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Personne n'a encore utilisé les codes promo de cet influenceur</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className={`text-xs uppercase ${isDarkMode ? 'bg-gray-750 text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                        <th className="px-3 py-2 text-left">Utilisateur</th>
+                        <th className="px-3 py-2 text-left">Code utilisé</th>
+                        <th className="px-3 py-2 text-right">Montant</th>
+                        <th className="px-3 py-2 text-right">Remise</th>
+                        <th className="px-3 py-2 text-left">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
+                      {influencerUsers.map((u, idx) => (
+                        <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'} transition-colors`}>
+                          <td className={`px-3 py-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            <div className="text-sm font-medium">{u.name || 'Anonyme'}</div>
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{u.email}</div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <code className="text-xs font-mono text-purple-500">{u.promo_code_used}</code>
+                          </td>
+                          <td className={`px-3 py-2 text-sm text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {u.purchase_amount ? `${parseFloat(u.purchase_amount).toFixed(2)} ${u.purchase_currency || 'USD'}` : '-'}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-right text-green-500 font-medium">
+                            {u.discount_applied ? `$${parseFloat(u.discount_applied).toFixed(2)}` : '-'}
+                          </td>
+                          <td className={`px-3 py-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {u.used_at ? new Date(u.used_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className={`px-6 py-4 border-t flex justify-end ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button
+                onClick={() => { setShowUsersModal(false); setSelectedInfluencer(null); setInfluencerUsers([]); }}
+                className={`px-4 py-2 rounded-lg font-medium ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                Fermer
               </button>
             </div>
           </div>

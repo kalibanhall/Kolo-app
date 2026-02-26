@@ -284,6 +284,70 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
 });
 
 // ============================================================
+// GET USERS WHO USED MY PROMO CODES (influencer-facing)
+// ============================================================
+router.get('/my-users', verifyToken, verifyInfluencer, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await query(
+      `SELECT DISTINCT u.id, u.name, u.email, u.phone, u.created_at as user_since,
+              pc.code as promo_code_used,
+              pcu.used_at,
+              pcu.discount_applied,
+              p.total_amount as purchase_amount,
+              p.currency as purchase_currency
+       FROM promo_code_usage pcu
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       JOIN users u ON pcu.user_id = u.id
+       LEFT JOIN purchases p ON pcu.purchase_id = p.id
+       WHERE pc.influencer_id = $1
+       ORDER BY pcu.used_at DESC`,
+      [userId]
+    );
+
+    // Aggregate unique users with their usage count
+    const usersMap = {};
+    result.rows.forEach(row => {
+      if (!usersMap[row.id]) {
+        usersMap[row.id] = {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          user_since: row.user_since,
+          total_uses: 0,
+          total_discount: 0,
+          total_purchases: 0,
+          codes_used: [],
+          last_use: null
+        };
+      }
+      usersMap[row.id].total_uses += 1;
+      usersMap[row.id].total_discount += parseFloat(row.discount_applied) || 0;
+      usersMap[row.id].total_purchases += parseFloat(row.purchase_amount) || 0;
+      if (!usersMap[row.id].codes_used.includes(row.promo_code_used)) {
+        usersMap[row.id].codes_used.push(row.promo_code_used);
+      }
+      if (!usersMap[row.id].last_use || new Date(row.used_at) > new Date(usersMap[row.id].last_use)) {
+        usersMap[row.id].last_use = row.used_at;
+      }
+    });
+
+    const users = Object.values(usersMap).sort((a, b) => new Date(b.last_use) - new Date(a.last_use));
+
+    res.json({
+      success: true,
+      total_unique_users: users.length,
+      users
+    });
+  } catch (error) {
+    console.error('Get influencer users error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
 // CHANGE PASSWORD (first login or voluntary)
 // ============================================================
 router.post('/change-password', verifyToken, verifyInfluencer, [

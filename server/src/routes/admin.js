@@ -3202,10 +3202,10 @@ router.post('/admins/create', requireAdminLevel(3), [
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create admin user
+    // Create admin user with must_change_password = TRUE
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, phone, is_admin, admin_level, is_active, email_verified)
-       VALUES ($1, $2, $3, $4, TRUE, $5, TRUE, TRUE)
+      `INSERT INTO users (name, email, password_hash, phone, is_admin, admin_level, is_active, email_verified, must_change_password)
+       VALUES ($1, $2, $3, $4, TRUE, $5, TRUE, TRUE, TRUE)
        RETURNING id, name, email, phone, admin_level, created_at`,
       [name, email, passwordHash, phone, admin_level]
     );
@@ -3469,9 +3469,166 @@ router.post('/influencers/:influencerId/deactivate', requireAdminLevel(3), async
       req
     );
 
-    res.json({ success: true, message: `Influenceur ${userResult.rows[0].name} désactivé` });
+    res.json({ success: true, message: `Influenceur ${userResult.rows[0].name} désactivé avec ses codes promo` });
   } catch (error) {
     console.error('Deactivate influencer error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Reactivate influencer account (admin L3)
+router.post('/influencers/:influencerId/reactivate', requireAdminLevel(3), async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+
+    const userResult = await query('SELECT id, name FROM users WHERE id = $1 AND is_influencer = TRUE', [influencerId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Influenceur non trouvé' });
+    }
+
+    await query('UPDATE users SET is_active = TRUE WHERE id = $1', [influencerId]);
+    // Reactivate their promo codes too
+    await query('UPDATE promo_codes SET is_active = TRUE WHERE influencer_id = $1', [influencerId]);
+
+    await logAdminAction(
+      req.user.id,
+      'INFLUENCER_REACTIVATED',
+      'user',
+      parseInt(influencerId),
+      { target_name: userResult.rows[0].name },
+      req
+    );
+
+    res.json({ success: true, message: `Influenceur ${userResult.rows[0].name} réactivé avec ses codes promo` });
+  } catch (error) {
+    console.error('Reactivate influencer error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Delete influencer account permanently (admin L3)
+router.delete('/influencers/:influencerId', requireAdminLevel(3), async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+
+    const userResult = await query('SELECT id, name, email FROM users WHERE id = $1 AND is_influencer = TRUE', [influencerId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Influenceur non trouvé' });
+    }
+
+    const influencerName = userResult.rows[0].name;
+
+    // Delete promo code usage records for this influencer's codes
+    await query(
+      `DELETE FROM promo_code_usage WHERE promo_code_id IN (SELECT id FROM promo_codes WHERE influencer_id = $1)`,
+      [influencerId]
+    );
+
+    // Remove promo_code_id from associated purchases
+    await query(
+      `UPDATE purchases SET promo_code_id = NULL WHERE promo_code_id IN (SELECT id FROM promo_codes WHERE influencer_id = $1)`,
+      [influencerId]
+    );
+
+    // Delete influencer's promo codes
+    await query('DELETE FROM promo_codes WHERE influencer_id = $1', [influencerId]);
+
+    // Delete influencer payouts
+    await query('DELETE FROM influencer_payouts WHERE influencer_id = $1', [influencerId]);
+
+    // Delete the user account
+    await query('DELETE FROM users WHERE id = $1', [influencerId]);
+
+    await logAdminAction(
+      req.user.id,
+      'INFLUENCER_DELETED',
+      'user',
+      parseInt(influencerId),
+      { target_name: influencerName, target_email: userResult.rows[0].email },
+      req
+    );
+
+    res.json({ success: true, message: `Influenceur ${influencerName} supprimé définitivement` });
+  } catch (error) {
+    console.error('Delete influencer error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Get users who used an influencer's promo codes (admin)
+router.get('/influencers/:influencerId/users', requireAdminLevel(1), async (req, res) => {
+  try {
+    const { influencerId } = req.params;
+
+    const influencer = await query('SELECT id, name FROM users WHERE id = $1 AND is_influencer = TRUE', [influencerId]);
+    if (influencer.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Influenceur non trouvé' });
+    }
+
+    const result = await query(
+      `SELECT DISTINCT u.id, u.name, u.email, u.phone, u.created_at as user_since,
+              pc.code as promo_code_used,
+              pcu.used_at,
+              pcu.discount_applied,
+              p.total_amount as purchase_amount,
+              p.currency as purchase_currency
+       FROM promo_code_usage pcu
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       JOIN users u ON pcu.user_id = u.id
+       LEFT JOIN purchases p ON pcu.purchase_id = p.id
+       WHERE pc.influencer_id = $1
+       ORDER BY pcu.used_at DESC`,
+      [influencerId]
+    );
+
+    res.json({
+      success: true,
+      influencer_name: influencer.rows[0].name,
+      users: result.rows
+    });
+  } catch (error) {
+    console.error('Get influencer users error:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ============================================================
+// ADMIN CHANGE PASSWORD (first login or voluntary)
+// ============================================================
+router.post('/change-password', requireAdminLevel(1), [
+  body('current_password').notEmpty(),
+  body('new_password').isLength({ min: 6 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { current_password, new_password } = req.body;
+    const userId = req.user.id;
+
+    const userResult = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    }
+
+    const isValid = await bcrypt.compare(current_password, userResult.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Mot de passe actuel incorrect' });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const newHash = await bcrypt.hash(new_password, salt);
+
+    await query(
+      'UPDATE users SET password_hash = $1, must_change_password = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newHash, userId]
+    );
+
+    res.json({ success: true, message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Admin change password error:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
