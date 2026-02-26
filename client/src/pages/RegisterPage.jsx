@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogoKoloFull } from '../components/LogoKolo';
@@ -30,12 +30,20 @@ export const RegisterPage = () => {
   });
   
   const [localError, setLocalError] = useState('');
+  const errorRef = useRef(null);
   const [phoneValidation, setPhoneValidation] = useState({ valid: false, operator: null, message: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { executeRecaptcha, isReady: recaptchaReady } = useRecaptcha();
   
+  // Scroll vers l'erreur quand elle apparaît
+  useEffect(() => {
+    if ((localError || error) && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [localError, error]);
+
   // Valider le téléphone au chargement si déjà rempli
   useEffect(() => {
     if (formData.phone && formData.phone.length === 9) {
@@ -226,7 +234,7 @@ export const RegisterPage = () => {
           </p>
 
           {(error || localError) && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div ref={errorRef} className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-red-700 text-sm">{localError || error}</p>
             </div>
           )}
@@ -436,7 +444,7 @@ export const RegisterPage = () => {
               />
               <label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer">
                 J'accepte les{' '}
-                <Link to="/terms" target="_blank" className="text-blue-600 hover:text-blue-700 underline font-medium">
+                <Link to="/terms" className="text-blue-600 hover:text-blue-700 underline font-medium">
                   conditions générales d'utilisation
                 </Link>
                 {' '}et la politique de confidentialité de KOLO.

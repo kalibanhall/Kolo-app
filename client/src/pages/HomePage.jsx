@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { campaignsAPI } from '../services/api';
 import { Navbar } from '../components/Navbar';
 import { TrophyIcon, TicketIcon, UsersIcon, TargetIcon } from '../components/Icons';
-import ImageSlider from '../components/ImageSlider';
 import Footer from '../components/Footer';
 
 export const HomePage = () => {
@@ -12,7 +11,6 @@ export const HomePage = () => {
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +49,6 @@ export const HomePage = () => {
 
   const goToSlide = useCallback((index) => {
     setCurrentIndex(index);
-    setCurrentImageIndex(0);
   }, []);
 
   const goToPrevious = useCallback(() => {
@@ -78,14 +75,7 @@ export const HomePage = () => {
     return images;
   }, [currentCampaign]);
 
-  // Auto-slide prize images every 4 seconds
-  useEffect(() => {
-    if (allCampaignImages.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentImageIndex(prev => (prev + 1) % allCampaignImages.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [allCampaignImages.length]);
+  // No auto-slide for prize images on homepage - only show first image
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
@@ -144,24 +134,19 @@ export const HomePage = () => {
                   return (
                     <div className="relative h-44 sm:h-60 md:h-72 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">
                       {allImages.length > 0 ? (
-                        <ImageSlider
-                          images={allImages}
-                          currentIndex={currentImageIndex % allImages.length}
-                          onIndexChange={setCurrentImageIndex}
-                          alt={currentCampaign.title}
-                          className="h-44 sm:h-60 md:h-72 opacity-90"
-                          showArrows={true}
-                          showDots={true}
-                          dotsPosition="bottom"
-                          linkWrapper={<Link to={`/campaigns/${currentCampaign.id}`} className="group cursor-pointer" />}
-                        >
+                        <Link to={`/campaigns/${currentCampaign.id}`} className="absolute inset-0 group cursor-pointer">
+                          <img
+                            src={allImages[0]}
+                            alt={currentCampaign.title}
+                            className="w-full h-full object-cover opacity-90"
+                          />
                           {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <span className="bg-white/90 text-gray-900 px-4 py-2 rounded-full font-semibold shadow-lg text-sm">
                               Voir les détails →
                             </span>
                           </div>
-                        </ImageSlider>
+                        </Link>
                       ) : (
                         <Link to={`/campaigns/${currentCampaign.id}`} className="absolute inset-0 flex items-center justify-center group cursor-pointer">
                           <div className="text-center text-white">
