@@ -33,7 +33,7 @@ function Write-Info($message) {
     Write-ColorOutput Yellow "ℹ️  $message"
 }
 
-function Write-Error($message) {
+function Write-Err($message) {
     Write-ColorOutput Red "❌ $message"
 }
 
@@ -76,7 +76,7 @@ Write-Host ""
 Write-Step "Vérification des prérequis"
 
 if (-not (Get-Command ssh -ErrorAction SilentlyContinue)) {
-    Write-Error "OpenSSH Client n'est pas installe!"
+    Write-Err "OpenSSH Client n'est pas installe!"
     Write-Info "Pour l'installer:"
     Write-Info "  1. Parametres Windows - Applications - Fonctionnalites facultatives"
     Write-Info "  2. Ajouter 'Client OpenSSH'"
@@ -89,7 +89,7 @@ Write-Success "OpenSSH Client trouvé"
 # Vérifier que le script de déploiement existe
 $deployScript = Join-Path $PSScriptRoot "deploy-to-vps.sh"
 if (-not (Test-Path $deployScript)) {
-    Write-Error "Script deploy-to-vps.sh introuvable!"
+    Write-Err "Script deploy-to-vps.sh introuvable!"
     Write-Info "Assurez-vous d'être dans le bon répertoire"
     exit 1
 }
@@ -100,10 +100,13 @@ Write-Success "Script de déploiement trouvé: $deployScript"
 Write-Step "Test de connexion SSH"
 Write-Info "Connexion à $SshUser@$VpsIp..."
 
+$ErrorActionPreference = "Continue"
 $testConnection = ssh -o BatchMode=yes -o ConnectTimeout=5 "$SshUser@$VpsIp" "echo OK" 2>&1
+$sshTestCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Impossible de se connecter au VPS"
+if ($sshTestCode -ne 0) {
+    Write-Err "Impossible de se connecter au VPS"
     Write-Info "Verifiez:"
     Write-Info "  1. L'IP est correcte: $VpsIp"
     Write-Info "  2. Vous avez configure une cle SSH ou connaissez le mot de passe"
@@ -130,8 +133,8 @@ try {
     
     Write-Success "Script transfere vers $remotePath"
 } catch {
-    Write-Error "Echec du transfert du script"
-    Write-Error $_.Exception.Message
+    Write-Err "Echec du transfert du script"
+    Write-Err $_.Exception.Message
     exit 1
 }
 
@@ -161,32 +164,35 @@ Write-Info "Connexion au VPS et execution du script..."
 Write-Host ""
 
 # Execute on VPS - use semicolon instead of &&
+$ErrorActionPreference = "Continue"
 ssh -t "$SshUser@$VpsIp" "chmod +x $remotePath; sudo bash $remotePath"
+$sshExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
 
-if ($LASTEXITCODE -eq 0) {
+if ($sshExitCode -ne 0) {
     Write-Host ""
-    Write-Host "==========================================" -ForegroundColor Green
-    Write-Host "   DEPLOIEMENT REUSSI !" -ForegroundColor Green
-    Write-Host "==========================================" -ForegroundColor Green
-    Write-Host ""
-    Write-Success "Application KOLO deployee sur http://$VpsIp"
-    Write-Host ""
-    Write-Info "Compte Admin:"
-    Write-Host "  Email: admin@kolo.com"
-    Write-Host "  Mot de passe: Admin@2025"
-    Write-Host "  Niveau: L3 (Acces complet)"
-    Write-Host ""
-    Write-Info "Commandes utiles:"
-    Write-Host "  ssh $SshUser@$VpsIp 'pm2 logs kolo-api'      # Voir les logs"
-    Write-Host "  ssh $SshUser@$VpsIp 'pm2 restart kolo-api'   # Redemarrer"
-    Write-Host "  ssh $SshUser@$VpsIp 'pm2 status'             # Statut"
-    Write-Host ""
-    Write-Info "Ouvrez http://$VpsIp dans votre navigateur!"
-    Write-Host ""
-} else {
-    Write-Host ""
-    Write-Error "Le deploiement a echoue"
+    Write-Err "Le deploiement a echoue"
     Write-Info "Consultez les logs ci-dessus pour plus de details"
     Write-Info "Pour reessayer: .\deploy-vps.ps1"
     exit 1
 }
+
+Write-Host ""
+Write-Host "==========================================" -ForegroundColor Green
+Write-Host "   DEPLOIEMENT REUSSI !" -ForegroundColor Green
+Write-Host "==========================================" -ForegroundColor Green
+Write-Host ""
+Write-Success "Application KOLO deployee sur http://$VpsIp"
+Write-Host ""
+Write-Info "Compte Admin:"
+Write-Host "  Email: admin@kolo.com"
+Write-Host "  Mot de passe: Admin@2025"
+Write-Host "  Niveau: L3 (Acces complet)"
+Write-Host ""
+Write-Info "Commandes utiles:"
+Write-Host "  ssh $SshUser@$VpsIp 'pm2 logs kolo-api'      # Voir les logs"
+Write-Host "  ssh $SshUser@$VpsIp 'pm2 restart kolo-api'   # Redemarrer"
+Write-Host "  ssh $SshUser@$VpsIp 'pm2 status'             # Statut"
+Write-Host ""
+Write-Info "Ouvrez http://$VpsIp dans votre navigateur!"
+Write-Host ""

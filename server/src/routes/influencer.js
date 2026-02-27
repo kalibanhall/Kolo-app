@@ -58,6 +58,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
             total_discount_given: 0,
             total_commission: 0,
             total_commission_earned: 0,
+            total_commission_usd: 0,
+            total_commission_cdf: 0,
             total_revenue_generated: 0
           },
           exchange_rate: 2850,
@@ -122,6 +124,30 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
 
     const revenue = revenueResult.rows[0];
 
+    // Calculate commission earned split by currency (percentage of purchase amount)
+    const commissionSplitResult = await query(
+      `SELECT pcu.promo_code_id,
+              COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) != 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as commission_usd,
+              COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) = 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as commission_cdf
+       FROM promo_code_usage pcu
+       JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
+       WHERE pcu.promo_code_id = ANY($1)
+       GROUP BY pcu.promo_code_id`,
+      [promoIds]
+    );
+
+    const commissionPerCode = {};
+    let totalCommissionUsd = 0;
+    let totalCommissionCdf = 0;
+    commissionSplitResult.rows.forEach(row => {
+      const usd = Math.round((parseFloat(row.commission_usd) || 0) * 100) / 100;
+      const cdf = Math.round(parseFloat(row.commission_cdf) || 0);
+      commissionPerCode[row.promo_code_id] = { usd, cdf };
+      totalCommissionUsd += usd;
+      totalCommissionCdf += cdf;
+    });
+
     // Get recent uses (last 20)
     const recentResult = await query(
       `SELECT pcu.*, pc.code, pc.commission_rate,
@@ -129,7 +155,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
               p.total_amount as purchase_amount,
               p.currency as purchase_currency,
               CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
-                   ELSE p.total_amount END as purchase_amount_usd
+                   ELSE p.total_amount END as purchase_amount_usd,
+              CASE WHEN p.total_amount IS NOT NULL THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END as commission_amount
        FROM promo_code_usage pcu
        JOIN promo_codes pc ON pcu.promo_code_id = pc.id
        JOIN users u ON pcu.user_id = u.id
@@ -141,7 +168,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     );
 
     // Get monthly stats (last 6 months)
-    // Commission = COUNT(uses) × fixed commission_rate per code
+    // Commission = percentage of purchase amount per use
     const monthlyResult = await query(
       `SELECT 
         TO_CHAR(pcu.used_at, 'YYYY-MM') as month,
@@ -152,7 +179,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           CASE WHEN UPPER(p.currency) = 'CDF' THEN p.total_amount / $2
                ELSE p.total_amount END
         ), 0) as revenue,
-        COALESCE(SUM(pc.commission_rate), 0) as commission
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) != 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as commission_usd,
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) = 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as commission_cdf
        FROM promo_code_usage pcu
        LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
        JOIN promo_codes pc ON pcu.promo_code_id = pc.id
@@ -167,9 +195,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
     let totalUses = 0;
     let totalUsers = 0;
     let totalDiscountGiven = 0;
-    let totalCommissionEarned = 0;
 
-    // Commission = number of uses × fixed commission rate per use
+    // Commission = percentage of purchase amount per use (already calculated in commissionPerCode)
     promoCodes.forEach(pc => {
       const stats = usageMap[pc.id];
       const uses = stats ? (parseInt(stats.total_uses) || 0) : (parseInt(pc.current_uses) || 0);
@@ -178,8 +205,6 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         totalUsers += parseInt(stats.unique_users) || 0;
         totalDiscountGiven += parseFloat(stats.total_discount) || 0;
       }
-      const commRate = parseFloat(pc.commission_rate) || 0;
-      totalCommissionEarned += uses * commRate;
     });
 
     const totalRevenueGenerated = parseFloat(revenue.total_revenue) || 0;
@@ -193,8 +218,10 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           unique_users: parseInt(revenue.unique_buyers) || 0,
           total_users: parseInt(revenue.unique_buyers) || 0,
           total_discount_given: totalDiscountGiven,
-          total_commission: totalCommissionEarned,
-          total_commission_earned: totalCommissionEarned,
+          total_commission_usd: Math.round(totalCommissionUsd * 100) / 100,
+          total_commission_cdf: Math.round(totalCommissionCdf),
+          total_commission: Math.round(totalCommissionUsd * 100) / 100,
+          total_commission_earned: Math.round(totalCommissionUsd * 100) / 100,
           total_revenue_generated: totalRevenueGenerated,
           total_purchases: parseInt(revenue.total_purchases) || 0
         },
@@ -202,7 +229,7 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         promo_stats: promoCodes.map(pc => {
           const uses = usageMap[pc.id] ? parseInt(usageMap[pc.id].total_uses) : parseInt(pc.current_uses) || 0;
           const commRate = parseFloat(pc.commission_rate) || 0;
-          const commissionEarned = uses * commRate;
+          const codeComm = commissionPerCode[pc.id] || { usd: 0, cdf: 0 };
           return {
             code_id: pc.id,
             code: pc.code,
@@ -213,7 +240,9 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
             total_uses: uses,
             max_uses: pc.max_uses,
             unique_users: usageMap[pc.id] ? parseInt(usageMap[pc.id].unique_users) : 0,
-            commission_earned: commissionEarned,
+            commission_earned: codeComm.usd,
+            commission_earned_usd: codeComm.usd,
+            commission_earned_cdf: codeComm.cdf,
             revenue: revenuePerCode[pc.id] || 0,
             created_at: pc.created_at,
             expires_at: pc.expires_at,
@@ -241,6 +270,8 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
         })),
         recent_uses: recentResult.rows.map(r => {
           const amountUsd = r.purchase_amount_usd ? parseFloat(r.purchase_amount_usd) : null;
+          const commAmount = parseFloat(r.commission_amount) || 0;
+          const purchaseCurrency = r.purchase_currency || 'USD';
           return {
             id: r.id,
             code: r.code,
@@ -248,9 +279,10 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
             user_email: r.user_email,
             discount_applied: parseFloat(r.discount_applied),
             amount: amountUsd,
-            purchase_amount: amountUsd,
-            currency: r.purchase_currency || 'USD',
-            commission_earned: parseFloat(r.commission_rate) || 0,
+            purchase_amount: parseFloat(r.purchase_amount) || 0,
+            currency: purchaseCurrency,
+            commission_earned: purchaseCurrency.toUpperCase() === 'CDF' ? 0 : Math.round(commAmount * 100) / 100,
+            commission_earned_cdf: purchaseCurrency.toUpperCase() === 'CDF' ? Math.round(commAmount) : 0,
             used_at: r.used_at
           };
         }),
@@ -260,7 +292,9 @@ router.get('/dashboard', verifyToken, verifyInfluencer, async (req, res) => {
           unique_users: parseInt(m.unique_users),
           discount_total: parseFloat(m.discount_total),
           revenue: parseFloat(m.revenue),
-          commission: parseFloat(m.commission) || 0
+          commission_usd: Math.round((parseFloat(m.commission_usd) || 0) * 100) / 100,
+          commission_cdf: Math.round(parseFloat(m.commission_cdf) || 0),
+          commission: Math.round((parseFloat(m.commission_usd) || 0) * 100) / 100
         }))
       }
     });
@@ -402,33 +436,48 @@ router.get('/profile', verifyToken, verifyInfluencer, async (req, res) => {
     } catch (e) { /* fallback */ }
 
     // Get commission balance (total earned minus total paid out)
-    // Commission = number of uses × fixed commission_rate per promo code
+    // Commission = percentage of purchase amount per promo code usage, split by currency
     const commissionResult = await query(
-      `SELECT COALESCE(SUM(pc.commission_rate), 0) as total_earned
+      `SELECT 
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) != 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as total_earned_usd,
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) = 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as total_earned_cdf
        FROM promo_code_usage pcu
        JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
        WHERE pc.influencer_id = $1`,
       [req.user.id]
     );
 
     const paidOutResult = await query(
-      `SELECT COALESCE(SUM(amount), 0) as total_paid
+      `SELECT 
+        COALESCE(SUM(CASE WHEN currency = 'USD' THEN amount ELSE 0 END), 0) as total_paid_usd,
+        COALESCE(SUM(CASE WHEN currency = 'CDF' THEN amount ELSE 0 END), 0) as total_paid_cdf
        FROM influencer_payouts
-       WHERE influencer_id = $1 AND status IN ('approved', 'paid') AND currency = 'USD'`,
+       WHERE influencer_id = $1 AND status IN ('approved', 'paid')`,
       [req.user.id]
     );
 
-    const totalEarned = parseFloat(commissionResult.rows[0].total_earned) || 0;
-    const totalPaid = parseFloat(paidOutResult.rows[0].total_paid) || 0;
-    const balance = totalEarned - totalPaid;
+    const totalEarnedUsd = Math.round((parseFloat(commissionResult.rows[0].total_earned_usd) || 0) * 100) / 100;
+    const totalEarnedCdf = Math.round(parseFloat(commissionResult.rows[0].total_earned_cdf) || 0);
+    const totalPaidUsd = parseFloat(paidOutResult.rows[0].total_paid_usd) || 0;
+    const totalPaidCdf = parseFloat(paidOutResult.rows[0].total_paid_cdf) || 0;
+    const balanceUsd = Math.round((totalEarnedUsd - totalPaidUsd) * 100) / 100;
+    const balanceCdf = Math.round(totalEarnedCdf - totalPaidCdf);
 
     res.json({
       success: true,
       profile: {
         ...result.rows[0],
-        commission_balance: balance,
-        total_earned: totalEarned,
-        total_paid_out: totalPaid
+        commission_balance: balanceUsd,
+        commission_balance_usd: balanceUsd,
+        commission_balance_cdf: balanceCdf,
+        total_earned_usd: totalEarnedUsd,
+        total_earned_cdf: totalEarnedCdf,
+        total_paid_out_usd: totalPaidUsd,
+        total_paid_out_cdf: totalPaidCdf,
+        total_earned: totalEarnedUsd,
+        total_paid_out: totalPaidUsd,
+        exchange_rate: exchangeRate
       }
     });
   } catch (error) {
@@ -488,64 +537,58 @@ router.post('/payout-request', verifyToken, verifyInfluencer, [
       });
     }
 
-    // Get exchange rate for CDF->USD conversion
-    let payoutExchangeRate = 2850;
-    try {
-      const rateRes = await query(
-        "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
-      );
-      if (rateRes.rows.length > 0) {
-        payoutExchangeRate = parseFloat(rateRes.rows[0].value) || 2850;
-      }
-    } catch (e) { /* fallback */ }
-
-    // Calculate available balance: commission = nb uses × fixed commission_rate
+    // Calculate available balance: commission = percentage of purchase amount, split by currency
     const commResult = await query(
-      `SELECT COALESCE(SUM(pc.commission_rate), 0) as total_earned
+      `SELECT 
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) != 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as total_earned_usd,
+        COALESCE(SUM(CASE WHEN UPPER(COALESCE(p.currency,'USD')) = 'CDF' THEN p.total_amount * pc.commission_rate / 100 ELSE 0 END), 0) as total_earned_cdf
        FROM promo_code_usage pcu
        JOIN promo_codes pc ON pcu.promo_code_id = pc.id
+       LEFT JOIN purchases p ON pcu.purchase_id = p.id AND p.payment_status = 'completed'
        WHERE pc.influencer_id = $1`,
       [userId]
     );
 
     const paidResult = await query(
-      `SELECT COALESCE(SUM(amount), 0) as total_paid
+      `SELECT 
+        COALESCE(SUM(CASE WHEN currency = 'USD' THEN amount ELSE 0 END), 0) as total_paid_usd,
+        COALESCE(SUM(CASE WHEN currency = 'CDF' THEN amount ELSE 0 END), 0) as total_paid_cdf
        FROM influencer_payouts
-       WHERE influencer_id = $1 AND status IN ('approved', 'paid') AND currency = 'USD'`,
+       WHERE influencer_id = $1 AND status IN ('approved', 'paid')`,
       [userId]
     );
 
-    const totalEarned = parseFloat(commResult.rows[0].total_earned) || 0;
-    const totalPaid = parseFloat(paidResult.rows[0].total_paid) || 0;
-    const balance = totalEarned - totalPaid;
+    const totalEarnedUsd = Math.round((parseFloat(commResult.rows[0].total_earned_usd) || 0) * 100) / 100;
+    const totalEarnedCdf = Math.round(parseFloat(commResult.rows[0].total_earned_cdf) || 0);
+    const totalPaidUsd = parseFloat(paidResult.rows[0].total_paid_usd) || 0;
+    const totalPaidCdf = parseFloat(paidResult.rows[0].total_paid_cdf) || 0;
+    const balanceUsd = Math.round((totalEarnedUsd - totalPaidUsd) * 100) / 100;
+    const balanceCdf = Math.round(totalEarnedCdf - totalPaidCdf);
+
+    // Determine which balance to use based on requested currency
+    const finalCurrency = currency || 'USD';
+    let balance;
+    if (finalCurrency === 'CDF') {
+      balance = balanceCdf;
+    } else {
+      balance = balanceUsd;
+    }
 
     if (balance <= 0) {
       return res.status(400).json({ success: false, message: 'Solde insuffisant pour effectuer un versement' });
     }
 
     // Calculate amount based on percentage
-    let amount = balance * (percentage / 100);
-    amount = Math.round(amount * 100) / 100; // Round to 2 decimals
-
-    // Ensure amount is positive after rounding
-    if (amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Montant insuffisant pour effectuer un versement (solde trop faible)' });
+    let finalAmount = balance * (percentage / 100);
+    if (finalCurrency === 'CDF') {
+      finalAmount = Math.round(finalAmount); // Round to whole FC
+    } else {
+      finalAmount = Math.round(finalAmount * 100) / 100; // Round to 2 decimals
     }
 
-    // If currency is CDF, get exchange rate and convert
-    let finalAmount = amount;
-    let finalCurrency = currency || 'USD';
-    if (finalCurrency === 'CDF') {
-      let exchangeRate = 2850;
-      try {
-        const rateResult = await query(
-          "SELECT value FROM app_settings WHERE key = 'exchange_rate_usd_cdf' LIMIT 1"
-        );
-        if (rateResult.rows.length > 0) {
-          exchangeRate = parseFloat(rateResult.rows[0].value) || 2850;
-        }
-      } catch (e) { /* fallback */ }
-      finalAmount = Math.round(amount * exchangeRate);
+    // Ensure amount is positive after rounding
+    if (finalAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Montant insuffisant pour effectuer un versement (solde trop faible)' });
     }
 
     // Final safety check

@@ -171,7 +171,9 @@ const InfluencerDashboard = () => {
 
   // Payout day restriction disabled for testing
   const isPayoutDay = true;
-  const commissionBalance = profile?.commission_balance || summary?.total_commission_earned || 0;
+  const commissionBalanceUsd = profile?.commission_balance_usd ?? profile?.commission_balance ?? summary?.total_commission_usd ?? 0;
+  const commissionBalanceCdf = profile?.commission_balance_cdf ?? summary?.total_commission_cdf ?? 0;
+  const commissionBalance = commissionBalanceUsd; // backward compat
 
   if (loading) {
     return (
@@ -205,6 +207,10 @@ const InfluencerDashboard = () => {
   const formatFC = (usdAmount) => {
     const fc = Math.round(parseFloat(usdAmount || 0) * exchangeRate);
     return fc.toLocaleString('fr-FR') + ' FC';
+  };
+
+  const formatCDF = (cdfAmount) => {
+    return Math.round(parseFloat(cdfAmount || 0)).toLocaleString('fr-FR') + ' FC';
   };
 
   return (
@@ -322,10 +328,10 @@ const InfluencerDashboard = () => {
               <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Ma Commission</p>
             </div>
             <p className="text-2xl font-bold text-purple-500">
-              ${parseFloat(commissionBalance).toFixed(2)}
+              ${parseFloat(commissionBalanceUsd).toFixed(2)}
             </p>
             <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
-              {formatFC(commissionBalance)}
+              {formatCDF(commissionBalanceCdf)}
             </p>
           </div>
 
@@ -341,15 +347,15 @@ const InfluencerDashboard = () => {
             </div>
             <button
               onClick={() => {
-                if (commissionBalance <= 0) {
+                if (commissionBalanceUsd <= 0 && commissionBalanceCdf <= 0) {
                   setGlobalMessage({ type: 'error', text: 'Solde insuffisant pour effectuer un versement.' });
                   return;
                 }
                 setShowPayoutModal(true);
               }}
-              disabled={commissionBalance <= 0}
+              disabled={commissionBalanceUsd <= 0 && commissionBalanceCdf <= 0}
               className={`w-full mt-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                commissionBalance > 0
+                (commissionBalanceUsd > 0 || commissionBalanceCdf > 0)
                   ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
@@ -357,7 +363,7 @@ const InfluencerDashboard = () => {
               Demande de versement
             </button>
             <p className={`text-[10px] mt-1.5 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-              {commissionBalance > 0 ? 'Cliquez pour demander' : 'Solde insuffisant'}
+              {(commissionBalanceUsd > 0 || commissionBalanceCdf > 0) ? 'Cliquez pour demander' : 'Solde insuffisant'}
             </p>
           </div>
         </div>
@@ -428,9 +434,9 @@ const InfluencerDashboard = () => {
                         <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{promo.unique_users || 0}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission (${promo.commission_rate || 0} / utilisation)</p>
-                        <p className="text-lg font-bold text-purple-500">${parseFloat(promo.commission_earned || 0).toFixed(2)}</p>
-                        <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatFC(promo.commission_earned || 0)}</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ma commission ({promo.commission_rate || 0}%)</p>
+                        <p className="text-lg font-bold text-purple-500">${parseFloat(promo.commission_earned_usd || promo.commission_earned || 0).toFixed(2)}</p>
+                        <p className={`text-xs font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatCDF(promo.commission_earned_cdf || 0)}</p>
                       </div>
                     </div>
                   </div>
@@ -545,10 +551,16 @@ const InfluencerDashboard = () => {
                         <td className="px-4 py-3"><code className="text-sm font-mono text-purple-500">{use.code}</code></td>
                         <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{use.user_name || 'Anonyme'}</td>
                         <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          ${parseFloat(use.amount || 0).toFixed(2)}
+                          {use.currency === 'CDF'
+                            ? `${parseFloat(use.purchase_amount || 0).toLocaleString('fr-FR')} FC`
+                            : `$${parseFloat(use.amount || 0).toFixed(2)}`
+                          }
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-green-500 font-medium">
-                          +${parseFloat(use.commission_earned || 0).toFixed(2)}
+                          {use.currency === 'CDF'
+                            ? `+${Math.round(parseFloat(use.commission_earned_cdf || 0)).toLocaleString('fr-FR')} FC`
+                            : `+$${parseFloat(use.commission_earned || 0).toFixed(2)}`
+                          }
                         </td>
                       </tr>
                     ))}
@@ -603,8 +615,8 @@ const InfluencerDashboard = () => {
                               {new Date(stat.month + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                             </td>
                             <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{stat.uses}</td>
-                            <td className="px-4 py-3 text-sm text-right text-purple-500 font-medium">${parseFloat(stat.commission || 0).toFixed(2)}</td>
-                            <td className={`px-4 py-3 text-sm text-right font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatFC(stat.commission || 0)}</td>
+                            <td className="px-4 py-3 text-sm text-right text-purple-500 font-medium">${parseFloat(stat.commission_usd || stat.commission || 0).toFixed(2)}</td>
+                            <td className={`px-4 py-3 text-sm text-right font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatCDF(stat.commission_cdf || 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -612,9 +624,9 @@ const InfluencerDashboard = () => {
                         <tr className={`font-bold ${isDarkMode ? 'bg-gray-750 text-white' : 'bg-gray-50 text-gray-900'}`}>
                           <td className="px-4 py-3 text-sm">Total</td>
                           <td className="px-4 py-3 text-sm text-right">{monthlyStats.reduce((acc, s) => acc + parseInt(s.uses || 0), 0)}</td>
-                          <td className="px-4 py-3 text-sm text-right text-purple-500">${monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission || 0), 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-purple-500">${monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission_usd || s.commission || 0), 0).toFixed(2)}</td>
                           <td className={`px-4 py-3 text-sm text-right ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>
-                            {formatFC(monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission || 0), 0))}
+                            {formatCDF(monthlyStats.reduce((acc, s) => acc + parseFloat(s.commission_cdf || 0), 0))}
                           </td>
                         </tr>
                       </tfoot>
@@ -748,8 +760,8 @@ const InfluencerDashboard = () => {
               </button>
             </div>
             <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Solde disponible : <span className="font-bold text-purple-500">${parseFloat(commissionBalance).toFixed(2)}</span>
-              <span className={`ml-1 ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatFC(commissionBalance)}</span>
+              Solde disponible : <span className="font-bold text-purple-500">${parseFloat(commissionBalanceUsd).toFixed(2)}</span>
+              <span className={`ml-1 ${isDarkMode ? 'text-purple-300' : 'text-purple-400'}`}>{formatCDF(commissionBalanceCdf)}</span>
             </p>
             {payoutMessage && (
               <div className={`text-sm p-3 rounded-lg mb-4 ${payoutMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -773,10 +785,21 @@ const InfluencerDashboard = () => {
                 <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Montant a retirer</label>
                 <select value={payoutForm.percentage} onChange={e => setPayoutForm({ ...payoutForm, percentage: parseInt(e.target.value) })}
                   className={`w-full px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-purple-500`}>
-                  <option value={100}>100% &mdash; ${(commissionBalance * 1).toFixed(2)}</option>
-                  <option value={75}>75% &mdash; ${(commissionBalance * 0.75).toFixed(2)}</option>
-                  <option value={50}>50% &mdash; ${(commissionBalance * 0.50).toFixed(2)}</option>
-                  <option value={25}>25% &mdash; ${(commissionBalance * 0.25).toFixed(2)}</option>
+                  {payoutForm.currency === 'CDF' ? (
+                    <>
+                      <option value={100}>100% &mdash; {Math.round(commissionBalanceCdf * 1).toLocaleString('fr-FR')} FC</option>
+                      <option value={75}>75% &mdash; {Math.round(commissionBalanceCdf * 0.75).toLocaleString('fr-FR')} FC</option>
+                      <option value={50}>50% &mdash; {Math.round(commissionBalanceCdf * 0.50).toLocaleString('fr-FR')} FC</option>
+                      <option value={25}>25% &mdash; {Math.round(commissionBalanceCdf * 0.25).toLocaleString('fr-FR')} FC</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value={100}>100% &mdash; ${(commissionBalanceUsd * 1).toFixed(2)}</option>
+                      <option value={75}>75% &mdash; ${(commissionBalanceUsd * 0.75).toFixed(2)}</option>
+                      <option value={50}>50% &mdash; ${(commissionBalanceUsd * 0.50).toFixed(2)}</option>
+                      <option value={25}>25% &mdash; ${(commissionBalanceUsd * 0.25).toFixed(2)}</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -789,12 +812,26 @@ const InfluencerDashboard = () => {
               </div>
               <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                 <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Montant demande : <span className="text-purple-500 font-bold">
-                    {payoutForm.currency === 'CDF'
-                      ? `${Math.round(commissionBalance * (payoutForm.percentage / 100) * exchangeRate).toLocaleString('fr-FR')} FC`
-                      : `$${(commissionBalance * (payoutForm.percentage / 100)).toFixed(2)}`
-                    }
-                  </span>
+                  Montant demande :{' '}
+                  {payoutForm.currency === 'CDF' ? (
+                    <>
+                      <span className="text-purple-500 font-bold">
+                        {Math.round(commissionBalanceCdf * (payoutForm.percentage / 100)).toLocaleString('fr-FR')} FC
+                      </span>
+                      <span className={`ml-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        (~${(commissionBalanceCdf * (payoutForm.percentage / 100) / exchangeRate).toFixed(2)})
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-purple-500 font-bold">
+                        ${(commissionBalanceUsd * (payoutForm.percentage / 100)).toFixed(2)}
+                      </span>
+                      <span className={`ml-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        (~{Math.round(commissionBalanceUsd * (payoutForm.percentage / 100) * exchangeRate).toLocaleString('fr-FR')} FC)
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
               <button onClick={handlePayoutRequest} disabled={payoutLoading}
