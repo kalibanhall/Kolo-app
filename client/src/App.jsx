@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 import { ScrollToTop } from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
+import { IOSInstallPrompt } from './components/IOSInstallPrompt';
 
 // Critical pages loaded immediately
 import { LoginPage } from './pages/LoginPage';
@@ -263,6 +264,7 @@ function App() {
             </Suspense>
           </NotificationsProvider>
         </AuthProvider>
+        <IOSInstallPrompt />
       </Router>
       </ThemeProvider>
       </ErrorBoundary>

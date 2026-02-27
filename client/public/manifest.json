@@ -1,7 +1,10 @@
 {
+  "id": "/",
   "name": "KOLO Tombola",
   "short_name": "KOLO",
   "description": "Plateforme sécurisée de tombola en ligne",
+  "lang": "fr",
+  "categories": ["entertainment", "games", "lifestyle"],
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
