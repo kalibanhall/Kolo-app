@@ -63,8 +63,11 @@ const ImageSlider = ({
   }, [currentIndex, goTo]);
 
   // --- Touch handlers ---
+  const [swiping, setSwiping] = useState(false);
+
   const handleTouchStart = useCallback((e) => {
     const touch = e.touches[0];
+    setSwiping(false);
     setDragState({
       isDragging: true,
       startX: touch.clientX,
@@ -79,28 +82,34 @@ const ImageSlider = ({
     const deltaX = Math.abs(touch.clientX - dragState.startX);
     const deltaY = Math.abs(touch.clientY - dragState.startY);
     
-    // If horizontal movement is greater, prevent vertical scroll
-    if (deltaX > deltaY && deltaX > 10) {
-      e.preventDefault();
+    // Only consider it a horizontal swipe if clearly horizontal (2:1 ratio, 30px min)
+    if (!swiping && deltaX > 30 && deltaX > deltaY * 2) {
+      setSwiping(true);
     }
     
-    setDragState(prev => ({ ...prev, currentX: touch.clientX }));
-  }, [dragState.isDragging, dragState.startX, dragState.startY]);
+    // Only update drag position if actively swiping horizontally
+    if (swiping) {
+      setDragState(prev => ({ ...prev, currentX: touch.clientX }));
+    }
+  }, [dragState.isDragging, dragState.startX, dragState.startY, swiping]);
 
   const handleTouchEnd = useCallback(() => {
     if (!dragState.isDragging) return;
-    const deltaX = dragState.currentX - dragState.startX;
     
-    if (Math.abs(deltaX) > swipeThreshold) {
-      if (deltaX < 0) {
-        goTo(currentIndex + 1); // Swipe left → next
-      } else {
-        goTo(currentIndex - 1); // Swipe right → prev
+    if (swiping) {
+      const deltaX = dragState.currentX - dragState.startX;
+      if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX < 0) {
+          goTo(currentIndex + 1); // Swipe left → next
+        } else {
+          goTo(currentIndex - 1); // Swipe right → prev
+        }
       }
     }
     
+    setSwiping(false);
     setDragState({ isDragging: false, startX: 0, currentX: 0, startY: 0 });
-  }, [dragState, swipeThreshold, currentIndex, goTo]);
+  }, [dragState, swiping, swipeThreshold, currentIndex, goTo]);
 
   // --- Mouse drag handlers ---
   const handleMouseDown = useCallback((e) => {
@@ -154,8 +163,8 @@ const ImageSlider = ({
 
   if (imageCount === 0) return null;
 
-  // Calculate visual drag offset for smooth feedback
-  const dragOffset = dragState.isDragging ? dragState.currentX - dragState.startX : 0;
+  // Calculate visual drag offset for smooth feedback (only when swiping)
+  const dragOffset = swiping ? dragState.currentX - dragState.startX : 0;
 
   const imageElement = (
     <img
@@ -210,12 +219,12 @@ const ImageSlider = ({
     <div className={containerClassName}>
       <div
         ref={containerRef}
-        className="relative select-none touch-pan-y"
+        className="relative select-none"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
-        style={{ touchAction: 'pan-y pinch-zoom' }}
+        style={{ touchAction: swiping ? 'pan-x' : 'pan-y pinch-zoom' }}
       >
         {/* Image (optionally wrapped in a link) */}
         {linkWrapper

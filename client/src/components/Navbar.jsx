@@ -28,6 +28,26 @@ const Navbar = () => {
     setUserMenuOpen(false);
   }, [location.pathname]);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const scrollY = window.scrollY;
+      document.body.classList.add('menu-open');
+      document.body.style.top = `-${scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.classList.remove('menu-open');
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
+      }
+    }
+    return () => {
+      document.body.classList.remove('menu-open');
+      document.body.style.top = '';
+    };
+  }, [mobileMenuOpen]);
+
   const handleLogout = () => {
     const confirmed = logout();
     if (confirmed) {
@@ -207,10 +227,16 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Menu - Compact Modern Slide */}
-      <div className={`md:hidden fixed inset-x-0 top-12 bottom-0 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out ${
+      {mobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 top-12 bg-black/20 z-40"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      <div className={`md:hidden fixed inset-x-0 top-12 bottom-0 bg-white dark:bg-gray-900 transform transition-transform duration-300 ease-in-out z-50 ${
         mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
-        <div className="h-full overflow-y-auto px-3 py-3">
+        <div className="h-full overflow-y-auto overscroll-contain px-3 py-3" style={{ WebkitOverflowScrolling: 'touch' }}>
           {/* User Info (if logged in) - Compact */}
           {user && (
             <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg mb-3">

@@ -5,6 +5,9 @@
 @layer base {
   html {
     font-size: 16px;
+    /* Ensure scroll always works on mobile */
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
   }
   
   /* Smaller base font on mobile */
@@ -17,6 +20,15 @@
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    overscroll-behavior-y: contain;
+  }
+  
+  /* When mobile menu is open, only body scroll is locked (class-based) */
+  body.menu-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
   }
   
   /* Dark mode body styles */
