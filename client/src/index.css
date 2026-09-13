@@ -8,20 +8,35 @@
     /* Ensure scroll always works on mobile */
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
+    /* A single element slightly wider than the viewport (a table, a long
+       unbreakable string, a fixed-width badge, ...) makes mobile browsers
+       zoom the whole page out to fit it, so the app looks "shrunk" and
+       disproportionate on iPhone/Android instead of just scrolling that
+       one element. Clip stray horizontal overflow at the root so it can
+       no longer resize the viewport. */
+    overflow-x: hidden;
+    width: 100%;
   }
-  
+
   /* Smaller base font on mobile */
   @media (max-width: 640px) {
     html {
       font-size: 14px;
     }
   }
-  
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  #root {
+    overflow-x: hidden;
+    width: 100%;
   }
   
   /* When mobile menu is open, only body scroll is locked (class-based) */
