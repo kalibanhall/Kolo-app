@@ -1080,7 +1080,8 @@ router.post(
                 } else {
                   promoDiscountUSD = parseFloat(promo.discount_value);
                 }
-                promoDiscountUSD = Math.min(promoDiscountUSD, baseAmountUSD);
+                // Round to 2 decimals to avoid floating-point precision issues
+                promoDiscountUSD = parseFloat(Math.min(promoDiscountUSD, baseAmountUSD).toFixed(2));
             }
           }
         } catch (promoErr) {
@@ -1090,7 +1091,8 @@ router.post(
 
       // Use server-calculated amount (with promo applied) instead of trusting frontend
       const baseAmountUSD = parseFloat(campaign.ticket_price) * ticket_count;
-      const discountedAmountUSD = baseAmountUSD - promoDiscountUSD;
+      // Round to 2 decimals to avoid floating-point issues (e.g. 2.7209000000000003)
+      const discountedAmountUSD = parseFloat((baseAmountUSD - promoDiscountUSD).toFixed(2));
 
       // Fetch exchange rate from DB (same source as /api/campaigns/exchange-rate)
       let exchangeRate = 2850;

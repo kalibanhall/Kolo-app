@@ -63,6 +63,13 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# User-uploaded files (stored on the VPS disk, not in git)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Local VPS data backups (DB dumps, .env secrets) — never commit
+vps-backup/
+
 # Temporary files
 tmp/
 temp/

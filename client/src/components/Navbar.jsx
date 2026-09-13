@@ -205,6 +205,14 @@ const Navbar = () => {
           <div className="flex md:hidden items-center space-x-1">
             <ThemeToggle compact />
             {user && <NotificationBell compact />}
+            {!user && (
+              <Link
+                to="/register"
+                className="px-3 py-1 text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-full transition shadow-md"
+              >
+                S'inscrire
+              </Link>
+            )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"

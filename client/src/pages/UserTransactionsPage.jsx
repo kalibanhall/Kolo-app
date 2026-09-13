@@ -168,17 +168,34 @@ const UserTransactionsPage = () => {
     { value: 'bonus', label: 'Bonus' }
   ];
 
+  // Sum a stat per currency instead of collapsing mixed USD/CDF amounts into
+  // one number — formatCurrency() was previously called without a currency
+  // argument here, so it always fell back to labeling the total "FC" even
+  // when the underlying transactions were in USD.
+  const sumByCurrency = (type) => {
+    const totals = {};
+    transactions
+      .filter(t => t.type === type && t.status === 'completed')
+      .forEach(t => {
+        const currency = t.currency || 'CDF';
+        totals[currency] = (totals[currency] || 0) + parseFloat(t.amount || 0);
+      });
+    return totals;
+  };
+
   // Calculate stats
   const stats = {
-    totalDeposits: transactions
-      .filter(t => t.type === 'deposit' && t.status === 'completed')
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0),
-    totalPurchases: transactions
-      .filter(t => t.type === 'purchase' && t.status === 'completed')
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0),
-    totalRefunds: transactions
-      .filter(t => t.type === 'refund' && t.status === 'completed')
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+    totalDeposits: sumByCurrency('deposit'),
+    totalPurchases: sumByCurrency('purchase'),
+    totalRefunds: sumByCurrency('refund')
+  };
+
+  const renderStatAmount = (totalsByCurrency, sign) => {
+    const entries = Object.entries(totalsByCurrency);
+    if (entries.length === 0) {
+      return `${sign}${formatCurrency(0, 'CDF')}`;
+    }
+    return entries.map(([currency, amount]) => `${sign}${formatCurrency(amount, currency)}`).join(' / ');
   };
 
   if (loading && transactions.length === 0) {
@@ -240,7 +257,7 @@ const UserTransactionsPage = () => {
           }`}>
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Rechargements</p>
             <p className={`text-lg font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>
-              +{formatCurrency(stats.totalDeposits)}
+              {renderStatAmount(stats.totalDeposits, '+')}
             </p>
           </div>
           <div className={`rounded-2xl p-4 ${
@@ -248,7 +265,7 @@ const UserTransactionsPage = () => {
           }`}>
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Achats</p>
             <p className={`text-lg font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-              -{formatCurrency(stats.totalPurchases)}
+              {renderStatAmount(stats.totalPurchases, '-')}
             </p>
           </div>
           <div className={`rounded-2xl p-4 ${
@@ -256,7 +273,7 @@ const UserTransactionsPage = () => {
           }`}>
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Remboursements</p>
             <p className={`text-lg font-bold ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-              +{formatCurrency(stats.totalRefunds)}
+              {renderStatAmount(stats.totalRefunds, '+')}
             </p>
           </div>
         </div>
@@ -361,7 +378,7 @@ const UserTransactionsPage = () => {
                     </p>
                     {transaction.balance_after != null && (
                     <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                      Solde: {formatCurrency(transaction.balance_after)}
+                      Solde: {formatCurrency(transaction.balance_after, transaction.currency)}
                     </p>
                     )}
                   </div>

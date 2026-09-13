@@ -164,10 +164,10 @@ const sendCampaignReminders = cron.schedule('0 9 * * *', async () => {
     console.log('🔔 Running campaign reminder cron job...');
 
     // Find campaigns ending in the next 24 hours (PostgreSQL syntax)
-    const upcomingCampaigns = await query(
+    const { rows: upcomingCampaigns } = await query(
       `SELECT id, title, end_date, ticket_price
-       FROM campaigns 
-       WHERE status = 'open' 
+       FROM campaigns
+       WHERE status = 'open'
        AND end_date BETWEEN NOW() AND NOW() + INTERVAL '24 hours'`
     );
 
@@ -176,7 +176,7 @@ const sendCampaignReminders = cron.schedule('0 9 * * *', async () => {
       return;
     }
 
-    console.log(`📌 Found ${upcomingCampaigns.length} campaign(s) ending soon:`, 
+    console.log(`📌 Found ${upcomingCampaigns.length} campaign(s) ending soon:`,
       upcomingCampaigns.map(c => c.title).join(', ')
     );
 

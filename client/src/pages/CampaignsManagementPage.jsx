@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { useAuth } from '../context/AuthContext';
-import { campaignsAPI } from '../services/api';
+import api, { campaignsAPI } from '../services/api';
 import { FilterPanel } from '../components/FilterPanel';
 import { exportCampaigns, formatDateForExport } from '../utils/exportUtils';
 
@@ -65,6 +65,8 @@ export const CampaignsManagementPage = () => {
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [prizeImagePreviews, setPrizeImagePreviews] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingPrizeImages, setUploadingPrizeImages] = useState(false);
 
   useEffect(() => {
     loadCampaigns();
@@ -147,42 +149,68 @@ export const CampaignsManagementPage = () => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) : value,
+      // Keep the raw (empty) string while the user is clearing/retyping a
+      // number field instead of collapsing it to NaN, which used to get
+      // serialized as `null` and fail the backend's isInt/isFloat validation.
+      [name]: type === 'number' ? (value === '' ? '' : parseFloat(value)) : value,
     }));
   };
 
-  const handleImageChange = (e, type) => {
+  // Images used to be read as base64 and embedded directly in the campaign's
+  // JSON payload. Editing a campaign then re-sent every existing photo back
+  // in the request body, which regularly exceeded the server's JSON size
+  // limit and made saves fail. Photos are now uploaded as real files to
+  // /api/upload (stored on the VPS disk) and only the returned URL is kept
+  // on the campaign.
+  const handleImageChange = async (e, type) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (type === 'campaign') {
-          setImagePreview(reader.result);
-          setFormData(prev => ({ ...prev, image_url: reader.result }));
-        }
-      };
-      reader.readAsDataURL(file);
+    e.target.value = '';
+    if (!file || type !== 'campaign') return;
+
+    try {
+      setUploadingImage(true);
+      setError(null);
+      const body = new FormData();
+      body.append('image', file);
+      body.append('folder', 'campaigns');
+      const response = await api.post('/upload/image', body);
+      const url = response.data?.data?.url;
+      if (url) {
+        setImagePreview(url);
+        setFormData(prev => ({ ...prev, image_url: url }));
+      }
+    } catch (err) {
+      setError(err.message || "Erreur lors de l'envoi de l'image");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
-  const handlePrizeImagesChange = (e) => {
+  const handlePrizeImagesChange = async (e) => {
     const files = Array.from(e.target.files);
+    e.target.value = '';
     const remaining = 6 - prizeImagePreviews.length;
     const filesToAdd = files.slice(0, remaining);
-    
-    filesToAdd.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPrizeImagePreviews(prev => {
-          if (prev.length >= 6) return prev;
-          const updated = [...prev, reader.result];
-          setFormData(prevForm => ({ ...prevForm, prize_images: updated, prize_image_url: updated[0] || '' }));
-          return updated;
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+    if (filesToAdd.length === 0) return;
+
+    try {
+      setUploadingPrizeImages(true);
+      setError(null);
+      const body = new FormData();
+      filesToAdd.forEach(file => body.append('images', file));
+      body.append('folder', 'campaigns');
+      const response = await api.post('/upload/images', body);
+      const uploadedUrls = (response.data?.data || []).map(r => r.url).filter(Boolean);
+      setPrizeImagePreviews(prev => {
+        const updated = [...prev, ...uploadedUrls].slice(0, 6);
+        setFormData(prevForm => ({ ...prevForm, prize_images: updated, prize_image_url: updated[0] || '' }));
+        return updated;
+      });
+    } catch (err) {
+      setError(err.message || "Erreur lors de l'envoi des photos");
+    } finally {
+      setUploadingPrizeImages(false);
+    }
   };
 
   const removePrizeImage = (index) => {
@@ -233,6 +261,7 @@ export const CampaignsManagementPage = () => {
 
   const handleEdit = (campaign) => {
     setEditingCampaign(campaign);
+    const existingPrizeImages = campaign.prize_images || (campaign.prize_image_url ? [campaign.prize_image_url] : []);
     setFormData({
       title: campaign.title || '',
       description: campaign.description || '',
@@ -246,10 +275,12 @@ export const CampaignsManagementPage = () => {
       draw_date: campaign.draw_date ? campaign.draw_date.split('T')[0] : '',
       status: campaign.status || 'draft',
       image_url: campaign.image_url || '',
-      prize_image_url: campaign.prize_image_url || ''
+      prize_image_url: campaign.prize_image_url || '',
+      // Without this, formData.prize_images stayed undefined on edit and the
+      // save request wiped the campaign's prize photos (sent as null).
+      prize_images: existingPrizeImages
     });
     setImagePreview(campaign.image_url);
-    const existingPrizeImages = campaign.prize_images || (campaign.prize_image_url ? [campaign.prize_image_url] : []);
     setPrizeImagePreviews(existingPrizeImages);
     setShowForm(true);
   };
@@ -462,6 +493,9 @@ export const CampaignsManagementPage = () => {
                   <option value="Tombola Kolo Moto">Tombola Kolo Moto</option>
                   <option value="Tombola Kolo Ordinateur">Tombola Kolo Ordinateur</option>
                   <option value="Tombola Kolo Générateur solaire">Tombola Kolo Générateur solaire</option>
+                  <option value="Tombola Kolo Voyage">Tombola Kolo Voyage</option>
+                  <option value="Tombola Kolo Terrain">Tombola Kolo Terrain</option>
+                  <option value="Tombola Kolo Bilanga">Tombola Kolo Bilanga</option>
                 </select>
               </div>
 
@@ -524,7 +558,9 @@ export const CampaignsManagementPage = () => {
                     Image de couverture
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    {imagePreview ? (
+                    {uploadingImage ? (
+                      <div className="py-8 text-gray-500 text-sm">Envoi de l'image...</div>
+                    ) : imagePreview ? (
                       <div className="relative">
                         <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
                         <button
@@ -571,7 +607,10 @@ export const CampaignsManagementPage = () => {
                         ))}
                       </div>
                     )}
-                    {prizeImagePreviews.length < 6 && (
+                    {uploadingPrizeImages && (
+                      <p className="text-center text-gray-500 text-sm py-2">Envoi des photos...</p>
+                    )}
+                    {prizeImagePreviews.length < 6 && !uploadingPrizeImages && (
                       <div className="text-center">
                         <p className="text-gray-600 mb-2 text-sm">
                           {prizeImagePreviews.length === 0 ? 'Ajouter des photos du prix' : 'Ajouter plus de photos'}
@@ -722,9 +761,12 @@ export const CampaignsManagementPage = () => {
               <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={uploadingImage || uploadingPrizeImages}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingCampaign ? 'Mettre à jour' : 'Créer la campagne'}
+                  {uploadingImage || uploadingPrizeImages
+                    ? 'Envoi des photos...'
+                    : editingCampaign ? 'Mettre à jour' : 'Créer la campagne'}
                 </button>
                 <button
                   type="button"

@@ -119,8 +119,10 @@ const BuyTicketsPage = () => {
       totalDiscount = promoDiscount.max_discount;
       discountPerTicket = totalDiscount / actualTicketCount;
     }
+    // Round to 2 decimals to avoid floating-point precision issues
+    totalDiscount = parseFloat(totalDiscount.toFixed(2));
     const newTotal = price * actualTicketCount;
-    const finalAmount = Math.max(0, newTotal - totalDiscount);
+    const finalAmount = parseFloat(Math.max(0, newTotal - totalDiscount).toFixed(2));
 
     // Only update if values actually changed
     if (promoDiscount.discount_amount !== totalDiscount || promoDiscount.final_amount !== finalAmount) {
@@ -222,9 +224,11 @@ const BuyTicketsPage = () => {
   };
 
   // Load available numbers when campaign is loaded
-  const fetchAvailableNumbers = async () => {
+  // `silent=true` is used for background refreshes so the grid doesn't
+  // flash a loading spinner and reset the user's view every 10s.
+  const fetchAvailableNumbers = async (silent = false) => {
     if (!campaign) return;
-    setLoadingNumbers(true);
+    if (!silent) setLoadingNumbers(true);
     try {
       // Charger tous les numéros disponibles (jusqu'à 50000)
       const pageSize = 10000;
@@ -236,7 +240,7 @@ const BuyTicketsPage = () => {
       }
       // Continuer à charger s'il y a plus de numéros
       setHasMoreNumbers((response.numbers || []).length === pageSize);
-      
+
       // Mettre à jour le nombre de tickets disponibles depuis la réponse API
       if (response.total_available !== undefined) {
         setAvailableTickets(response.total_available);
@@ -244,7 +248,7 @@ const BuyTicketsPage = () => {
     } catch (err) {
       console.error('Error loading available numbers:', err);
     } finally {
-      setLoadingNumbers(false);
+      if (!silent) setLoadingNumbers(false);
     }
   };
 
@@ -253,12 +257,13 @@ const BuyTicketsPage = () => {
   }, [campaign, numbersPage]);
 
   // Rafraîchir les numéros disponibles toutes les 10 secondes (pour synchronisation en temps réel)
+  // en mode silencieux pour ne pas interrompre une sélection manuelle en cours.
   useEffect(() => {
     if (!campaign) return;
     const interval = setInterval(() => {
-      fetchAvailableNumbers();
+      fetchAvailableNumbers(true);
     }, 10000); // 10 secondes
-    
+
     return () => clearInterval(interval);
   }, [campaign]);
 
@@ -335,7 +340,9 @@ const BuyTicketsPage = () => {
           totalDiscount = promo.max_discount;
           discountPerTicket = totalDiscount / ticketCount;
         }
-        const finalAmount = Math.max(0, totalPrice - totalDiscount);
+        totalDiscount = parseFloat(totalDiscount.toFixed(2));
+        discountPerTicket = parseFloat(discountPerTicket.toFixed(2));
+        const finalAmount = parseFloat(Math.max(0, totalPrice - totalDiscount).toFixed(2));
         
         setPromoDiscount({
           ...promo,
@@ -489,7 +496,7 @@ const BuyTicketsPage = () => {
         }
       } else {
         // Payment via PayDRC (MOKO Afrika) Mobile Money
-        const amountToCharge = selectedCurrency === 'CDF' ? finalPrice * exchangeRate : finalPrice;
+        const amountToCharge = selectedCurrency === 'CDF' ? Math.ceil(finalPrice * exchangeRate) : finalPrice;
         
         console.log('Initiating PayDRC payment...', {
           campaign_id: campaign.id,
@@ -551,7 +558,7 @@ const BuyTicketsPage = () => {
 
   // Format en USD (prix de la campagne)
   const formatCurrency = (amount) => {
-    return '$' + new Intl.NumberFormat('en-US').format(amount);
+    return '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   };
 
   // Format en CDF (portefeuille)
@@ -586,10 +593,11 @@ const BuyTicketsPage = () => {
     return null;
   }
 
-  const totalPrice = ticketCount * (campaign.ticket_price || 0);
+  const totalPrice = parseFloat((ticketCount * (campaign.ticket_price || 0)).toFixed(2));
   // Code promo: dynamic discount based on promo type
-  const promoDiscountAmount = promoDiscount ? promoDiscount.discount_amount : 0;
-  const finalPrice = promoDiscount ? Math.max(0, totalPrice - promoDiscountAmount) : totalPrice;
+  const promoDiscountAmount = promoDiscount ? parseFloat((promoDiscount.discount_amount || 0).toFixed(2)) : 0;
+  // Round to 2 decimals to avoid floating-point issues (e.g. 2.7209000000000003)
+  const finalPrice = parseFloat((promoDiscount ? Math.max(0, totalPrice - promoDiscountAmount) : totalPrice).toFixed(2));
   // Calculer les tickets disponibles avec valeurs par défaut
   const totalTickets = parseInt(campaign.total_tickets) || 0;
   const soldTickets = parseInt(campaign.sold_tickets) || 0;

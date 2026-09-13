@@ -11,6 +11,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
+const path = require('path');
 require('dotenv').config();
 
 // Initialize Sentry FIRST (before any other middleware)
@@ -79,8 +80,17 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Raised from 10mb: campaign edits re-send existing base64-encoded cover +
+// prize images in the JSON body, which alone can pass 10mb and made saves
+// fail silently (nginx already allows up to 25mb via client_max_body_size).
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Serve user-uploaded images (campaign photos, etc.) stored on this VPS's
+// disk at server/uploads/<folder>/<file>. In production nginx serves this
+// path directly (see the site config); this stays as a working fallback
+// for local dev and any request nginx forwards through.
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Logging
 if (process.env.NODE_ENV !== 'production') {

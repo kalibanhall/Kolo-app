@@ -278,4 +278,58 @@ router.post('/cleanup', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/password-reset/direct
+ * Réinitialiser le mot de passe directement avec email + nouveau mot de passe
+ * (pas de token/OTP requis)
+ */
+router.post('/direct', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: 'Email et nouveau mot de passe requis' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        message: 'Le mot de passe doit contenir au moins 6 caractères' 
+      });
+    }
+
+    // Vérifier si l'utilisateur existe
+    const usersResult = await query(
+      'SELECT id, name, email FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+
+    if (usersResult.rows.length === 0) {
+      return res.status(404).json({ 
+        message: 'Aucun compte trouvé avec cette adresse email' 
+      });
+    }
+
+    const user = usersResult.rows[0];
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe
+    await query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    logger.info(`✅ Mot de passe réinitialisé directement pour ${user.email}`);
+
+    res.status(200).json({ 
+      message: 'Mot de passe réinitialisé avec succès' 
+    });
+
+  } catch (error) {
+    logger.error('Erreur lors de la réinitialisation directe:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
